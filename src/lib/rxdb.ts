@@ -287,13 +287,50 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
               return doc;
             },
           },
-          push: { batchSize: 50 },
+          push: { 
+            batchSize: 50,
+            modifier: (doc: Record<string, unknown>) => {
+              // Ensure _modified is set for push
+              if (!doc._modified) {
+                doc._modified = new Date().toISOString();
+              }
+              return doc;
+            },
+          },
         });
         replications.push(rep);
-        rep.error$.subscribe((err) => console.error(`[replication ${name}]`, err));
+        // Log replication errors with more detail
+        rep.error$.subscribe((err) => {
+          console.error(`[replication ${name}]`, err);
+          // Store error in localStorage for debugging
+          try {
+            const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
+            errors[name] = {
+              message: err?.message || String(err),
+              timestamp: new Date().toISOString(),
+            };
+            localStorage.setItem('rxdb_sync_errors', JSON.stringify(errors));
+          } catch (_) {}
+        });
+        // Log successful sync events
+        rep.received$.subscribe((doc) => {
+          console.log(`[replication ${name}] received:`, doc.id);
+        });
+        rep.sent$.subscribe((doc) => {
+          console.log(`[replication ${name}] sent:`, doc.id);
+        });
       }
     } catch (e) {
-      console.warn('Supabase replication start failed (tables may not exist yet):', e);
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error('Supabase replication start failed:', errorMsg, e);
+      // Store error for user visibility
+      try {
+        localStorage.setItem('rxdb_init_error', JSON.stringify({
+          message: errorMsg,
+          timestamp: new Date().toISOString(),
+          details: String(e),
+        }));
+      } catch (_) {}
     }
   }
 
