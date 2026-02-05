@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply m-0 bg-background-grey text-smoky-black antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-tufts-blue ring-offset-2 ring-offset-background-grey;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-slate-200/80 bg-surface shadow-card;
+  }
+  .card-hover {
+    @apply card transition-shadow duration-200 hover:shadow-card-hover;
+  }
+  .btn-primary {
+    @apply rounded-xl bg-tufts-blue px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-tufts-blue-hover active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98];
+  }
+  .input-base {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-tufts-blue focus:ring-2 focus:ring-tufts-blue/20;
+  }
+}
