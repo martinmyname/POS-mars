@@ -23,10 +23,22 @@ CREATE TABLE IF NOT EXISTS public.products (
 );
 
 -- Create unique indexes for SKU and barcode (only for non-deleted items)
--- Note: Supabase doesn't support partial unique indexes directly, so we'll handle uniqueness in application logic
--- But we can add indexes for performance
-CREATE UNIQUE INDEX IF NOT EXISTS products_sku_unique ON public.products ("sku") WHERE "_deleted" = false;
-CREATE UNIQUE INDEX IF NOT EXISTS products_barcode_unique ON public.products ("barcode") WHERE "_deleted" = false AND "barcode" IS NOT NULL;
+-- These indexes help prevent duplicates at the database level
+-- Note: Partial unique indexes with WHERE clauses are supported in PostgreSQL
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes WHERE indexname = 'products_sku_unique'
+  ) THEN
+    CREATE UNIQUE INDEX products_sku_unique ON public.products ("sku") WHERE "_deleted" = false;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes WHERE indexname = 'products_barcode_unique'
+  ) THEN
+    CREATE UNIQUE INDEX products_barcode_unique ON public.products ("barcode") WHERE "_deleted" = false AND "barcode" IS NOT NULL;
+  END IF;
+END $$;
 
 -- Orders table
 CREATE TABLE IF NOT EXISTS public.orders (
@@ -157,17 +169,80 @@ CREATE TABLE IF NOT EXISTS public.supplier_ledger (
   "_modified" timestamptz NOT NULL DEFAULT now()
 );
 
--- Enable Realtime for all tables
-ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_adjustments;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.report_notes;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.promotions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.customers;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.deliveries;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.suppliers;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.supplier_ledger;
+-- Enable Realtime for all tables (skip if already added)
+DO $$
+BEGIN
+  -- Add tables to Realtime publication if not already added
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'products'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'expenses'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'stock_adjustments'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_adjustments;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'report_notes'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.report_notes;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'promotions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.promotions;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'customers'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.customers;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'deliveries'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.deliveries;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'suppliers'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.suppliers;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'supplier_ledger'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.supplier_ledger;
+  END IF;
+END $$;
 
 -- Row Level Security (RLS) Policies
 -- Allow authenticated users to read/write all data
