@@ -272,8 +272,6 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         { name: 'supplier_ledger', collection: db.supplier_ledger },
       ] as const;
 
-      const replicationPromises: Promise<unknown>[] = [];
-
       for (const { name, collection } of tables) {
         const rep = replicateSupabase({
           collection,
@@ -302,11 +300,13 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         });
         replications.push(rep);
         
-        // Trigger immediate pull for initial sync
-        const pullPromise = rep.run().catch((err) => {
-          console.warn(`[replication ${name}] initial pull:`, err);
+        // Replication starts automatically with live: true
+        // Track replication state for sync status
+        rep.active$.subscribe((isActive) => {
+          if (isActive) {
+            console.log(`[replication ${name}] active`);
+          }
         });
-        replicationPromises.push(pullPromise);
 
         // Log replication errors with more detail
         rep.error$.subscribe((err) => {
@@ -338,14 +338,9 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         });
       }
 
-      // Wait for initial pulls to complete (don't block, but track)
-      Promise.allSettled(replicationPromises).then(() => {
-        console.log('[RxDB] Initial sync pulls completed');
-        // Store sync completion timestamp
-        try {
-          localStorage.setItem('rxdb_initial_sync_complete', new Date().toISOString());
-        } catch (_) {}
-      });
+      // Replication starts automatically with live: true
+      // Mark sync as started (completion tracked by useSyncStatus hook)
+      console.log('[RxDB] Replication started for all tables');
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error('Supabase replication start failed:', errorMsg, e);

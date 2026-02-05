@@ -16,7 +16,7 @@ export function useSyncStatus(): SyncStatus {
   const db = useRxDB();
   const [isSyncing, setIsSyncing] = useState(true);
   const [isInitialSync, setIsInitialSync] = useState(false);
-  const [syncedTables, setSyncedTables] = useState<Set<string>>(new Set());
+  const [syncedTables] = useState<Set<string>>(new Set());
   const [lastSyncCheck, setLastSyncCheck] = useState(0);
 
   const totalTables = 10; // products, orders, expenses, stock_adjustments, report_notes, promotions, customers, deliveries, suppliers, supplier_ledger
@@ -55,10 +55,9 @@ export function useSyncStatus(): SyncStatus {
         }
 
         // Check a few key tables to see if data exists or if tables are accessible
-        const [products, orders, customers] = await Promise.all([
+        const [products, orders] = await Promise.all([
           db.products.find().exec(),
           db.orders.find().exec(),
-          db.customers.find().exec(),
         ]);
         
         // If DB is ready and we can query tables, consider initial sync done
