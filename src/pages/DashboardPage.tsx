@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
+import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { formatUGX } from '@/lib/formatUGX';
 import { startOfDay, subDays } from 'date-fns';
 import {
@@ -22,6 +23,7 @@ import {
 
 export default function DashboardPage() {
   const db = useRxDB();
+  const { isSyncing, isInitialSync } = useSyncStatus();
   const [productCount, setProductCount] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [ordersToday, setOrdersToday] = useState(0);
@@ -76,6 +78,37 @@ export default function DashboardPage() {
     { to: '/customers', label: 'Customers', icon: Users },
     { to: '/settings', label: 'Settings', icon: Settings },
   ];
+
+  if (!db) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-tufts-blue border-t-transparent"></div>
+          <p className="text-slate-600">Loading database...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSyncing && !isInitialSync) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black sm:text-3xl">
+            Dashboard
+          </h1>
+          <p className="mt-1 text-slate-500">Overview of your store today</p>
+        </div>
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-tufts-blue border-t-transparent"></div>
+            <p className="text-slate-600">Syncing data from server...</p>
+            <p className="mt-1 text-sm text-slate-400">This may take a few seconds</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

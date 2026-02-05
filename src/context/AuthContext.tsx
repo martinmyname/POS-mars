@@ -34,17 +34,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     clearError();
+    setState((s) => ({ ...s, loading: true }));
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setState((s) => ({ ...s, error: error.message }));
+      setState((s) => ({ ...s, error: error.message, loading: false }));
       throw error;
     }
     if (data.session) {
       setState((s) => ({ ...s, session: data.session, user: data.user, error: null }));
       try {
+        // Initialize DB and wait a bit for initial sync to start
         await initRxDB();
+        // Give replication a moment to start pulling data
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setState((s) => ({ ...s, loading: false }));
       } catch (e) {
         console.warn('RxDB init after sign-in:', e);
+        setState((s) => ({ ...s, loading: false }));
       }
     }
   }, [clearError]);
@@ -129,7 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: false,
       }));
       if (session) {
+        // Initialize DB when session is detected
         initRxDB().catch((e) => console.warn('RxDB init on auth change:', e));
+      } else {
+        // Clear loading state if no session
+        setState((s) => ({ ...s, loading: false }));
       }
     });
 

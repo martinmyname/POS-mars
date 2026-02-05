@@ -272,6 +272,8 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         { name: 'supplier_ledger', collection: db.supplier_ledger },
       ] as const;
 
+      const replicationPromises: Promise<unknown>[] = [];
+
       for (const { name, collection } of tables) {
         const rep = replicateSupabase({
           collection,
@@ -280,7 +282,7 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
           replicationIdentifier: `${DB_NAME}-${name}`,
           live: true,
           pull: {
-            batchSize: 50,
+            batchSize: 100, // Increased batch size for faster initial sync
             modifier: (doc: Record<string, unknown>) => {
               if (doc._deleted === null) delete doc._deleted;
               if (doc._modified === null) delete doc._modified;
@@ -299,6 +301,13 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
           },
         });
         replications.push(rep);
+        
+        // Trigger immediate pull for initial sync
+        const pullPromise = rep.run().catch((err) => {
+          console.warn(`[replication ${name}] initial pull:`, err);
+        });
+        replicationPromises.push(pullPromise);
+
         // Log replication errors with more detail
         rep.error$.subscribe((err) => {
           console.error(`[replication ${name}]`, err);
@@ -315,11 +324,28 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         // Log successful sync events
         rep.received$.subscribe((doc) => {
           console.log(`[replication ${name}] received:`, doc.id);
+          // Clear errors on successful sync
+          try {
+            const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
+            if (errors[name]) {
+              delete errors[name];
+              localStorage.setItem('rxdb_sync_errors', JSON.stringify(Object.keys(errors).length > 0 ? errors : '{}'));
+            }
+          } catch (_) {}
         });
         rep.sent$.subscribe((doc) => {
           console.log(`[replication ${name}] sent:`, doc.id);
         });
       }
+
+      // Wait for initial pulls to complete (don't block, but track)
+      Promise.allSettled(replicationPromises).then(() => {
+        console.log('[RxDB] Initial sync pulls completed');
+        // Store sync completion timestamp
+        try {
+          localStorage.setItem('rxdb_initial_sync_complete', new Date().toISOString());
+        } catch (_) {}
+      });
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error('Supabase replication start failed:', errorMsg, e);
