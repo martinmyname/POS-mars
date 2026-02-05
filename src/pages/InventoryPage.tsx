@@ -41,6 +41,8 @@ export default function InventoryPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [addStockFor, setAddStockFor] = useState<string | null>(null);
   const [addStockQty, setAddStockQty] = useState('');
+  const [skuError, setSkuError] = useState<string | null>(null);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) return;
@@ -81,6 +83,50 @@ export default function InventoryPage() {
   const valuationCost = products.reduce((s, p) => s + p.stock * p.costPrice, 0);
   const valuationRetail = products.reduce((s, p) => s + p.stock * p.retailPrice, 0);
 
+  // Real-time SKU validation
+  useEffect(() => {
+    if (!db || !sku.trim()) {
+      setSkuError(null);
+      return;
+    }
+    const checkSku = async () => {
+      try {
+        const existing = await db.products.findOne({ selector: { sku: sku.trim() } }).exec();
+        if (existing && !(existing as { _deleted?: boolean })._deleted) {
+          setSkuError(`SKU "${sku.trim()}" already exists`);
+        } else {
+          setSkuError(null);
+        }
+      } catch (_) {
+        setSkuError(null);
+      }
+    };
+    const timeoutId = setTimeout(checkSku, 500); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [sku, db, products]);
+
+  // Real-time barcode validation
+  useEffect(() => {
+    if (!db || !barcode.trim()) {
+      setBarcodeError(null);
+      return;
+    }
+    const checkBarcode = async () => {
+      try {
+        const existing = await db.products.findOne({ selector: { barcode: barcode.trim() } }).exec();
+        if (existing && !(existing as { _deleted?: boolean })._deleted) {
+          setBarcodeError(`Barcode "${barcode.trim()}" already exists`);
+        } else {
+          setBarcodeError(null);
+        }
+      } catch (_) {
+        setBarcodeError(null);
+      }
+    };
+    const timeoutId = setTimeout(checkBarcode, 500); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [barcode, db, products]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!db) return;
@@ -100,13 +146,38 @@ export default function InventoryPage() {
     setSaving(true);
     setMessage(null);
     try {
+      const finalSku = sku.trim() || `prod_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const finalBarcode = barcode.trim() || undefined;
+
+      // Check for duplicate SKU
+      if (finalSku) {
+        const existingBySku = await db.products.findOne({ selector: { sku: finalSku } }).exec();
+        if (existingBySku && !(existingBySku as { _deleted?: boolean })._deleted) {
+          setMessage(`SKU "${finalSku}" already exists. Please use a different SKU.`);
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Check for duplicate barcode (if provided)
+      if (finalBarcode) {
+        const existingByBarcode = await db.products
+          .findOne({ selector: { barcode: finalBarcode } })
+          .exec();
+        if (existingByBarcode && !(existingByBarcode as { _deleted?: boolean })._deleted) {
+          setMessage(`Barcode "${finalBarcode}" already exists. Please use a different barcode.`);
+          setSaving(false);
+          return;
+        }
+      }
+
       const id = `prod_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       await db.products.insert({
         id,
-        sku: sku.trim() || id,
+        sku: finalSku,
         name: name.trim(),
         category: category.trim() || 'General',
-        barcode: barcode.trim() || undefined,
+        barcode: finalBarcode,
         retailPrice: rp,
         wholesalePrice: wp,
         costPrice: cp,
@@ -195,9 +266,27 @@ export default function InventoryPage() {
         <section className="card p-5">
           <h2 className="mb-4 font-heading text-lg font-semibold text-smoky-black">Add product</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <input type="text" placeholder="SKU (optional)" value={sku} onChange={(e) => setSku(e.target.value)} className="input-base" />
+            <div>
+              <input
+                type="text"
+                placeholder="SKU (optional)"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                className={`input-base ${skuError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {skuError && <p className="mt-1 text-xs text-red-600">{skuError}</p>}
+            </div>
             <input type="text" placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} required className="input-base" />
-            <input type="text" placeholder="Barcode (for scanner)" value={barcode} onChange={(e) => setBarcode(e.target.value)} className="input-base" />
+            <div>
+              <input
+                type="text"
+                placeholder="Barcode (for scanner)"
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                className={`input-base ${barcodeError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {barcodeError && <p className="mt-1 text-xs text-red-600">{barcodeError}</p>}
+            </div>
             <input type="text" placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} className="input-base" />
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-600">Supplier (optional)</label>
@@ -217,7 +306,11 @@ export default function InventoryPage() {
             <input type="number" placeholder="Cost price (UGX)" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} min="0" step="1" className="input-base" />
             <input type="number" placeholder="Stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" step="1" className="input-base" />
             <input type="number" placeholder="Min stock level" value={minStockLevel} onChange={(e) => setMinStockLevel(e.target.value)} min="0" step="1" className="input-base" />
-            <button type="submit" disabled={saving} className="btn-primary disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={saving || !!skuError || !!barcodeError}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {saving ? 'Saving…' : 'Add product'}
             </button>
           </form>

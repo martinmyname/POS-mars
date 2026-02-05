@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS public.products (
   "_modified" timestamptz NOT NULL DEFAULT now()
 );
 
+-- Create unique indexes for SKU and barcode (only for non-deleted items)
+-- Note: Supabase doesn't support partial unique indexes directly, so we'll handle uniqueness in application logic
+-- But we can add indexes for performance
+CREATE UNIQUE INDEX IF NOT EXISTS products_sku_unique ON public.products ("sku") WHERE "_deleted" = false;
+CREATE UNIQUE INDEX IF NOT EXISTS products_barcode_unique ON public.products ("barcode") WHERE "_deleted" = false AND "barcode" IS NOT NULL;
+
 -- Orders table
 CREATE TABLE IF NOT EXISTS public.orders (
   "id" text PRIMARY KEY,
