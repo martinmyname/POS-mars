@@ -1,4 +1,3 @@
-import React from 'react';
 import { formatUGX } from '@/lib/formatUGX';
 import { format } from 'date-fns';
 

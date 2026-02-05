@@ -316,7 +316,11 @@ export async function destroyRxDB(): Promise<void> {
   }
   replications.length = 0;
   if (dbInstance) {
-    await dbInstance.destroy();
+    try {
+      await (dbInstance as unknown as { destroy: () => Promise<void> }).destroy();
+    } catch (_) {
+      // destroy may not be available in all RxDB versions
+    }
     dbInstance = null;
   }
 }

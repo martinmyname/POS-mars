@@ -1,11 +1,11 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 
 export function SyncStatus() {
-  const [online, setOnline] = React.useState(
+  const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener('online', onOnline);
