@@ -87,6 +87,9 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
 
       <div className="receipt-paper">
         <header className="receipt-header">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <img src="/logo.png" alt="Logo" className="h-12 w-12 object-contain" />
+          </div>
           <h1 className="receipt-business">{data.businessName ?? 'Mars Kitchen Essentials'}</h1>
           {data.address ? <p className="receipt-address">{data.address}</p> : null}
           <p className="receipt-tagline">Thank you for your purchase</p>

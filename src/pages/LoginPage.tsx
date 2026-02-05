@@ -27,10 +27,13 @@ export default function LoginPage() {
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-[400px]">
         <div className="card p-8 shadow-soft">
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black">
+          <div className="mb-4 flex justify-center">
+            <img src="/logo.png" alt="Mars Kitchen Essentials" className="h-16 w-16 object-contain" />
+          </div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black text-center">
             {isSignUp ? 'Create account' : 'Sign in'}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-center text-sm text-slate-500">
             {isSignUp ? 'Register for Mars Kitchen Essentials' : 'Welcome back'}
           </p>
           <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">

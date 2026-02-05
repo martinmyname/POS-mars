@@ -32,9 +32,10 @@ function Header() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <Link
           to="/"
-          className="font-heading text-xl font-bold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover"
+          className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover"
         >
-          Mars Kitchen Essentials
+          <img src="/logo.png" alt="Mars Kitchen Essentials" className="h-8 w-8 object-contain" />
+          <span>Mars Kitchen Essentials</span>
         </Link>
         <div className="flex items-center gap-4">
           <SyncStatus />
