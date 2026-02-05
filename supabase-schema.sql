@@ -248,72 +248,125 @@ END $$;
 -- Allow authenticated users to read/write all data
 -- Adjust these policies based on your security requirements
 
--- Products policies
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to products"
-  ON public.products FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  -- Products policies
+  ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'products' AND policyname = 'Allow authenticated users full access to products'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to products"
+      ON public.products FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Orders policies
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to orders"
-  ON public.orders FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Orders policies
+  ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'orders' AND policyname = 'Allow authenticated users full access to orders'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to orders"
+      ON public.orders FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Expenses policies
-ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to expenses"
-  ON public.expenses FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Expenses policies
+  ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'expenses' AND policyname = 'Allow authenticated users full access to expenses'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to expenses"
+      ON public.expenses FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Stock adjustments policies
-ALTER TABLE public.stock_adjustments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to stock_adjustments"
-  ON public.stock_adjustments FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Stock adjustments policies
+  ALTER TABLE public.stock_adjustments ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'stock_adjustments' AND policyname = 'Allow authenticated users full access to stock_adjustments'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to stock_adjustments"
+      ON public.stock_adjustments FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Report notes policies
-ALTER TABLE public.report_notes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to report_notes"
-  ON public.report_notes FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Report notes policies
+  ALTER TABLE public.report_notes ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'report_notes' AND policyname = 'Allow authenticated users full access to report_notes'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to report_notes"
+      ON public.report_notes FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Promotions policies
-ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to promotions"
-  ON public.promotions FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Promotions policies
+  ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'promotions' AND policyname = 'Allow authenticated users full access to promotions'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to promotions"
+      ON public.promotions FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Customers policies
-ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to customers"
-  ON public.customers FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Customers policies
+  ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Allow authenticated users full access to customers'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to customers"
+      ON public.customers FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Deliveries policies
-ALTER TABLE public.deliveries ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to deliveries"
-  ON public.deliveries FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Deliveries policies
+  ALTER TABLE public.deliveries ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'deliveries' AND policyname = 'Allow authenticated users full access to deliveries'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to deliveries"
+      ON public.deliveries FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Suppliers policies
-ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to suppliers"
-  ON public.suppliers FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Suppliers policies
+  ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'suppliers' AND policyname = 'Allow authenticated users full access to suppliers'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to suppliers"
+      ON public.suppliers FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
 
--- Supplier ledger policies
-ALTER TABLE public.supplier_ledger ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users full access to supplier_ledger"
-  ON public.supplier_ledger FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  -- Supplier ledger policies
+  ALTER TABLE public.supplier_ledger ENABLE ROW LEVEL SECURITY;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'supplier_ledger' AND policyname = 'Allow authenticated users full access to supplier_ledger'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to supplier_ledger"
+      ON public.supplier_ledger FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+END $$;
