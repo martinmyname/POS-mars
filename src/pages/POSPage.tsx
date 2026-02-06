@@ -26,6 +26,7 @@ type ProductRow = {
   retailPrice: number;
   costPrice: number;
   stock: number;
+  minStockLevel?: number;
 };
 
 const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; image: string; code?: string }[] = [
@@ -36,7 +37,6 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; image: string; cod
 
 export default function POSPage() {
   const db = useRxDB();
-  const navigate = useNavigate();
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -48,7 +48,6 @@ export default function POSPage() {
   const [editingPriceFor, setEditingPriceFor] = useState<string | null>(null);
   const [editPriceInput, setEditPriceInput] = useState('');
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
-  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastDeliveryCreated, setLastDeliveryCreated] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quickSearch, setQuickSearch] = useState('');
@@ -81,6 +80,7 @@ export default function POSPage() {
             retailPrice: d.retailPrice,
             costPrice: d.costPrice,
             stock: d.stock,
+            minStockLevel: d.minStockLevel,
           }))
       );
     });
@@ -426,7 +426,6 @@ export default function POSPage() {
       setDeliveryCustomerName('');
       setDeliveryPhone('');
       setDeliveryAddress('');
-      setDeliveryAmountToCollect('');
       setIsDeposit(false);
       setDepositAmount('');
       setDepositCustomerName('');
@@ -511,7 +510,7 @@ export default function POSPage() {
                   </div>
                   <div className="text-right">
                     <span className="block font-semibold text-emerald-700">{formatUGX(p.retailPrice)}</span>
-                    <span className={`text-xs ${p.stock <= p.minStockLevel ? 'text-red-600' : 'text-slate-500'}`}>
+                    <span className={`text-xs ${p.minStockLevel != null && p.stock <= p.minStockLevel ? 'text-red-600' : 'text-slate-500'}`}>
                       Stock: {p.stock}
                     </span>
                   </div>

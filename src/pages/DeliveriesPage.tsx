@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
-import { format, startOfDay, isBefore } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive } from 'lucide-react';
 import type { Delivery as DeliveryType, DeliveryStatus, DeliveryPaymentStatus, Order } from '@/types';
 
@@ -65,7 +65,7 @@ export default function DeliveriesPage() {
         }))
         .sort((a, b) => {
           // Sort by: pending/in_transit first, then by date
-          const statusPriority: Record<DeliveryStatus | 'paid', number> = {
+          const statusPriority: Record<DeliveryStatus, number> = {
             pending: 1,
             in_transit: 2,
             dispatched: 3,
@@ -716,7 +716,7 @@ export default function DeliveriesPage() {
                                 <ul className="mt-1 space-y-0.5">
                                   {order.items.map((item, idx) => (
                                     <li key={idx} className="text-slate-600">
-                                      • {item.name} × {item.qty} @ {formatUGX(item.unitPrice)}
+                                      • {(item as { name?: string }).name ?? item.productId} × {item.qty} @ {formatUGX((item as { unitPrice?: number }).unitPrice ?? item.sellingPrice)}
                                     </li>
                                   ))}
                                 </ul>

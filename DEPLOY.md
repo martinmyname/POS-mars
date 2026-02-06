@@ -62,7 +62,15 @@ git push -u origin main
 
 ---
 
-## 4. After deployment
+## 4. If deploy fails
+
+- **Build logs:** In Vercel or Netlify, open the latest deploy and check the **build logs** for the exact error.
+- **Root directory:** This repo root is the POS app. Do **not** set “Root Directory” to `pos` (leave blank or `.`).
+- **Env vars:** Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the host’s Environment Variables. Without them the app may build but auth/sync will not work.
+- **Build locally:** Run `npm run build` in the project root. If it fails locally, fix that first (e.g. TypeScript or lint errors).
+- **Node version:** Vercel/Netlify use Node 18 by default. The repo has `vercel.json` and `netlify.toml` with build command and output so no extra config is needed.
+
+## 5. After deployment
 
 - Use the hosted URL to open the POS in a browser; it works on desktop and mobile.
 - Auth and data sync use the same Supabase project as in your `.env`; keep the anon key public and restrict access in Supabase (RLS, auth) if needed.

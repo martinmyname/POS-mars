@@ -54,7 +54,6 @@ export default function DashboardPage() {
 
     const subExpenses = db.expenses.find().$.subscribe((docs) => {
       const todayStr = startOfDay(new Date()).toISOString().slice(0, 10);
-      const tomorrowStr = startOfDay(subDays(new Date(), -1)).toISOString().slice(0, 10);
       const todayExp = docs.filter(
         (d) => {
           if ((d as { _deleted?: boolean })._deleted) return false;

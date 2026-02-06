@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
 import { startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subWeeks, subMonths, subYears, format, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
-import { TrendingUp, TrendingDown, DollarSign, Package, Users, CreditCard, ShoppingCart, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -38,7 +38,7 @@ export default function ReportsPage() {
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
-  const [allCustomers, setAllCustomers] = useState<any[]>([]);
+  const [, setAllCustomers] = useState<any[]>([]);
   const [previousPeriodOrders, setPreviousPeriodOrders] = useState<number>(0);
   const [previousPeriodRevenue, setPreviousPeriodRevenue] = useState<number>(0);
   const [previousPeriodProfit, setPreviousPeriodProfit] = useState<number>(0);
@@ -159,7 +159,7 @@ export default function ReportsPage() {
             : startOfYear(subYears(new Date(), -1)).toISOString();
 
     const periodOrders = allOrders.filter((o) => o.createdAt >= start && o.createdAt < end);
-    const periodExpenses = allExpenses.filter((e) => {
+    allExpenses.filter((e) => {
       const expenseDate = e.date.slice(0, 10);
       return expenseDate >= start.slice(0, 10) && expenseDate < end.slice(0, 10);
     });

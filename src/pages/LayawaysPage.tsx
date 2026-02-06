@@ -4,7 +4,7 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { format } from 'date-fns';
-import { Package, DollarSign, CheckCircle2, XCircle } from 'lucide-react';
+import { DollarSign, CheckCircle2, XCircle } from 'lucide-react';
 
 interface LayawayItem {
   productId: string;
@@ -31,7 +31,7 @@ interface Layaway {
 
 export default function LayawaysPage() {
   const db = useRxDB();
-  const { user } = useAuth();
+  useAuth();
   const [layaways, setLayaways] = useState<Layaway[]>([]);
   const [filterStatus, setFilterStatus] = useState<'active' | 'completed' | 'cancelled' | 'all'>('all');
   const [selectedLayaway, setSelectedLayaway] = useState<string | null>(null);

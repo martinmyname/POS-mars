@@ -4,7 +4,7 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { format, startOfDay, isToday } from 'date-fns';
-import { DollarSign, Lock, Unlock, TrendingUp, TrendingDown } from 'lucide-react';
+import { Lock, Unlock, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface CashSession {
   id: string;
@@ -29,7 +29,7 @@ export default function CashManagementPage() {
   const [closingAmount, setClosingAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [inventoryExpensesTick, setInventoryExpensesTick] = useState(0);
+  const [, setInventoryExpensesTick] = useState(0);
 
   useEffect(() => {
     if (!db) return;

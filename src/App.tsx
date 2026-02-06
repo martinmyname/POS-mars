@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useLocation 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SyncStatus } from '@/components/SyncStatus';
-import { LayoutDashboard, ShoppingCart, BarChart3, Menu, Bike } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, BarChart3, Bike } from 'lucide-react';
 import '@/index.css';
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
