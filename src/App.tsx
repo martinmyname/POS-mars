@@ -1,8 +1,9 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SyncStatus } from '@/components/SyncStatus';
+import { LayoutDashboard, ShoppingCart, BarChart3, Menu, Bike } from 'lucide-react';
 import '@/index.css';
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
@@ -17,6 +18,15 @@ const CustomersPage = lazy(() => import('@/pages/CustomersPage'));
 const ReturnsPage = lazy(() => import('@/pages/ReturnsPage'));
 const DeliveriesPage = lazy(() => import('@/pages/DeliveriesPage'));
 const SuppliersPage = lazy(() => import('@/pages/SuppliersPage'));
+const LayawaysPage = lazy(() => import('@/pages/LayawaysPage'));
+const CashManagementPage = lazy(() => import('@/pages/CashManagementPage'));
+
+const BOTTOM_NAV_ITEMS = [
+  { to: '/', label: 'Home', icon: LayoutDashboard },
+  { to: '/pos', label: 'POS', icon: ShoppingCart },
+  { to: '/deliveries', label: 'Deliveries', icon: Bike },
+  { to: '/reports/daily', label: 'Reports', icon: BarChart3 },
+];
 
 function Header() {
   const { user, signOut } = useAuth();
@@ -28,24 +38,26 @@ function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-brand-white/95 shadow-soft backdrop-blur-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-brand-white/95 pt-[env(safe-area-inset-top)] shadow-soft backdrop-blur-sm">
+      <div className="mx-auto flex max-w-app items-center justify-between px-3 py-2 sm:px-6 sm:py-3">
         <Link
           to="/"
-          className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover"
+          className="flex items-center gap-2 font-heading font-bold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover"
         >
-          <img src="/logo.png" alt="Mars Kitchen Essentials" className="h-8 w-8 object-contain" />
-          <span>Mars Kitchen Essentials</span>
+          <img src="/logo.png" alt="Mars Kitchen Essentials" className="h-8 w-8 shrink-0 object-contain" />
+          <span className="hidden text-lg sm:inline sm:text-xl">Mars Kitchen Essentials</span>
+          <span className="text-lg sm:hidden">MKE POS</span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <SyncStatus />
           {user && (
             <button
               type="button"
               onClick={handleSignOut}
-              className="btn-secondary text-sm"
+              className="btn-secondary text-xs sm:text-sm"
             >
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
+              <span className="sm:hidden">Out</span>
             </button>
           )}
         </div>
@@ -54,12 +66,48 @@ function Header() {
   );
 }
 
+function BottomNav() {
+  const location = useLocation();
+  const path = location.pathname;
+
+  const items = BOTTOM_NAV_ITEMS.map((item) => ({
+    ...item,
+    active: item.to !== '/' ? path.startsWith(item.to) : path === '/',
+  }));
+
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-slate-200/80 bg-brand-white/98 pb-[env(safe-area-inset-bottom)] pt-2 shadow-bottom-nav md:hidden"
+      aria-label="Main navigation"
+    >
+      {items.map(({ to, label, icon: Icon, active }) => (
+        <Link
+          key={to}
+          to={to}
+          className={`flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 transition touch-target ${
+            active ? 'text-tufts-blue' : 'text-slate-500 hover:text-slate-700'
+          }`}
+          aria-current={active ? 'page' : undefined}
+        >
+          <Icon className="h-5 w-5" strokeWidth={2} />
+          <span className="text-[10px] font-medium">{label}</span>
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function AppLayout() {
+  const location = useLocation();
+  const isLogin = location.pathname === '/login';
+
   return (
     <div className="flex min-h-screen flex-col bg-background-grey text-smoky-black">
-      <Header />
-      <main className="flex-1 px-4 py-6 sm:px-6">
-        <div className="mx-auto max-w-6xl">
+      {!isLogin && <Header />}
+      <main
+        className={`flex-1 px-3 py-4 sm:px-6 sm:py-6 ${!isLogin ? 'pb-24 md:pb-6' : ''}`}
+      >
+        <div className="mx-auto max-w-app">
           <Suspense
             fallback={
               <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
@@ -158,11 +206,28 @@ function AppLayout() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/layaways"
+              element={
+                <ProtectedRoute>
+                  <LayawaysPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cash"
+              element={
+                <ProtectedRoute>
+                  <CashManagementPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
         </div>
       </main>
+      {!isLogin && <BottomNav />}
     </div>
   );
 }

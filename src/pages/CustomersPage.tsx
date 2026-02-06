@@ -4,10 +4,9 @@ import { useRxDB } from '@/hooks/useRxDB';
 
 export default function CustomersPage() {
   const db = useRxDB();
-  const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone: string; email?: string; address?: string }>>([]);
+  const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone: string; address?: string }>>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -17,7 +16,7 @@ export default function CustomersPage() {
       setCustomers(
         docs
           .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .map((d) => ({ id: d.id, name: d.name, phone: d.phone, email: d.email, address: d.address }))
+          .map((d) => ({ id: d.id, name: d.name, phone: d.phone, address: (d as { address?: string }).address }))
       );
     });
     return () => sub.unsubscribe();
@@ -33,13 +32,11 @@ export default function CustomersPage() {
         id,
         name: name.trim(),
         phone: phone.trim(),
-        email: email.trim() || undefined,
         address: address.trim() || undefined,
         createdAt: new Date().toISOString(),
       });
       setName('');
       setPhone('');
-      setEmail('');
       setAddress('');
     } finally {
       setSaving(false);
@@ -60,7 +57,6 @@ export default function CustomersPage() {
           <form onSubmit={handleSubmit} className="space-y-3">
             <input type="text" placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
             <input type="tel" placeholder="Phone *" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
-            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2" />
             <textarea placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="w-full rounded border border-slate-300 px-3 py-2" />
             <button type="submit" disabled={saving} className="w-full rounded-lg bg-tufts-blue py-2 font-medium text-white disabled:opacity-50">Add customer</button>
           </form>
@@ -71,7 +67,7 @@ export default function CustomersPage() {
             {customers.map((c) => (
               <li key={c.id} className="rounded border border-slate-200 bg-white p-3">
                 <p className="font-medium">{c.name}</p>
-                <p className="text-sm text-slate-600">{c.phone}{c.email ? ` · ${c.email}` : ''}</p>
+                <p className="text-sm text-slate-600">{c.phone}</p>
                 {c.address && <p className="text-sm text-slate-500">{c.address}</p>}
               </li>
             ))}

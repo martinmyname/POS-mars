@@ -167,6 +167,9 @@ const deliverySchema = {
     deliveryStatus: { type: 'string' },
     riderName: { type: 'string' },
     motorcycleId: { type: 'string' },
+    paymentReceivedAt: { type: 'string' },
+    paymentReceivedAmount: { type: 'number' },
+    paymentReceivedBy: { type: 'string' },
     notes: { type: 'string' },
     createdAt: { type: 'string' },
     deliveredAt: { type: 'string' },
@@ -212,6 +215,51 @@ const supplierLedgerSchema = {
   required: ['id', 'supplierId', 'type', 'amount', 'date'],
 };
 
+const layawaySchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 100 },
+    orderId: { type: 'string' },
+    customerName: { type: 'string' },
+    customerPhone: { type: 'string' },
+    items: { type: 'array' }, // Array of { productId, name, qty, unitPrice, totalPrice }
+    totalAmount: { type: 'number' },
+    paidAmount: { type: 'number' },
+    remainingAmount: { type: 'number' },
+    status: { type: 'string' }, // 'active' | 'completed' | 'cancelled'
+    createdAt: { type: 'string' },
+    completedAt: { type: 'string' },
+    notes: { type: 'string' },
+    _modified: { type: 'string' },
+    _deleted: { type: 'boolean' },
+  },
+  required: ['id', 'customerName', 'customerPhone', 'items', 'totalAmount', 'paidAmount', 'remainingAmount', 'status', 'createdAt'],
+};
+
+const cashSessionSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 100 },
+    date: { type: 'string' }, // YYYY-MM-DD
+    openingAmount: { type: 'number' },
+    closingAmount: { type: 'number' },
+    expectedAmount: { type: 'number' },
+    difference: { type: 'number' },
+    openedAt: { type: 'string' },
+    closedAt: { type: 'string' },
+    openedBy: { type: 'string' },
+    closedBy: { type: 'string' },
+    notes: { type: 'string' },
+    _modified: { type: 'string' },
+    _deleted: { type: 'boolean' },
+  },
+  required: ['id', 'date', 'openingAmount', 'openedAt', 'openedBy'],
+};
+
 export type MarsCollections = {
   products: import('rxdb').RxCollection;
   orders: import('rxdb').RxCollection;
@@ -223,6 +271,8 @@ export type MarsCollections = {
   deliveries: import('rxdb').RxCollection;
   suppliers: import('rxdb').RxCollection;
   supplier_ledger: import('rxdb').RxCollection;
+  layaways: import('rxdb').RxCollection;
+  cash_sessions: import('rxdb').RxCollection;
 };
 
 export type MarsDatabase = import('rxdb').RxDatabase<MarsCollections>;
@@ -251,6 +301,8 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
     deliveries: { schema: deliverySchema },
     suppliers: { schema: supplierSchema },
     supplier_ledger: { schema: supplierLedgerSchema },
+    layaways: { schema: layawaySchema },
+    cash_sessions: { schema: cashSessionSchema },
   });
 
   dbInstance = db;
@@ -270,6 +322,8 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         { name: 'deliveries', collection: db.deliveries },
         { name: 'suppliers', collection: db.suppliers },
         { name: 'supplier_ledger', collection: db.supplier_ledger },
+        { name: 'layaways', collection: db.layaways },
+        { name: 'cash_sessions', collection: db.cash_sessions },
       ] as const;
 
       for (const { name, collection } of tables) {

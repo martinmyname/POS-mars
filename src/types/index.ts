@@ -59,10 +59,10 @@ export interface Customer {
   createdAt: string;
 }
 
-export type OrderChannel = 'physical' | 'ecommerce' | 'whatsapp' | 'social';
+export type OrderChannel = 'physical' | 'ecommerce' | 'whatsapp' | 'facebook' | 'instagram' | 'tiktok';
 export type OrderType = 'retail' | 'wholesale';
 export type OrderStatus = 'pending' | 'paid' | 'delivered' | 'cancelled';
-export type PaymentMethod = 'cash' | 'mobile_money' | 'card' | 'credit' | 'deposit' | 'qr';
+export type PaymentMethod = 'cash' | 'mtn_momo' | 'airtel_pay';
 
 export interface OrderItem {
   productId: string;
@@ -162,6 +162,9 @@ export interface Delivery {
   deliveryStatus: DeliveryStatus;
   riderName?: string;
   motorcycleId?: string;
+  paymentReceivedAt?: string;
+  paymentReceivedAmount?: number;
+  paymentReceivedBy?: string;
   notes?: string;
   createdAt: string;
   deliveredAt?: string;

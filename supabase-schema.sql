@@ -136,6 +136,11 @@ CREATE TABLE IF NOT EXISTS public.deliveries (
   "paymentStatus" text NOT NULL,
   "deliveryStatus" text NOT NULL,
   "orderId" text,
+  "riderName" text,
+  "motorcycleId" text,
+  "paymentReceivedAt" text,
+  "paymentReceivedAmount" double precision,
+  "paymentReceivedBy" text,
   "notes" text,
   "createdAt" text NOT NULL,
   "deliveredAt" text,
@@ -165,6 +170,41 @@ CREATE TABLE IF NOT EXISTS public.supplier_ledger (
   "date" text NOT NULL,
   "dueDate" text,
   "note" text,
+  "_deleted" boolean NOT NULL DEFAULT false,
+  "_modified" timestamptz NOT NULL DEFAULT now()
+);
+
+-- Layaways table
+CREATE TABLE IF NOT EXISTS public.layaways (
+  "id" text PRIMARY KEY,
+  "orderId" text,
+  "customerName" text NOT NULL,
+  "customerPhone" text NOT NULL,
+  "items" jsonb NOT NULL,
+  "totalAmount" double precision NOT NULL,
+  "paidAmount" double precision NOT NULL,
+  "remainingAmount" double precision NOT NULL,
+  "status" text NOT NULL,
+  "createdAt" text NOT NULL,
+  "completedAt" text,
+  "notes" text,
+  "_deleted" boolean NOT NULL DEFAULT false,
+  "_modified" timestamptz NOT NULL DEFAULT now()
+);
+
+-- Cash sessions table
+CREATE TABLE IF NOT EXISTS public.cash_sessions (
+  "id" text PRIMARY KEY,
+  "date" text NOT NULL,
+  "openingAmount" double precision NOT NULL,
+  "closingAmount" double precision,
+  "expectedAmount" double precision,
+  "difference" double precision,
+  "openedAt" text NOT NULL,
+  "closedAt" text,
+  "openedBy" text NOT NULL,
+  "closedBy" text,
+  "notes" text,
   "_deleted" boolean NOT NULL DEFAULT false,
   "_modified" timestamptz NOT NULL DEFAULT now()
 );
@@ -241,6 +281,20 @@ BEGIN
     WHERE pubname = 'supabase_realtime' AND tablename = 'supplier_ledger'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.supplier_ledger;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'layaways'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.layaways;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'cash_sessions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.cash_sessions;
   END IF;
 END $$;
 
@@ -366,6 +420,26 @@ BEGIN
   ) THEN
     CREATE POLICY "Allow authenticated users full access to supplier_ledger"
       ON public.supplier_ledger FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'layaways' AND policyname = 'Allow authenticated users full access to layaways'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to layaways"
+      ON public.layaways FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'cash_sessions' AND policyname = 'Allow authenticated users full access to cash_sessions'
+  ) THEN
+    CREATE POLICY "Allow authenticated users full access to cash_sessions"
+      ON public.cash_sessions FOR ALL
       USING (auth.role() = 'authenticated')
       WITH CHECK (auth.role() = 'authenticated');
   END IF;

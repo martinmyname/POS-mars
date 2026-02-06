@@ -31,18 +31,17 @@ export default function InventoryPage() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [retailPrice, setRetailPrice] = useState('');
-  const [wholesalePrice, setWholesalePrice] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [stock, setStock] = useState('');
   const [minStockLevel, setMinStockLevel] = useState('0');
-  const [barcode, setBarcode] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [addStockFor, setAddStockFor] = useState<string | null>(null);
   const [addStockQty, setAddStockQty] = useState('');
+  const [addStockPayment, setAddStockPayment] = useState<'cash' | 'credit'>('cash');
+  const [addStockSupplierId, setAddStockSupplierId] = useState('');
   const [skuError, setSkuError] = useState<string | null>(null);
-  const [barcodeError, setBarcodeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) return;
@@ -105,37 +104,14 @@ export default function InventoryPage() {
     return () => clearTimeout(timeoutId);
   }, [sku, db, products]);
 
-  // Real-time barcode validation
-  useEffect(() => {
-    if (!db || !barcode.trim()) {
-      setBarcodeError(null);
-      return;
-    }
-    const checkBarcode = async () => {
-      try {
-        const existing = await db.products.findOne({ selector: { barcode: barcode.trim() } }).exec();
-        if (existing && !(existing as { _deleted?: boolean })._deleted) {
-          setBarcodeError(`Barcode "${barcode.trim()}" already exists`);
-        } else {
-          setBarcodeError(null);
-        }
-      } catch (_) {
-        setBarcodeError(null);
-      }
-    };
-    const timeoutId = setTimeout(checkBarcode, 500); // Debounce
-    return () => clearTimeout(timeoutId);
-  }, [barcode, db, products]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!db) return;
     const rp = parseFloat(retailPrice);
-    const wp = parseFloat(wholesalePrice);
     const cp = parseFloat(costPrice);
     const st = parseInt(stock, 10);
     const minSt = parseInt(minStockLevel, 10);
-    if (Number.isNaN(rp) || Number.isNaN(wp) || Number.isNaN(cp) || rp < 0 || wp < 0 || cp < 0) {
+    if (Number.isNaN(rp) || Number.isNaN(cp) || rp < 0 || cp < 0) {
       setMessage('Enter valid prices.');
       return;
     }
@@ -147,7 +123,6 @@ export default function InventoryPage() {
     setMessage(null);
     try {
       const finalSku = sku.trim() || `prod_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      const finalBarcode = barcode.trim() || undefined;
 
       // Check for duplicate SKU
       if (finalSku) {
@@ -159,27 +134,14 @@ export default function InventoryPage() {
         }
       }
 
-      // Check for duplicate barcode (if provided)
-      if (finalBarcode) {
-        const existingByBarcode = await db.products
-          .findOne({ selector: { barcode: finalBarcode } })
-          .exec();
-        if (existingByBarcode && !(existingByBarcode as { _deleted?: boolean })._deleted) {
-          setMessage(`Barcode "${finalBarcode}" already exists. Please use a different barcode.`);
-          setSaving(false);
-          return;
-        }
-      }
-
       const id = `prod_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       await db.products.insert({
         id,
         sku: finalSku,
         name: name.trim(),
         category: category.trim() || 'General',
-        barcode: finalBarcode,
         retailPrice: rp,
-        wholesalePrice: wp,
+        wholesalePrice: rp,
         costPrice: cp,
         stock: Number.isNaN(st) ? 0 : Math.max(0, st),
         minStockLevel: Number.isNaN(minSt) ? 0 : Math.max(0, minSt),
@@ -188,9 +150,7 @@ export default function InventoryPage() {
       setSku('');
       setName('');
       setCategory('');
-      setBarcode('');
       setRetailPrice('');
-      setWholesalePrice('');
       setCostPrice('');
       setStock('');
       setMinStockLevel('0');
@@ -209,10 +169,46 @@ export default function InventoryPage() {
     if (Number.isNaN(qty) || qty <= 0) return;
     const doc = await db.products.findOne(productId).exec();
     if (!doc) return;
+    const supplierIdForCredit = (addStockSupplierId || doc.supplierId || '').trim();
+    if (addStockPayment === 'credit' && !supplierIdForCredit) {
+      setMessage('Select a supplier when adding stock on credit.');
+      return;
+    }
+    const costTotal = doc.costPrice * qty;
+    const productName = doc.name;
     const newStock = doc.stock + qty;
     await doc.patch({ stock: newStock });
+
+    const today = new Date().toISOString().slice(0, 10);
+    if (addStockPayment === 'cash') {
+      const expenseId = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      await db.expenses.insert({
+        id: expenseId,
+        date: today,
+        itemBought: productName,
+        purpose: 'Inventory purchase',
+        amount: costTotal,
+        paidBy: 'Cash',
+        receiptAttached: false,
+        paidByWho: 'POS',
+      });
+    } else {
+      const ledgerId = `ledger_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      await db.supplier_ledger.insert({
+        id: ledgerId,
+        supplierId: supplierIdForCredit,
+        type: 'credit',
+        amount: costTotal,
+        date: today,
+        note: `Stock: ${productName} (×${qty})`,
+      });
+    }
+
     setAddStockFor(null);
     setAddStockQty('');
+    setAddStockPayment('cash');
+    setAddStockSupplierId('');
+    setMessage(`Stock added. ${addStockPayment === 'cash' ? 'Deducted from opening cash.' : 'Added to supplier credit.'}`);
   };
 
   const setProductSupplier = async (productId: string, newSupplierId: string) => {
@@ -233,7 +229,7 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black">Inventory</h1>
+        <h1 className="page-title">Inventory</h1>
         <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
           ← Dashboard
         </Link>
@@ -262,8 +258,8 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="card p-5">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+        <section className="card p-4 sm:p-5">
           <h2 className="mb-4 font-heading text-lg font-semibold text-smoky-black">Add product</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
@@ -277,16 +273,6 @@ export default function InventoryPage() {
               {skuError && <p className="mt-1 text-xs text-red-600">{skuError}</p>}
             </div>
             <input type="text" placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} required className="input-base" />
-            <div>
-              <input
-                type="text"
-                placeholder="Barcode (for scanner)"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                className={`input-base ${barcodeError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-              />
-              {barcodeError && <p className="mt-1 text-xs text-red-600">{barcodeError}</p>}
-            </div>
             <input type="text" placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} className="input-base" />
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-600">Supplier (optional)</label>
@@ -302,20 +288,19 @@ export default function InventoryPage() {
               </select>
             </div>
             <input type="number" placeholder="Retail price (UGX)" value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} min="0" step="1" className="input-base" />
-            <input type="number" placeholder="Wholesale price (UGX)" value={wholesalePrice} onChange={(e) => setWholesalePrice(e.target.value)} min="0" step="1" className="input-base" />
             <input type="number" placeholder="Cost price (UGX)" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} min="0" step="1" className="input-base" />
             <input type="number" placeholder="Stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" step="1" className="input-base" />
             <input type="number" placeholder="Min stock level" value={minStockLevel} onChange={(e) => setMinStockLevel(e.target.value)} min="0" step="1" className="input-base" />
             <button
               type="submit"
-              disabled={saving || !!skuError || !!barcodeError}
+              disabled={saving || !!skuError}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving…' : 'Add product'}
             </button>
           </form>
           {message && (
-            <p className={`mt-2 text-sm ${message === 'Product added.' ? 'text-emerald-600' : 'text-red-600'}`}>
+            <p className={`mt-2 text-sm ${message.startsWith('Product added') || message.startsWith('Stock added') ? 'text-emerald-600' : 'text-red-600'}`}>
               {message}
             </p>
           )}
@@ -339,8 +324,7 @@ export default function InventoryPage() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-smoky-black">{p.name}</p>
                         <p className="text-sm text-slate-600">
-                          {p.sku}
-                          {p.barcode ? ` · ${p.barcode}` : ''} · {p.category}
+                          {p.sku} · {p.category}
                           {suppliers.find((s) => s.id === p.supplierId) && (
                             <span className="ml-1 text-slate-500">
                               · {suppliers.find((s) => s.id === p.supplierId)?.name}
@@ -374,17 +358,58 @@ export default function InventoryPage() {
                             className="input-base w-20 py-1 text-center text-sm"
                             autoFocus
                           />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-medium text-slate-600">Pay:</span>
+                            <label className="flex cursor-pointer items-center gap-1 text-sm">
+                              <input
+                                type="radio"
+                                name={`payment-${p.id}`}
+                                checked={addStockPayment === 'cash'}
+                                onChange={() => setAddStockPayment('cash')}
+                                className="h-3.5 w-3.5"
+                              />
+                              Cash
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-1 text-sm">
+                              <input
+                                type="radio"
+                                name={`payment-${p.id}`}
+                                checked={addStockPayment === 'credit'}
+                                onChange={() => setAddStockPayment('credit')}
+                                className="h-3.5 w-3.5"
+                              />
+                              Credit
+                            </label>
+                            {addStockPayment === 'credit' && (
+                              <select
+                                value={addStockSupplierId || p.supplierId || ''}
+                                onChange={(e) => setAddStockSupplierId(e.target.value)}
+                                className="input-base max-w-[140px] py-1 text-xs"
+                                title="Supplier (required for credit)"
+                              >
+                                <option value="">Select supplier</option>
+                                {suppliers.map((s) => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
                           <button type="button" onClick={() => addStock(p.id)} className="btn-primary py-1 text-sm">
                             Add
                           </button>
-                          <button type="button" onClick={() => { setAddStockFor(null); setAddStockQty(''); }} className="btn-secondary py-1 text-sm">
+                          <button type="button" onClick={() => { setAddStockFor(null); setAddStockQty(''); setAddStockPayment('cash'); setAddStockSupplierId(''); }} className="btn-secondary py-1 text-sm">
                             Cancel
                           </button>
                         </>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => { setAddStockFor(p.id); setAddStockQty(''); }}
+                          onClick={() => {
+                            setAddStockFor(p.id);
+                            setAddStockQty('');
+                            setAddStockPayment('cash');
+                            setAddStockSupplierId(p.supplierId || '');
+                          }}
                           className="text-sm font-medium text-tufts-blue hover:underline"
                         >
                           + Add stock

@@ -10,8 +10,10 @@ export interface StoreSettings {
 
 const defaults: StoreSettings = {
   businessName: 'Mars Kitchen Essentials',
-  address: '',
+  address: 'Kikuubo Skylight Arcade L2-43',
   logoUrl: '',
+  phone: '0703666646',
+  email: 'info@marskitchenessentials.com',
 };
 
 export function getSettings(): StoreSettings {

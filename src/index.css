@@ -5,9 +5,15 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     @apply m-0 bg-background-grey text-smoky-black antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'DM Sans', system-ui, sans-serif;
@@ -22,15 +28,28 @@
     @apply rounded-xl border border-slate-200/80 bg-surface shadow-card;
   }
   .card-hover {
-    @apply card transition-shadow duration-200 hover:shadow-card-hover;
+    @apply card transition-shadow duration-200 hover:shadow-card-hover active:scale-[0.99];
   }
   .btn-primary {
-    @apply rounded-xl bg-tufts-blue px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-tufts-blue-hover active:scale-[0.98];
+    @apply rounded-xl bg-tufts-blue px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-tufts-blue-hover active:scale-[0.98] min-h-[2.75rem] sm:min-h-0;
   }
   .btn-secondary {
-    @apply rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98];
+    @apply rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] min-h-[2.75rem] sm:min-h-0;
   }
   .input-base {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-tufts-blue focus:ring-2 focus:ring-tufts-blue/20;
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition focus:border-tufts-blue focus:ring-2 focus:ring-tufts-blue/20 min-h-[2.75rem] sm:min-h-0;
+  }
+  .touch-target {
+    @apply min-h-[2.75rem] min-w-[2.75rem];
+  }
+  .page-title {
+    @apply font-heading text-xl font-bold tracking-tight text-smoky-black sm:text-2xl md:text-3xl;
+  }
+  .page-subtitle {
+    @apply mt-1 text-sm text-slate-500;
+  }
+  /* Scrollable table wrapper for mobile */
+  .table-wrap {
+    @apply -mx-4 overflow-x-auto sm:mx-0;
   }
 }

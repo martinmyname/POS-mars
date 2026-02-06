@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   Bike,
   Truck,
+  DollarSign,
+  Lock,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -51,10 +53,14 @@ export default function DashboardPage() {
     });
 
     const subExpenses = db.expenses.find().$.subscribe((docs) => {
-      const todayStr = today.slice(0, 10);
-      const tomorrowStr = tomorrow.slice(0, 10);
+      const todayStr = startOfDay(new Date()).toISOString().slice(0, 10);
+      const tomorrowStr = startOfDay(subDays(new Date(), -1)).toISOString().slice(0, 10);
       const todayExp = docs.filter(
-        (d) => !(d as { _deleted?: boolean })._deleted && d.date >= todayStr && d.date < tomorrowStr
+        (d) => {
+          if ((d as { _deleted?: boolean })._deleted) return false;
+          const expenseDate = d.date.slice(0, 10); // Ensure we're comparing date strings in YYYY-MM-DD format
+          return expenseDate === todayStr; // Use exact match instead of range to avoid timezone issues
+        }
       );
       setExpensesToday(todayExp.reduce((s, e) => s + e.amount, 0));
     });
@@ -69,6 +75,8 @@ export default function DashboardPage() {
   const navItems = [
     { to: '/pos', label: 'POS Checkout', icon: ShoppingCart, primary: true },
     { to: '/deliveries', label: 'Deliveries', icon: Bike },
+    { to: '/layaways', label: 'Layaways', icon: DollarSign },
+    { to: '/cash', label: 'Cash Management', icon: Lock },
     { to: '/returns', label: 'Returns', icon: RotateCcw },
     { to: '/expenses', label: 'Expenses', icon: Wallet },
     { to: '/inventory', label: 'Inventory', icon: Archive },
@@ -111,64 +119,62 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black sm:text-3xl">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-slate-500">Overview of your store today</p>
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-subtitle">Overview of your store today</p>
       </div>
 
       {db && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="card p-5">
-            <div className="flex items-center gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <div className="card p-4 sm:p-5">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="rounded-lg bg-slate-100 p-2">
-                <Package className="h-5 w-5 text-slate-600" />
+                <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Products</p>
-                <p className="text-2xl font-bold text-smoky-black">{productCount}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-slate-500">Products</p>
+                <p className="text-lg sm:text-2xl font-bold text-smoky-black truncate">{productCount}</p>
               </div>
             </div>
           </div>
-          <div className="card p-5">
-            <div className="flex items-center gap-3">
+          <div className="card p-4 sm:p-5">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="rounded-lg bg-slate-100 p-2">
-                <Receipt className="h-5 w-5 text-slate-600" />
+                <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Orders today</p>
-                <p className="text-2xl font-bold text-smoky-black">{ordersToday}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-slate-500">Orders today</p>
+                <p className="text-lg sm:text-2xl font-bold text-smoky-black truncate">{ordersToday}</p>
               </div>
             </div>
           </div>
-          <div className="card p-5">
-            <div className="flex items-center gap-3">
+          <div className="card p-4 sm:p-5">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="rounded-lg bg-emerald-100 p-2">
-                <TrendingUp className="h-5 w-5 text-emerald-700" />
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Revenue today</p>
-                <p className="text-2xl font-bold text-emerald-700">{formatUGX(revenueToday)}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-slate-500">Revenue today</p>
+                <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate">{formatUGX(revenueToday)}</p>
               </div>
             </div>
           </div>
-          <div className="card p-5">
-            <div className="flex items-center gap-3">
+          <div className="card p-4 sm:p-5">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="rounded-lg bg-red-50 p-2">
-                <Wallet className="h-5 w-5 text-red-600" />
+                <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Expenses today</p>
-                <p className="text-2xl font-bold text-red-600">{formatUGX(expensesToday)}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-slate-500">Expenses today</p>
+                <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUGX(expensesToday)}</p>
               </div>
             </div>
           </div>
           {lowStockCount > 0 && (
             <Link
               to="/inventory"
-              className="card-hover col-span-full flex items-center gap-4 rounded-xl border-amber-200 bg-amber-50/80 p-5 text-amber-900 sm:col-span-2"
+              className="card-hover col-span-full flex items-center gap-3 rounded-xl border-amber-200 bg-amber-50/80 p-4 text-amber-900 sm:col-span-2 touch-target sm:p-5"
             >
               <div className="rounded-lg bg-amber-200/60 p-2">
                 <AlertTriangle className="h-5 w-5" />
@@ -183,26 +189,26 @@ export default function DashboardPage() {
       )}
 
       <div>
-        <h2 className="mb-4 font-heading text-lg font-semibold text-smoky-black">Quick actions</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <h2 className="mb-3 sm:mb-4 font-heading text-base font-semibold text-smoky-black sm:text-lg">Quick actions</h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           {navItems.map(({ to, label, icon: Icon, primary }) => (
             <Link
               key={to}
               to={to}
               className={
                 primary
-                  ? 'card-hover flex items-center gap-4 rounded-xl bg-tufts-blue p-4 text-white'
-                  : 'card-hover flex items-center gap-4 rounded-xl p-4'
+                  ? 'card-hover flex items-center gap-3 rounded-xl bg-tufts-blue p-4 text-white touch-target'
+                  : 'card-hover flex items-center gap-3 rounded-xl p-4 touch-target'
               }
             >
               <div
                 className={
-                  primary ? 'rounded-lg bg-white/20 p-2' : 'rounded-lg bg-slate-100 p-2'
+                  primary ? 'rounded-lg bg-white/20 p-2 shrink-0' : 'rounded-lg bg-slate-100 p-2 shrink-0'
                 }
               >
                 <Icon className={`h-5 w-5 ${primary ? 'text-white' : 'text-slate-600'}`} />
               </div>
-              <span className="font-medium">{label}</span>
+              <span className="font-medium text-sm sm:text-base truncate">{label}</span>
             </Link>
           ))}
         </div>

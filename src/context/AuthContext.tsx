@@ -14,6 +14,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
+  /** Display name from profile, or email, or null */
+  displayName: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -149,15 +151,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const displayName = useMemo(() => {
+    const u = state.user;
+    if (!u) return null;
+    const meta = u.user_metadata as { full_name?: string; display_name?: string } | undefined;
+    return meta?.full_name || meta?.display_name || u.email || null;
+  }, [state.user]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
+      displayName,
       signIn,
       signUp,
       signOut,
       clearError,
     }),
-    [state, signIn, signUp, signOut, clearError]
+    [state, displayName, signIn, signUp, signOut, clearError]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
