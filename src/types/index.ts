@@ -83,10 +83,14 @@ export interface OrderCustomer {
 
 export interface Order {
   id: string;
+  /** Human-friendly number for tracking (e.g. 1001, 1002). Shown on receipts and in UI. */
+  orderNumber?: number;
   channel: OrderChannel;
   type: OrderType;
   status: OrderStatus;
   createdAt: string;
+  /** Optional: date this order is scheduled for (YYYY-MM-DD). Used for reminders. */
+  scheduledFor?: string;
   items: OrderItem[];
   total: number;
   grossProfit: number;

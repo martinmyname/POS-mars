@@ -43,10 +43,12 @@ END $$;
 -- Orders table
 CREATE TABLE IF NOT EXISTS public.orders (
   "id" text PRIMARY KEY,
+  "orderNumber" integer,
   "channel" text NOT NULL,
   "type" text NOT NULL,
   "status" text NOT NULL,
   "createdAt" timestamptz NOT NULL,
+  "scheduledFor" text,
   "items" jsonb NOT NULL,
   "total" double precision NOT NULL,
   "grossProfit" double precision NOT NULL,

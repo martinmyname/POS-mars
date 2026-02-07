@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { format, startOfDay } from 'date-fns';
 import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive } from 'lucide-react';
-import type { Delivery as DeliveryType, DeliveryStatus, DeliveryPaymentStatus, Order } from '@/types';
+import type { Delivery as DeliveryType, DeliveryStatus, DeliveryPaymentStatus, Order, Product } from '@/types';
 
 const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
   pending: 'Pending',
@@ -26,9 +26,10 @@ export default function DeliveriesPage() {
   const { user } = useAuth();
   const [deliveries, setDeliveries] = useState<DeliveryType[]>([]);
   const [orders, setOrders] = useState<Map<string, Order>>(new Map());
+  const [products, setProducts] = useState<Map<string, Product>>(new Map());
   const [filterStatus, setFilterStatus] = useState<DeliveryStatus | 'all'>('all');
   const [filterPayment, setFilterPayment] = useState<DeliveryPaymentStatus | 'all'>('all');
-  const [quickFilter, setQuickFilter] = useState<'attention' | 'unpaid' | 'in_transit' | 'completed' | 'all'>('attention');
+  const [quickFilter, setQuickFilter] = useState<'attention' | 'unpaid' | 'in_transit' | 'completed' | 'cancelled' | 'all'>('attention');
   const [hideCompleted, setHideCompleted] = useState(true);
   const [hidePreviousDayCompleted, setHidePreviousDayCompleted] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -88,10 +89,12 @@ export default function DeliveriesPage() {
         .forEach((d) => {
           orderMap.set(d.id, {
             id: d.id,
+            orderNumber: (d as { orderNumber?: number }).orderNumber,
             channel: d.channel,
             type: d.type,
             status: d.status,
             createdAt: d.createdAt,
+            scheduledFor: (d as { scheduledFor?: string }).scheduledFor,
             items: d.items,
             total: d.total,
             grossProfit: d.grossProfit,
@@ -109,10 +112,37 @@ export default function DeliveriesPage() {
         });
       setOrders(orderMap);
     });
+
+    // Load products for item names
+    const subProducts = db.products.find().$.subscribe((docs) => {
+      const productMap = new Map<string, Product>();
+      docs
+        .filter((d) => !(d as { _deleted?: boolean })._deleted)
+        .forEach((d) => {
+          productMap.set(d.id, {
+            id: d.id,
+            sku: d.sku,
+            name: d.name,
+            category: d.category,
+            retailPrice: d.retailPrice,
+            wholesalePrice: d.wholesalePrice,
+            costPrice: d.costPrice,
+            stock: d.stock,
+            minStockLevel: d.minStockLevel,
+            reorderLevel: d.reorderLevel,
+            maxStockLevel: d.maxStockLevel,
+            imageUrl: d.imageUrl,
+            barcode: d.barcode,
+            supplierId: d.supplierId,
+          });
+        });
+      setProducts(productMap);
+    });
     
     return () => {
       subDeliveries.unsubscribe();
       subOrders.unsubscribe();
+      subProducts.unsubscribe();
     };
   }, [db]);
 
@@ -126,6 +156,12 @@ export default function DeliveriesPage() {
 
   const filtered = deliveries
     .filter((d) => {
+      // Cancelled: only show in "Cancelled" filter; exclude from all other views
+      if (d.deliveryStatus === 'cancelled') {
+        if (quickFilter === 'cancelled') return true;
+        return false;
+      }
+      if (quickFilter === 'cancelled') return false;
       // Apply quick filter first (overrides dropdowns when not 'all')
       if (quickFilter === 'attention') {
         if (!needsAttention(d)) return false;
@@ -281,11 +317,31 @@ export default function DeliveriesPage() {
     if (!db) return;
     const doc = await db.deliveries.findOne(id).exec();
     if (!doc) return;
+    if (status === 'cancelled') {
+      const orderId = doc.orderId;
+      if (orderId) {
+        const orderDoc = await db.orders.findOne(orderId).exec();
+        if (orderDoc && orderDoc.items?.length) {
+          for (const item of orderDoc.items) {
+            const productDoc = await db.products.findOne(item.productId).exec();
+            if (productDoc) {
+              const newStock = productDoc.stock + item.qty;
+              await productDoc.patch({ stock: Math.max(0, newStock) });
+            }
+          }
+          await orderDoc.patch({ status: 'cancelled' });
+        }
+      }
+    }
     const patch: Record<string, unknown> = { deliveryStatus: status };
     if (status === 'delivered' && doc.deliveryStatus !== 'delivered') {
       patch.deliveredAt = new Date().toISOString();
     }
     await doc.patch(patch);
+    if (status === 'cancelled') {
+      setMessage('Delivery cancelled. Stock has been returned and order marked cancelled.');
+      setTimeout(() => setMessage(null), 5000);
+    }
   };
 
   if (!db) {
@@ -328,9 +384,10 @@ export default function DeliveriesPage() {
             {(
               [
                 { value: 'attention' as const, label: 'Needs attention', count: deliveries.filter(needsAttention).length },
-                { value: 'unpaid' as const, label: 'Unpaid', count: deliveries.filter((d) => d.paymentStatus !== 'paid').length },
-                { value: 'in_transit' as const, label: 'In transit', count: deliveries.filter((d) => d.deliveryStatus === 'in_transit' || d.deliveryStatus === 'dispatched').length },
+                { value: 'unpaid' as const, label: 'Unpaid', count: deliveries.filter((d) => d.deliveryStatus !== 'cancelled' && d.paymentStatus !== 'paid').length },
+                { value: 'in_transit' as const, label: 'In transit', count: deliveries.filter((d) => (d.deliveryStatus === 'in_transit' || d.deliveryStatus === 'dispatched')).length },
                 { value: 'completed' as const, label: 'Completed', count: deliveries.filter(isCompleted).length },
+                { value: 'cancelled' as const, label: 'Cancelled', count: deliveries.filter((d) => d.deliveryStatus === 'cancelled').length },
                 { value: 'all' as const, label: 'All', count: deliveries.length },
               ] as const
             ).map(({ value, label, count }) => (
@@ -412,9 +469,11 @@ export default function DeliveriesPage() {
               <p className="mt-4 text-slate-500">
                 {deliveries.length === 0
                   ? 'No deliveries yet. Create a delivery from the POS checkout page.'
-                  : quickFilter === 'attention' || hideCompleted
-                    ? 'No active or unpaid deliveries. All caught up!'
-                    : 'No deliveries match the selected filters.'}
+                  : quickFilter === 'cancelled'
+                    ? 'No cancelled deliveries.'
+                    : quickFilter === 'attention' || hideCompleted
+                      ? 'No active or unpaid deliveries. All caught up!'
+                      : 'No deliveries match the selected filters.'}
               </p>
               {deliveries.length === 0 && (
                 <Link to="/pos" className="mt-4 inline-block btn-primary">
@@ -455,7 +514,7 @@ export default function DeliveriesPage() {
                               <p className="font-semibold text-smoky-black">{d.customerName}</p>
                               {d.orderId && (
                                 <span className="shrink-0 rounded bg-tufts-blue/10 px-2 py-0.5 text-xs font-medium text-tufts-blue">
-                                  Order #{d.orderId.slice(-8)}
+                                  Order #{order?.orderNumber ?? d.orderId.slice(-8)}
                                 </span>
                               )}
                             </div>
@@ -478,7 +537,7 @@ export default function DeliveriesPage() {
                             <span className="text-slate-600">
                               {order.items.map((item, idx) => (
                                 <span key={idx}>
-                                  {(item as { name?: string }).name ?? item.productId} × {item.qty}
+                                  {products.get(item.productId)?.name ?? (item as { name?: string }).name ?? item.productId} × {item.qty}
                                   {idx < order.items.length - 1 ? ', ' : ''}
                                 </span>
                               ))}
@@ -716,7 +775,7 @@ export default function DeliveriesPage() {
                                 <ul className="mt-1 space-y-0.5">
                                   {order.items.map((item, idx) => (
                                     <li key={idx} className="text-slate-600">
-                                      • {(item as { name?: string }).name ?? item.productId} × {item.qty} @ {formatUGX((item as { unitPrice?: number }).unitPrice ?? item.sellingPrice)}
+                                      • {products.get(item.productId)?.name ?? (item as { name?: string }).name ?? item.productId} × {item.qty} @ {formatUGX((item as { unitPrice?: number }).unitPrice ?? item.sellingPrice)}
                                     </li>
                                   ))}
                                 </ul>

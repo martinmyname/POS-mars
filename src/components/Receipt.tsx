@@ -12,6 +12,8 @@ export interface ReceiptItem {
 
 export interface ReceiptData {
   orderId: string;
+  /** Human-friendly order number for display (e.g. 1001). Shown as "Receipt #1001". */
+  orderNumber?: number;
   createdAt: string;
   paymentMethod: string;
   paymentCode?: string;
@@ -38,6 +40,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
   const paymentLabel = PAYMENT_LABELS[data.paymentMethod] ?? data.paymentMethod;
 
   const businessName = data.businessName ?? 'Mars Kitchen Essentials';
+  const receiptNumber = data.orderNumber != null ? String(data.orderNumber) : data.orderId;
   const paymentLine = data.paymentCode
     ? `Payment: ${paymentLabel} (Code: ${data.paymentCode})`
     : `Payment: ${paymentLabel}`;
@@ -45,7 +48,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
     businessName,
     data.address ?? '',
     `Date: ${date} ${time}`,
-    `Receipt #: ${data.orderId}`,
+    `Receipt #: ${receiptNumber}`,
     paymentLine,
     '',
     ...data.items.map(
@@ -167,7 +170,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
               <ReceiptIcon className="receipt-icon" />
               <div>
                 <span className="receipt-info-label">Receipt #</span>
-                <span className="receipt-info-value">{data.orderId}</span>
+                <span className="receipt-info-value">{receiptNumber}</span>
               </div>
             </div>
             <div className="receipt-info-item">

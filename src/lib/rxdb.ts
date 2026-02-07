@@ -39,10 +39,12 @@ const orderSchema = {
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
+    orderNumber: { type: 'number' },
     channel: { type: 'string' },
     type: { type: 'string' },
     status: { type: 'string' },
     createdAt: { type: 'string' },
+    scheduledFor: { type: 'string' },
     items: { type: 'array' },
     total: { type: 'number' },
     grossProfit: { type: 'number' },
@@ -343,6 +345,11 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
             modifier: (doc: Record<string, unknown>) => {
               if (doc._deleted === null) delete doc._deleted;
               if (doc._modified === null) delete doc._modified;
+              // Strip nulls so optional schema fields (e.g. orderNumber, scheduledFor) are absent
+              // instead of null; RxDB validation rejects null for type 'number'/'string'
+              for (const key of Object.keys(doc)) {
+                if (doc[key] === null) delete doc[key];
+              }
               return doc;
             },
           },

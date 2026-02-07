@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
-import { startOfDay, subDays } from 'date-fns';
+import { startOfDay, subDays, format, parseISO } from 'date-fns';
 import {
   ShoppingCart,
   Package,
@@ -22,6 +22,7 @@ import {
   Truck,
   DollarSign,
   Lock,
+  CalendarClock,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -33,6 +34,9 @@ export default function DashboardPage() {
   const [ordersToday, setOrdersToday] = useState(0);
   const [revenueToday, setRevenueToday] = useState(0);
   const [expensesToday, setExpensesToday] = useState(0);
+  const [scheduledDueToday, setScheduledDueToday] = useState<Array<{ id: string; orderNumber?: number; total: number; scheduledFor: string }>>([]);
+  const [scheduledUpcoming, setScheduledUpcoming] = useState<Array<{ id: string; orderNumber?: number; total: number; scheduledFor: string }>>([]);
+  const reminderNotifiedRef = useRef(false);
 
   useEffect(() => {
     if (!db) return;
@@ -50,11 +54,30 @@ export default function DashboardPage() {
     });
 
     const subOrders = db.orders.find().$.subscribe((docs) => {
-      const todayOrders = docs.filter(
-        (d) => !(d as { _deleted?: boolean })._deleted && d.createdAt >= today && d.createdAt < tomorrow
+      const active = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
+      const todayOrders = active.filter(
+        (d) => d.createdAt >= today && d.createdAt < tomorrow
       );
       setOrdersToday(todayOrders.length);
       setRevenueToday(todayOrders.reduce((s, o) => s + o.total, 0));
+      const scheduled = active.filter((d) => (d as { scheduledFor?: string }).scheduledFor);
+      const dueToday = scheduled.filter((d) => (d as { scheduledFor: string }).scheduledFor === todayStr);
+      const upcoming = scheduled
+        .filter((d) => (d as { scheduledFor: string }).scheduledFor > todayStr)
+        .sort((a, b) => (a as { scheduledFor: string }).scheduledFor.localeCompare((b as { scheduledFor: string }).scheduledFor))
+        .slice(0, 5);
+      setScheduledDueToday(dueToday.map((d) => ({
+        id: d.id,
+        orderNumber: (d as { orderNumber?: number }).orderNumber,
+        total: d.total,
+        scheduledFor: (d as { scheduledFor: string }).scheduledFor,
+      })));
+      setScheduledUpcoming(upcoming.map((d) => ({
+        id: d.id,
+        orderNumber: (d as { orderNumber?: number }).orderNumber,
+        total: d.total,
+        scheduledFor: (d as { scheduledFor: string }).scheduledFor,
+      })));
     });
 
     const subExpenses = db.expenses.find().$.subscribe((docs) => {
@@ -74,6 +97,25 @@ export default function DashboardPage() {
       subExpenses.unsubscribe();
     };
   }, [db, dayTick]);
+
+  // One-time browser notification when there are orders due today
+  useEffect(() => {
+    if (scheduledDueToday.length === 0 || reminderNotifiedRef.current) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    reminderNotifiedRef.current = true;
+    const show = () => {
+      if (Notification.permission === 'granted') {
+        new Notification('Orders due today', {
+          body: `${scheduledDueToday.length} scheduled order(s) are due today. Check the dashboard.`,
+          icon: '/logo.png',
+        });
+      }
+    };
+    if (Notification.permission === 'granted') show();
+    else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then((p) => { if (p === 'granted') show(); });
+    }
+  }, [scheduledDueToday.length]);
 
   const navItems = [
     { to: '/pos', label: 'POS Checkout', icon: ShoppingCart, primary: true },
@@ -187,6 +229,45 @@ export default function DashboardPage() {
                 <p className="text-sm text-amber-800">{lowStockCount} product(s) at or below minimum</p>
               </div>
             </Link>
+          )}
+          {(scheduledDueToday.length > 0 || scheduledUpcoming.length > 0) && (
+            <div className="col-span-full card p-4 sm:p-5">
+              <h2 className="mb-3 flex items-center gap-2 font-heading text-base font-semibold text-smoky-black sm:text-lg">
+                <CalendarClock className="h-5 w-5 text-tufts-blue" />
+                Scheduled orders
+              </h2>
+              {scheduledDueToday.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                  <p className="mb-2 text-sm font-semibold text-amber-900">Due today – reminder</p>
+                  <ul className="space-y-1.5 text-sm text-amber-800">
+                    {scheduledDueToday.map((o) => (
+                      <li key={o.id} className="flex items-center justify-between gap-2">
+                        <span>Order #{o.orderNumber ?? o.id.slice(-8)}</span>
+                        <span className="font-medium">{formatUGX(o.total)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to="/deliveries" className="mt-2 inline-block text-sm font-medium text-amber-800 underline">
+                    View deliveries →
+                  </Link>
+                </div>
+              )}
+              {scheduledUpcoming.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-slate-700">Upcoming</p>
+                  <ul className="space-y-1.5 text-sm text-slate-600">
+                    {scheduledUpcoming.map((o) => (
+                      <li key={o.id} className="flex items-center justify-between gap-2">
+                        <span>
+                          Order #{o.orderNumber ?? o.id.slice(-8)} · {format(parseISO(o.scheduledFor), 'EEE, d MMM')}
+                        </span>
+                        <span className="font-medium text-slate-800">{formatUGX(o.total)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

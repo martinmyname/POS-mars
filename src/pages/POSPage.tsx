@@ -65,6 +65,8 @@ export default function POSPage() {
   const [depositCustomerName, setDepositCustomerName] = useState('');
   const [depositCustomerPhone, setDepositCustomerPhone] = useState('');
   const [orderChannel, setOrderChannel] = useState<OrderChannel>('facebook');
+  const [scheduleForLater, setScheduleForLater] = useState(false);
+  const [scheduledForDate, setScheduledForDate] = useState('');
 
   useEffect(() => {
     if (!db) return;
@@ -240,6 +242,10 @@ export default function POSPage() {
       setMessage('Fill customer name and phone for deposit.');
       return;
     }
+    if (scheduleForLater && !scheduledForDate) {
+      setMessage('Select a date for scheduled order.');
+      return;
+    }
     if (isDeposit) {
       const depositAmt = parseFloat(depositAmount.replace(/,/g, ''));
       if (Number.isNaN(depositAmt) || depositAmt <= 0 || depositAmt >= subtotal) {
@@ -252,6 +258,10 @@ export default function POSPage() {
     try {
       const now = new Date().toISOString();
       const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const allOrders = await db.orders.find().exec();
+      const maxNum = allOrders.reduce((m, o) => Math.max(m, (o as { orderNumber?: number }).orderNumber ?? 0), 0);
+      const orderNumber = maxNum >= 1000 ? maxNum + 1 : 1000;
+      const scheduledFor = scheduleForLater && scheduledForDate ? scheduledForDate : undefined;
       const items: OrderItem[] = cart.map((l) => {
         const discounted = l.originalPrice > l.sellingPrice;
         return {
@@ -294,10 +304,12 @@ export default function POSPage() {
         // Create order with deposit status
         const orderPayload = {
           id: orderId,
+          orderNumber,
           channel: orderChannel,
           type: 'retail',
           status: 'paid',
           createdAt: now,
+          ...(scheduledFor && { scheduledFor }),
           items,
           total: subtotal,
           grossProfit,
@@ -314,10 +326,12 @@ export default function POSPage() {
         // Regular order
         const orderPayload = {
           id: orderId,
+          orderNumber,
           channel: orderChannel,
           type: 'retail',
           status: 'paid',
           createdAt: now,
+          ...(scheduledFor && { scheduledFor }),
           items,
           total: subtotal,
           grossProfit,
@@ -350,9 +364,25 @@ export default function POSPage() {
         // Get customer details from delivery or deposit forms
         const customerName = sendForDelivery ? deliveryCustomerName.trim() : (isDeposit ? depositCustomerName.trim() : '');
         const customerPhone = sendForDelivery ? deliveryPhone.trim() : (isDeposit ? depositCustomerPhone.trim() : '');
-        
+        // Resolve item names for receipt (always show product name, never raw ID)
+        const receiptItems = await Promise.all(
+          cart.map(async (l) => {
+            const displayName =
+              (l.name && l.name.trim()) ||
+              (await db.products.findOne(l.productId).exec())?.name ||
+              l.productId;
+            return {
+              name: displayName,
+              qty: l.qty,
+              unitPrice: l.sellingPrice,
+              originalPrice: l.originalPrice > l.sellingPrice ? l.originalPrice : undefined,
+              lineTotal: l.sellingPrice * l.qty,
+            };
+          })
+        );
         setLastReceipt({
           orderId,
+          orderNumber,
           createdAt: now,
           paymentMethod: paymentLabel,
           paymentCode,
@@ -363,13 +393,7 @@ export default function POSPage() {
           businessEmail: settings.email,
           customerName: customerName || undefined,
           customerPhone: customerPhone || undefined,
-          items: cart.map((l) => ({
-            name: l.name,
-            qty: l.qty,
-            unitPrice: l.sellingPrice,
-            originalPrice: l.originalPrice > l.sellingPrice ? l.originalPrice : undefined,
-            lineTotal: l.sellingPrice * l.qty,
-          })),
+          items: receiptItems,
         });
         setLastOrderId(orderId);
 
@@ -432,6 +456,8 @@ export default function POSPage() {
       setDepositCustomerName('');
       setDepositCustomerPhone('');
       setOrderChannel('facebook'); // Reset to default channel
+      setScheduleForLater(false);
+      setScheduledForDate('');
       if (!isDeposit) {
         setMessage('Order placed successfully.' + (sendForDelivery ? ' Delivery created.' : '') + ' Print receipt below.');
       }
@@ -821,7 +847,34 @@ export default function POSPage() {
                     />
                     <span className="text-xs font-medium text-slate-700">Deposit</span>
                   </label>
+                  <label className="flex cursor-pointer items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={scheduleForLater}
+                      onChange={(e) => {
+                        setScheduleForLater(e.target.checked);
+                        if (!e.target.checked) setScheduledForDate('');
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-tufts-blue focus:ring-tufts-blue"
+                    />
+                    <span className="text-xs font-medium text-slate-700">Schedule for later</span>
+                  </label>
                 </div>
+
+                {/* Schedule for later - date picker */}
+                {scheduleForLater && (
+                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Scheduled for (reminder on this day)</label>
+                    <input
+                      type="date"
+                      value={scheduledForDate}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setScheduledForDate(e.target.value)}
+                      className="input-base w-full py-2 text-sm"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">You’ll see a reminder on the dashboard when this date arrives.</p>
+                  </div>
+                )}
 
                 {/* Delivery Form - Collapsible */}
                 {sendForDelivery && (
