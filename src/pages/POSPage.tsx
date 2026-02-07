@@ -67,6 +67,12 @@ export default function POSPage() {
   const [orderChannel, setOrderChannel] = useState<OrderChannel>('facebook');
   const [scheduleForLater, setScheduleForLater] = useState(false);
   const [scheduledForDate, setScheduledForDate] = useState('');
+  const [backdateOrder, setBackdateOrder] = useState(false);
+  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [orderTime, setOrderTime] = useState(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  });
 
   useEffect(() => {
     if (!db) return;
@@ -256,7 +262,13 @@ export default function POSPage() {
     setPlacing(true);
     setMessage(null);
     try {
-      const now = new Date().toISOString();
+      const now = backdateOrder && orderDate && orderTime
+        ? (() => {
+            const [y, m, d] = orderDate.split('-').map(Number);
+            const [hr, min] = orderTime.split(':').map(Number);
+            return new Date(y, m - 1, d, hr, min, 0, 0).toISOString();
+          })()
+        : new Date().toISOString();
       const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const allOrders = await db.orders.find().exec();
       const maxNum = allOrders.reduce((m, o) => Math.max(m, (o as { orderNumber?: number }).orderNumber ?? 0), 0);
@@ -873,6 +885,46 @@ export default function POSPage() {
                       className="input-base w-full py-2 text-sm"
                     />
                     <p className="mt-1 text-xs text-slate-500">You’ll see a reminder on the dashboard when this date arrives.</p>
+                  </div>
+                )}
+
+                {/* Backdate order - for historical data (e.g. January) */}
+                <div className="mt-3 flex items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={backdateOrder}
+                      onChange={(e) => {
+                        setBackdateOrder(e.target.checked);
+                        if (!e.target.checked) {
+                          setOrderDate(new Date().toISOString().slice(0, 10));
+                          const d = new Date();
+                          setOrderTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-tufts-blue focus:ring-tufts-blue"
+                    />
+                    <span className="text-xs font-medium text-slate-700">Record order for a past date</span>
+                  </label>
+                </div>
+                {backdateOrder && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Order date & time</label>
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        type="date"
+                        value={orderDate}
+                        onChange={(e) => setOrderDate(e.target.value)}
+                        className="input-base flex-1 min-w-[140px] py-2 text-sm"
+                      />
+                      <input
+                        type="time"
+                        value={orderTime}
+                        onChange={(e) => setOrderTime(e.target.value)}
+                        className="input-base w-[120px] py-2 text-sm"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Use this to enter historical sales (e.g. January).</p>
                   </div>
                 )}
 

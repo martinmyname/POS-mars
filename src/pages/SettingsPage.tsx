@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { getSettings, setSettings, type StoreSettings } from '@/lib/settings';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Building2, MapPin, Phone, Mail, User as UserIcon, LogOut } from 'lucide-react';
+import { clearAllLocalDataAndReload } from '@/lib/rxdb';
+import { Building2, MapPin, Phone, Mail, User as UserIcon, LogOut, Database } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
@@ -12,6 +13,7 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [clearingData, setClearingData] = useState(false);
 
   useEffect(() => {
     setS(getSettings());
@@ -106,6 +108,30 @@ export default function SettingsPage() {
             Sign out
           </button>
         </div>
+      </section>
+
+      {/* Data: clear local cache (use after clearing Supabase to test with real data) */}
+      <section className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
+          <Database className="h-5 w-5 text-tufts-blue" />
+          Data
+        </h2>
+        <p className="mb-3 text-sm text-slate-600">
+          Clear all data stored on this device and reload. After that, the app will re-sync from Supabase.
+          To start completely fresh, run <code className="rounded bg-slate-100 px-1 text-xs">supabase-clear-all-data.sql</code> in the Supabase SQL Editor first, then use this button.
+        </p>
+        <button
+          type="button"
+          disabled={clearingData}
+          onClick={async () => {
+            if (!window.confirm('Clear all local data and reload? You will need to sign in again.')) return;
+            setClearingData(true);
+            await clearAllLocalDataAndReload();
+          }}
+          className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+        >
+          {clearingData ? 'Clearing…' : 'Clear local data & reload'}
+        </button>
       </section>
 
       <form onSubmit={handleSave} className="max-w-lg space-y-6">

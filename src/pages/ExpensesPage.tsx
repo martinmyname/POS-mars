@@ -25,6 +25,7 @@ export default function ExpensesPage() {
   const [paidBy, setPaidBy] = useState('');
   const [paidByWho, setPaidByWho] = useState('');
   const [notes, setNotes] = useState('');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -63,7 +64,6 @@ export default function ExpensesPage() {
     setMessage(null);
     try {
       const id = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      const date = new Date().toISOString().slice(0, 10);
       await db.expenses.insert({
         id,
         date,
@@ -81,6 +81,7 @@ export default function ExpensesPage() {
       setPaidBy('');
       setPaidByWho('');
       setNotes('');
+      setDate(new Date().toISOString().slice(0, 10));
       setMessage('Expense added.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to add expense');
@@ -108,6 +109,11 @@ export default function ExpensesPage() {
         <section className="card p-5">
           <h2 className="mb-4 font-heading text-lg font-semibold text-smoky-black">Add expense</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-base w-full" />
+              <p className="mt-0.5 text-xs text-slate-500">Use a past date to record historical expenses (e.g. January)</p>
+            </div>
             <input type="text" placeholder="Item bought" value={itemBought} onChange={(e) => setItemBought(e.target.value)} className="input-base" />
             <input type="text" placeholder="Purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className="input-base" />
             <input type="number" placeholder="Amount (UGX)" value={amount} onChange={(e) => setAmount(e.target.value)} min="1" step="1" className="input-base" />

@@ -1,27 +1,29 @@
 # Deploy Mars Kitchen Essentials POS to GitHub & Host Online
 
+**Note:** If this repository is the POS app only (e.g. `POS-mars` or `mars-kitchen-pos`), the project root is this folder. Use it as the build root on Vercel/Netlify (no "Root Directory" override).
+
+---
+
 ## 1. Push to GitHub
 
-If the repo is already connected to GitHub, from the **project root** (one level above `pos`):
+If the repo is already connected to GitHub, from the **project root** (this folder):
 
 ```bash
-cd c:\Users\Dell\Downloads\eMars\MarsKitchenEssentialsEcommerce
 git add .
 git status
 # Ensure .env is NOT listed (it must be ignored)
-git commit -m "POS: add deploy config and docs"
+git commit -m "Your commit message"
 git push origin main
 ```
 
 If you haven’t created a GitHub repo yet:
 
 1. Go to [github.com/new](https://github.com/new).
-2. Create a new repository (e.g. `MarsKitchenEssentials` or `MarsKitchenEssentialsEcommerce`).
+2. Create a new repository (e.g. `POS-mars` or `mars-kitchen-pos`).
 3. Do **not** add a README if you already have local files.
-4. In your project folder (parent of `pos`):
+4. In this project folder:
 
 ```bash
-cd c:\Users\Dell\Downloads\eMars\MarsKitchenEssentialsEcommerce
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
 git branch -M main
 git push -u origin main
@@ -36,7 +38,7 @@ git push -u origin main
 1. Go to [vercel.com](https://vercel.com) and sign in with GitHub.
 2. **Add New Project** → import your GitHub repo.
 3. **Configure:**
-   - **Root Directory:** click **Edit** and set to `pos` (so Vercel builds only the POS app).
+   - **Root Directory:** leave as default (this repo is the app root). If your repo contains a `pos` subfolder, set Root Directory to `pos`.
    - **Framework Preset:** Vite (auto-detected).
    - **Build Command:** `npm run build`
    - **Output Directory:** `dist`
@@ -52,9 +54,9 @@ git push -u origin main
 1. Go to [netlify.com](https://netlify.com) and sign in with GitHub.
 2. **Add new site** → **Import an existing project** → choose your repo.
 3. **Build settings:**
-   - **Base directory:** `pos`
+   - **Base directory:** leave empty (this repo is the app root). If your repo has the app in a `pos` subfolder, set to `pos`.
    - **Build command:** `npm run build`
-   - **Publish directory:** `pos/dist`
+   - **Publish directory:** `dist`
 4. **Environment variables** (Site settings → Environment variables):
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
@@ -65,7 +67,7 @@ git push -u origin main
 ## 4. If deploy fails
 
 - **Build logs:** In Vercel or Netlify, open the latest deploy and check the **build logs** for the exact error.
-- **Root directory:** This repo root is the POS app. Do **not** set “Root Directory” to `pos` (leave blank or `.`).
+- **Root directory:** If this repo is the POS app only, leave root blank; if the app is in a `pos` subfolder, set Root Directory to `pos`.
 - **Env vars:** Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the host’s Environment Variables. Without them the app may build but auth/sync will not work.
 - **Build locally:** Run `npm run build` in the project root. If it fails locally, fix that first (e.g. TypeScript or lint errors).
 - **Node version:** Vercel/Netlify use Node 18 by default. The repo has `vercel.json` and `netlify.toml` with build command and output so no extra config is needed.

@@ -28,6 +28,11 @@ export default function CashManagementPage() {
   const [openingAmount, setOpeningAmount] = useState('');
   const [closingAmount, setClosingAmount] = useState('');
   const [notes, setNotes] = useState('');
+  const [openForPastDate, setOpenForPastDate] = useState(false);
+  const [sessionDate, setSessionDate] = useState(() => startOfDay(new Date()).toISOString().slice(0, 10));
+  const [sessionToClose, setSessionToClose] = useState<CashSession | null>(null);
+  const [closeAmountForPast, setCloseAmountForPast] = useState('');
+  const [closeNotesForPast, setCloseNotesForPast] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [inventoryExpensesTick, setInventoryExpensesTick] = useState(0);
 
@@ -131,38 +136,72 @@ export default function CashManagementPage() {
       setMessage('Enter a valid opening amount');
       return;
     }
-    
     const today = startOfDay(new Date()).toISOString().slice(0, 10);
-    
-    // Check if session already exists for today
-    const existing = await db.cash_sessions
-      .findOne({
-        selector: {
-          date: today,
-          _deleted: { $ne: true },
-        },
-      })
-      .exec();
-    
-    if (existing && !existing.closedAt) {
-      setMessage('Cash drawer already opened for today');
+    const dateToUse = openForPastDate ? sessionDate : today;
+    if (!dateToUse) {
+      setMessage('Select a date');
       return;
     }
-    
+    const existing = await db.cash_sessions
+      .findOne({ selector: { date: dateToUse, _deleted: { $ne: true } } })
+      .exec();
+    if (existing && !existing.closedAt) {
+      setMessage(dateToUse === today ? 'Cash drawer already opened for today' : `A session for ${dateToUse} is already open`);
+      return;
+    }
+    if (existing && existing.closedAt) {
+      setMessage(`A session for ${dateToUse} already exists. Use a different date for historical data.`);
+      return;
+    }
     try {
       const id = `cash_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const openedAt = openForPastDate && dateToUse
+        ? new Date(dateToUse + 'T08:00:00').toISOString()
+        : new Date().toISOString();
       await db.cash_sessions.insert({
         id,
-        date: today,
+        date: dateToUse,
         openingAmount: amount,
-        openedAt: new Date().toISOString(),
+        openedAt,
         openedBy: user.email || 'Staff',
       });
       setOpeningAmount('');
-      setMessage('Cash drawer opened');
+      setOpenForPastDate(false);
+      setSessionDate(today);
+      setMessage('Cash drawer opened' + (dateToUse !== today ? ` for ${dateToUse}` : ''));
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to open cash drawer');
+    }
+  };
+
+  const closePastSession = async () => {
+    if (!db || !user || !sessionToClose) return;
+    const amount = parseFloat(closeAmountForPast.replace(/,/g, ''));
+    if (Number.isNaN(amount) || amount < 0) {
+      setMessage('Enter a valid closing amount');
+      return;
+    }
+    const expected = sessionToClose.expectedAmount ?? sessionToClose.openingAmount;
+    const difference = amount - expected;
+    try {
+      const doc = await db.cash_sessions.findOne(sessionToClose.id).exec();
+      if (!doc) return;
+      await doc.patch({
+        closingAmount: amount,
+        expectedAmount: expected,
+        difference,
+        closedAt: new Date().toISOString(),
+        closedBy: user?.user_metadata?.full_name || user?.email || 'Staff',
+        notes: closeNotesForPast.trim() || undefined,
+      });
+      setSessionToClose(null);
+      setCloseAmountForPast('');
+      setCloseNotesForPast('');
+      setMessage(`Session for ${sessionToClose.date} closed`);
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to close session');
     }
   };
 
@@ -307,6 +346,31 @@ export default function CashManagementPage() {
                   className="input-base"
                 />
               </div>
+              <div className="flex items-center gap-2">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={openForPastDate}
+                    onChange={(e) => {
+                      setOpenForPastDate(e.target.checked);
+                      if (!e.target.checked) setSessionDate(startOfDay(new Date()).toISOString().slice(0, 10));
+                    }}
+                    className="h-4 w-4 rounded border-slate-300 text-tufts-blue focus:ring-tufts-blue"
+                  />
+                  <span className="text-sm text-slate-700">Open for a past date (e.g. January)</span>
+                </label>
+              </div>
+              {openForPastDate && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Session date</label>
+                  <input
+                    type="date"
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                    className="input-base w-full"
+                  />
+                </div>
+              )}
               <button type="button" onClick={openCash} className="btn-primary w-full">
                 <Unlock className="mr-2 inline h-4 w-4" />
                 Open Cash Drawer
@@ -366,9 +430,38 @@ export default function CashManagementPage() {
                         )}
                       </div>
                       {!s.closedAt && (
-                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
-                          Open
-                        </span>
+                        <div className="ml-2 flex items-center gap-2">
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
+                            Open
+                          </span>
+                          {sessionToClose?.id === s.id ? (
+                            <div className="flex flex-col gap-1">
+                              <input
+                                type="text"
+                                placeholder="Closing amount"
+                                value={closeAmountForPast}
+                                onChange={(e) => setCloseAmountForPast(e.target.value)}
+                                className="input-base w-28 py-1 text-sm"
+                              />
+                              <div className="flex gap-1">
+                                <button type="button" onClick={closePastSession} className="rounded bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700">
+                                  Save
+                                </button>
+                                <button type="button" onClick={() => { setSessionToClose(null); setCloseAmountForPast(''); setCloseNotesForPast(''); }} className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { setSessionToClose(s); setCloseAmountForPast(''); setCloseNotesForPast(''); }}
+                              className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                              Close
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </li>

@@ -447,12 +447,41 @@ export async function destroyRxDB(): Promise<void> {
   replications.length = 0;
   if (dbInstance) {
     try {
-      await (dbInstance as unknown as { destroy: () => Promise<void> }).destroy();
+      const db = dbInstance as unknown as { destroy?: () => Promise<void>; close?: () => Promise<void> };
+      if (typeof db.destroy === 'function') await db.destroy();
+      else if (typeof db.close === 'function') await db.close();
     } catch (_) {
-      // destroy may not be available in all RxDB versions
+      // destroy/close may not be available in all RxDB versions
     }
     dbInstance = null;
   }
   // Let IndexedDB release so the next init doesn't hang (logout → login)
   await new Promise((r) => setTimeout(r, 150));
+}
+
+/** Dexie storage uses one IndexedDB per collection: rxdb-dexie-{dbName}--{schemaVersion}--{collectionName} */
+const DEXIE_DB_PREFIX = 'rxdb-dexie-' + DB_NAME + '--';
+const COLLECTION_NAMES = [
+  'products', 'orders', 'expenses', 'stock_adjustments', 'report_notes',
+  'promotions', 'customers', 'deliveries', 'suppliers', 'supplier_ledger',
+  'layaways', 'cash_sessions',
+] as const;
+
+/**
+ * Clear all local RxDB data and reload the app so it re-syncs from Supabase.
+ * Run this after clearing Supabase (e.g. supabase-clear-all-data.sql) to test with real data.
+ * Requires window (browser only).
+ */
+export async function clearAllLocalDataAndReload(): Promise<void> {
+  await destroyRxDB();
+  if (typeof indexedDB === 'undefined') return;
+  const schemaVersion = 0;
+  for (const name of COLLECTION_NAMES) {
+    const idbName = DEXIE_DB_PREFIX + schemaVersion + '--' + name;
+    try {
+      indexedDB.deleteDatabase(idbName);
+    } catch (_) {}
+  }
+  await new Promise((r) => setTimeout(r, 200));
+  if (typeof window !== 'undefined') window.location.reload();
 }
