@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
@@ -48,6 +48,7 @@ export default function POSPage() {
   const [editingPriceFor, setEditingPriceFor] = useState<string | null>(null);
   const [editPriceInput, setEditPriceInput] = useState('');
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastDeliveryCreated, setLastDeliveryCreated] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quickSearch, setQuickSearch] = useState('');
@@ -943,6 +944,7 @@ export default function POSPage() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
           <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-soft sm:max-w-lg sm:rounded-2xl sm:p-6">
             <Receipt
+              key={lastOrderId ?? 'receipt'}
               data={lastReceipt}
               onClose={() => {
                 setLastReceipt(null);

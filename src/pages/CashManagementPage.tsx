@@ -29,7 +29,7 @@ export default function CashManagementPage() {
   const [closingAmount, setClosingAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [, setInventoryExpensesTick] = useState(0);
+  const [inventoryExpensesTick, setInventoryExpensesTick] = useState(0);
 
   useEffect(() => {
     if (!db) return;
@@ -57,6 +57,22 @@ export default function CashManagementPage() {
       const todaySess = list.find((s) => s.date === today && !s.closedAt);
       setTodaySession(todaySess || null);
     });
+    return () => sub.unsubscribe();
+  }, [db]);
+
+  // Re-run expected cash when today's inventory expenses change
+  useEffect(() => {
+    if (!db) return;
+    const todayStr = startOfDay(new Date()).toISOString().slice(0, 10);
+    const sub = db.expenses
+      .find({
+        selector: {
+          date: todayStr,
+          purpose: 'Inventory purchase',
+          _deleted: { $ne: true },
+        },
+      })
+      .$.subscribe(() => setInventoryExpensesTick((t) => t + 1));
     return () => sub.unsubscribe();
   }, [db]);
 

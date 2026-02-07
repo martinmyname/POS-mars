@@ -4,7 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { initRxDB } from '@/lib/rxdb';
+import { initRxDB, destroyRxDB } from '@/lib/rxdb';
 
 interface AuthState {
   session: Session | null;
@@ -82,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearError]);
 
   const signOut = useCallback(async () => {
-    const { destroyRxDB } = await import('@/lib/rxdb');
     await destroyRxDB();
     await supabase.auth.signOut();
   }, []);

@@ -44,5 +44,18 @@ export default defineConfig(({ command }) => ({
     }),
   ],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
-  build: { outDir: 'dist', sourcemap: true },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Put recharts (used by Reports) in its own chunk so Reports route loads lighter and charts can be cached
+          if (id.includes('node_modules/recharts')) {
+            return 'recharts';
+          }
+        },
+      },
+    },
+  },
 }));

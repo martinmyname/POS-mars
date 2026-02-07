@@ -478,7 +478,7 @@ export default function DeliveriesPage() {
                             <span className="text-slate-600">
                               {order.items.map((item, idx) => (
                                 <span key={idx}>
-                                  {item.name} × {item.qty}
+                                  {(item as { name?: string }).name ?? item.productId} × {item.qty}
                                   {idx < order.items.length - 1 ? ', ' : ''}
                                 </span>
                               ))}
