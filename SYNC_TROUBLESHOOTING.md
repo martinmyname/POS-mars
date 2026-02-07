@@ -43,6 +43,8 @@ Supabase Realtime must be enabled for sync to work:
    - deliveries
    - suppliers
    - supplier_ledger
+   - layaways
+   - cash_sessions
 
 Or run this SQL:
 ```sql
@@ -105,6 +107,14 @@ If nothing works, you can reset the local database:
 **Warning:** This will delete all local data. Make sure important data is synced first.
 
 ## Common Issues
+
+### 404 Not Found (e.g. `/rest/v1/layaways`, `/rest/v1/cash_sessions`)
+- The table does not exist in your Supabase project.
+- **Fix:** Run the full `supabase-schema.sql` in Supabase SQL Editor. It creates all 12 tables (including `layaways` and `cash_sessions`). If you only ran an older version of the schema, run the file again; the script uses `CREATE TABLE IF NOT EXISTS` so it is safe.
+
+### 400 Bad Request (e.g. on `deliveries`)
+- The request body does not match what Supabase expects (wrong column names, types, or missing required columns).
+- **Fix:** Ensure your Supabase table definitions match `supabase-schema.sql` exactly (camelCase column names, same types). In Supabase Table Editor, compare the `deliveries` table with the schema file. If you created tables manually with snake_case, re-create them using the provided SQL, or the app will keep sending camelCase and get 400.
 
 ### "Table doesn't exist"
 - Run `supabase-schema.sql` completely in Supabase SQL Editor

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
+import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
 import { startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subWeeks, subMonths, subYears, format, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
 import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3 } from 'lucide-react';
@@ -24,6 +25,7 @@ interface PaymentMethodBreakdown {
 
 export default function ReportsPage() {
   const db = useRxDB();
+  const dayTick = useDayBoundaryTick();
   const { '*': splat } = useParams();
   const period: Period = splat === 'weekly' ? 'weekly' : splat === 'monthly' ? 'monthly' : splat === 'yearly' ? 'yearly' : 'daily';
 
@@ -135,7 +137,7 @@ export default function ReportsPage() {
       subProducts.unsubscribe();
       subCustomers.unsubscribe();
     };
-  }, [db, period]);
+  }, [db, period, dayTick]);
 
   // Calculate period-specific metrics
   const periodMetrics = useMemo(() => {

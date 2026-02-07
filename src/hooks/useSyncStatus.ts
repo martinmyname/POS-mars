@@ -19,7 +19,7 @@ export function useSyncStatus(): SyncStatus {
   const [syncedTables] = useState<Set<string>>(new Set());
   const [lastSyncCheck, setLastSyncCheck] = useState(0);
 
-  const totalTables = 10; // products, orders, expenses, stock_adjustments, report_notes, promotions, customers, deliveries, suppliers, supplier_ledger
+  const totalTables = 12; // products, orders, expenses, stock_adjustments, report_notes, promotions, customers, deliveries, suppliers, supplier_ledger, layaways, cash_sessions
 
   useEffect(() => {
     if (!db) {
@@ -77,8 +77,8 @@ export function useSyncStatus(): SyncStatus {
           }, syncDelay);
         }
         setLastSyncCheck(Date.now());
-      } catch (e) {
-        console.warn('Sync status check:', e);
+      } catch (_e) {
+        /* ignore */
       }
     };
 

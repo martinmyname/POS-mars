@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { triggerReSync } from '@/lib/rxdb';
 
 export function SyncStatus() {
   const [online, setOnline] = useState(
@@ -7,14 +8,29 @@ export function SyncStatus() {
   );
   const [syncErrors, setSyncErrors] = useState<Record<string, { message: string; timestamp: string }>>({});
   const [initError, setInitError] = useState<string | null>(null);
+  const wasOffline = useRef(false);
 
   useEffect(() => {
-    const onOnline = () => setOnline(true);
-    const onOffline = () => setOnline(false);
+    const onOnline = () => {
+      setOnline(true);
+      if (wasOffline.current) {
+        wasOffline.current = false;
+        triggerReSync();
+      }
+    };
+    const onOffline = () => {
+      wasOffline.current = true;
+      setOnline(false);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        triggerReSync();
+      }
+    };
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
-    // Check for sync errors
     const checkErrors = () => {
       try {
         const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
@@ -30,17 +46,45 @@ export function SyncStatus() {
     };
 
     checkErrors();
-    const interval = setInterval(checkErrors, 5000); // Check every 5 seconds
+    const interval = setInterval(checkErrors, 5000);
+    // When online and we have sync errors, auto-retry periodically so sync recovers without user action
+    const retryInterval = setInterval(() => {
+      try {
+        const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
+        if (navigator.onLine && Object.keys(errors).length > 0) {
+          triggerReSync();
+        }
+      } catch (_) {}
+    }, 20000);
 
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       clearInterval(interval);
+      clearInterval(retryInterval);
     };
   }, []);
 
   const hasErrors = Object.keys(syncErrors).length > 0 || initError;
   const errorCount = Object.keys(syncErrors).length;
+
+  const handleRetrySync = () => {
+    triggerReSync();
+    // Sync errors are cleared in rxdb when received$ fires (successful sync)
+    // Init error requires full reload to re-init DB
+    if (initError) {
+      localStorage.removeItem('rxdb_init_error');
+      setInitError(null);
+      window.location.reload();
+    }
+  };
+
+  const handleClearSyncIssues = () => {
+    triggerReSync();
+    localStorage.removeItem('rxdb_sync_errors');
+    setSyncErrors({});
+  };
 
   if (initError) {
     return (
@@ -48,11 +92,7 @@ export function SyncStatus() {
         <AlertCircle className="h-4 w-4" />
         <span>Sync Error</span>
         <button
-          onClick={() => {
-            localStorage.removeItem('rxdb_init_error');
-            setInitError(null);
-            window.location.reload();
-          }}
+          onClick={handleRetrySync}
           className="ml-2 rounded px-1.5 py-0.5 hover:bg-red-100"
           title="Reload to retry"
         >
@@ -77,12 +117,9 @@ export function SyncStatus() {
         <AlertCircle className="h-4 w-4" />
         <span>Sync Issues ({errorCount})</span>
         <button
-          onClick={() => {
-            localStorage.removeItem('rxdb_sync_errors');
-            setSyncErrors({});
-          }}
+          onClick={handleClearSyncIssues}
           className="ml-2 rounded px-1.5 py-0.5 hover:bg-amber-100"
-          title="Clear errors"
+          title="Retry sync"
         >
           <RefreshCw className="h-3 w-3" />
         </button>

@@ -279,12 +279,16 @@ export type MarsDatabase = import('rxdb').RxDatabase<MarsCollections>;
 
 let dbInstance: MarsDatabase | null = null;
 const replications: unknown[] = [];
+/** Single in-flight init so logout→login doesn't run two inits at once. Cleared on destroy. */
+let initPromise: Promise<MarsDatabase> | null = null;
 
 export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Promise<MarsDatabase> {
   if (dbInstance) return dbInstance;
+  if (initPromise) return initPromise;
 
-  const storage = getRxStorageDexie();
-  const db = await createRxDatabase<MarsCollections>({
+  initPromise = (async () => {
+    const storage = getRxStorageDexie();
+    const db = await createRxDatabase<MarsCollections>({
     name: DB_NAME,
     storage,
     multiInstance: false,
@@ -333,18 +337,18 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
           tableName: name,
           replicationIdentifier: `${DB_NAME}-${name}`,
           live: true,
+          retryTime: 2000, // Retry failed sync every 2s (skipped when coming back online)
           pull: {
-            batchSize: 100, // Increased batch size for faster initial sync
+            batchSize: 100,
             modifier: (doc: Record<string, unknown>) => {
               if (doc._deleted === null) delete doc._deleted;
               if (doc._modified === null) delete doc._modified;
               return doc;
             },
           },
-          push: { 
+          push: {
             batchSize: 50,
             modifier: (doc: Record<string, unknown>) => {
-              // Ensure _modified is set for push
               if (!doc._modified) {
                 doc._modified = new Date().toISOString();
               }
@@ -355,17 +359,11 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         replications.push(rep);
         
         // Replication starts automatically with live: true
-        // Track replication state for sync status
-        rep.active$.subscribe((isActive) => {
-          if (isActive) {
-            console.log(`[replication ${name}] active`);
-          }
+        rep.active$.subscribe(() => {
+          /* sync status tracked via error$ / received$ and SyncStatus UI */
         });
 
-        // Log replication errors with more detail
         rep.error$.subscribe((err) => {
-          console.error(`[replication ${name}]`, err);
-          // Store error in localStorage for debugging
           try {
             const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
             errors[name] = {
@@ -375,10 +373,7 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
             localStorage.setItem('rxdb_sync_errors', JSON.stringify(errors));
           } catch (_) {}
         });
-        // Log successful sync events
-        rep.received$.subscribe((doc) => {
-          console.log(`[replication ${name}] received:`, doc.id);
-          // Clear errors on successful sync
+        rep.received$.subscribe(() => {
           try {
             const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
             if (errors[name]) {
@@ -387,17 +382,12 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
             }
           } catch (_) {}
         });
-        rep.sent$.subscribe((doc) => {
-          console.log(`[replication ${name}] sent:`, doc.id);
+        rep.sent$.subscribe(() => {
+          /* success: errors cleared on received$ */
         });
       }
-
-      // Replication starts automatically with live: true
-      // Mark sync as started (completion tracked by useSyncStatus hook)
-      console.log('[RxDB] Replication started for all tables');
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
-      console.error('Supabase replication start failed:', errorMsg, e);
       // Store error for user visibility
       try {
         localStorage.setItem('rxdb_init_error', JSON.stringify({
@@ -406,10 +396,16 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
           details: String(e),
         }));
       } catch (_) {}
+      // Don't log to console; error is shown in SyncStatus and stored above
     }
   }
 
-  return db;
+    return db;
+  })().finally(() => {
+    initPromise = null;
+  });
+
+  return initPromise;
 }
 
 export function getRxDB(): MarsDatabase | null {
@@ -420,7 +416,22 @@ export function getReplications() {
   return replications;
 }
 
+/** Call reSync() on all replications (e.g. when coming back online or user clicks Retry). */
+export function triggerReSync(): void {
+  for (const rep of replications) {
+    try {
+      const state = rep as { reSync?: () => void };
+      if (typeof state.reSync === 'function') {
+        state.reSync();
+      }
+    } catch (_) {
+      /* reSync failure: sync status will show errors from error$ if replication fails */
+    }
+  }
+}
+
 export async function destroyRxDB(): Promise<void> {
+  initPromise = null;
   for (const rep of replications) {
     try {
       await (rep as { cancel: () => Promise<void> }).cancel();
@@ -435,4 +446,6 @@ export async function destroyRxDB(): Promise<void> {
     }
     dbInstance = null;
   }
+  // Let IndexedDB release so the next init doesn't hang (logout → login)
+  await new Promise((r) => setTimeout(r, 150));
 }

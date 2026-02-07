@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
+import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
 import { startOfDay, subDays } from 'date-fns';
 import {
@@ -26,6 +27,7 @@ import {
 export default function DashboardPage() {
   const db = useRxDB();
   const { isSyncing, isInitialSync } = useSyncStatus();
+  const dayTick = useDayBoundaryTick();
   const [productCount, setProductCount] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [ordersToday, setOrdersToday] = useState(0);
@@ -35,8 +37,11 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!db) return;
 
-    const today = startOfDay(new Date()).toISOString();
-    const tomorrow = startOfDay(subDays(new Date(), -1)).toISOString();
+    // Recompute "today" range when dayTick changes (every minute) so after 00:00 stats reset
+    const now = new Date();
+    const today = startOfDay(now).toISOString();
+    const tomorrow = startOfDay(subDays(now, -1)).toISOString();
+    const todayStr = startOfDay(now).toISOString().slice(0, 10);
 
     const subProducts = db.products.find().$.subscribe((docs) => {
       const list = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
@@ -53,12 +58,11 @@ export default function DashboardPage() {
     });
 
     const subExpenses = db.expenses.find().$.subscribe((docs) => {
-      const todayStr = startOfDay(new Date()).toISOString().slice(0, 10);
       const todayExp = docs.filter(
         (d) => {
           if ((d as { _deleted?: boolean })._deleted) return false;
-          const expenseDate = d.date.slice(0, 10); // Ensure we're comparing date strings in YYYY-MM-DD format
-          return expenseDate === todayStr; // Use exact match instead of range to avoid timezone issues
+          const expenseDate = d.date.slice(0, 10);
+          return expenseDate === todayStr;
         }
       );
       setExpensesToday(todayExp.reduce((s, e) => s + e.amount, 0));
@@ -69,7 +73,7 @@ export default function DashboardPage() {
       subOrders.unsubscribe();
       subExpenses.unsubscribe();
     };
-  }, [db]);
+  }, [db, dayTick]);
 
   const navItems = [
     { to: '/pos', label: 'POS Checkout', icon: ShoppingCart, primary: true },

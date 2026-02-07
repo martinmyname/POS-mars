@@ -50,8 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Give replication a moment to start pulling data
         await new Promise((resolve) => setTimeout(resolve, 500));
         setState((s) => ({ ...s, loading: false }));
-      } catch (e) {
-        console.warn('RxDB init after sign-in:', e);
+      } catch (_e) {
         setState((s) => ({ ...s, loading: false }));
       }
     }
@@ -69,8 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, session: data.session, user: data.user, error: null }));
       try {
         await initRxDB();
-      } catch (e) {
-        console.warn('RxDB init after sign-up:', e);
+      } catch (_e) {
+        /* init error surfaced in SyncStatus if sync fails */
       }
     } else {
       setState((s) => ({
@@ -91,8 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const init = async () => {
       // Start DB init immediately in parallel with auth (so it's ready sooner)
-      const dbPromise = initRxDB().catch((e) => {
-        if (mounted) console.warn('RxDB init:', e);
+      const dbPromise = initRxDB().catch(() => {
+        /* init error surfaced in SyncStatus if sync fails */
       });
 
       try {
@@ -129,18 +128,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      setState((s) => ({
-        ...s,
-        session: session ?? null,
-        user: session?.user ?? null,
-        loading: false,
-      }));
       if (session) {
-        // Initialize DB when session is detected
-        initRxDB().catch((e) => console.warn('RxDB init on auth change:', e));
+        // Wait for DB init so we don't show protected route with null db (stuck "Initializing database")
+        initRxDB()
+          .then(() => {
+            if (mounted) {
+              setState((s) => ({ ...s, session, user: session.user, loading: false }));
+            }
+          })
+          .catch(() => {
+            if (mounted) {
+              setState((s) => ({ ...s, session, user: session.user, loading: false }));
+            }
+          });
       } else {
-        // Clear loading state if no session
-        setState((s) => ({ ...s, loading: false }));
+        setState((s) => ({ ...s, session: null, user: null, loading: false }));
       }
     });
 

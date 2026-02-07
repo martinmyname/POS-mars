@@ -424,6 +424,8 @@ BEGIN
       WITH CHECK (auth.role() = 'authenticated');
   END IF;
 
+  -- Layaways policies
+  ALTER TABLE public.layaways ENABLE ROW LEVEL SECURITY;
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies 
     WHERE schemaname = 'public' AND tablename = 'layaways' AND policyname = 'Allow authenticated users full access to layaways'
@@ -434,6 +436,8 @@ BEGIN
       WITH CHECK (auth.role() = 'authenticated');
   END IF;
 
+  -- Cash sessions policies
+  ALTER TABLE public.cash_sessions ENABLE ROW LEVEL SECURITY;
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies 
     WHERE schemaname = 'public' AND tablename = 'cash_sessions' AND policyname = 'Allow authenticated users full access to cash_sessions'
