@@ -4,7 +4,7 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
 import { startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subWeeks, subMonths, subYears, format, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
-import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -87,16 +87,16 @@ export default function ReportsPage() {
       const prevPeriodList = list.filter((o) => o.createdAt >= prevStart && o.createdAt < prevEnd);
 
       setOrdersToday(todayList.length);
-      setRevenueToday(todayList.reduce((s, o) => s + o.total, 0));
-      setProfitToday(todayList.reduce((s, o) => s + o.grossProfit, 0));
+      setRevenueToday(todayList.reduce((s, o) => s + (Number(o.total) || 0), 0));
+      setProfitToday(todayList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0));
 
       setOrdersPeriod(periodList.length);
-      setRevenuePeriod(periodList.reduce((s, o) => s + o.total, 0));
-      setProfitPeriod(periodList.reduce((s, o) => s + o.grossProfit, 0));
+      setRevenuePeriod(periodList.reduce((s, o) => s + (Number(o.total) || 0), 0));
+      setProfitPeriod(periodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0));
 
       setPreviousPeriodOrders(prevPeriodList.length);
-      setPreviousPeriodRevenue(prevPeriodList.reduce((s, o) => s + o.total, 0));
-      setPreviousPeriodProfit(prevPeriodList.reduce((s, o) => s + o.grossProfit, 0));
+      setPreviousPeriodRevenue(prevPeriodList.reduce((s, o) => s + (Number(o.total) || 0), 0));
+      setPreviousPeriodProfit(prevPeriodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0));
 
       setAllOrders(list);
     });
@@ -117,9 +117,9 @@ export default function ReportsPage() {
         return expenseDate >= prevStart.slice(0, 10) && expenseDate < prevEnd.slice(0, 10);
       });
 
-      setExpensesToday(todayList.reduce((s, e) => s + e.amount, 0));
-      setExpensesPeriod(periodList.reduce((s, e) => s + e.amount, 0));
-      setPreviousPeriodExpenses(prevPeriodList.reduce((s, e) => s + e.amount, 0));
+      setExpensesToday(todayList.reduce((s, e) => s + (Number(e.amount) || 0), 0));
+      setExpensesPeriod(periodList.reduce((s, e) => s + (Number(e.amount) || 0), 0));
+      setPreviousPeriodExpenses(prevPeriodList.reduce((s, e) => s + (Number(e.amount) || 0), 0));
       setAllExpenses(list);
     });
 
@@ -160,15 +160,30 @@ export default function ReportsPage() {
             ? startOfMonth(subMonths(new Date(), -1)).toISOString()
             : startOfYear(subYears(new Date(), -1)).toISOString();
 
+    const prevStart =
+      period === 'daily'
+        ? startOfDay(subDays(new Date(), 1)).toISOString()
+        : period === 'weekly'
+          ? startOfWeek(subWeeks(new Date(), 1)).toISOString()
+          : period === 'monthly'
+            ? startOfMonth(subMonths(new Date(), 1)).toISOString()
+            : startOfYear(subYears(new Date(), 1)).toISOString();
+    const prevEnd = start;
+
     const periodOrders = allOrders.filter((o) => o.createdAt >= start && o.createdAt < end);
-    allExpenses.filter((e) => {
+
+    const grossIncome = Number(revenuePeriod) || 0;
+
+    const periodExpensesList = allExpenses.filter((e) => {
       const expenseDate = e.date.slice(0, 10);
       return expenseDate >= start.slice(0, 10) && expenseDate < end.slice(0, 10);
     });
-
-    const grossIncome = revenuePeriod;
-    const expenses = expensesPeriod;
-    const netProfit = profitPeriod - expenses;
+    const INVENTORY_PURCHASE_PURPOSE = 'Inventory purchase';
+    const operatingExpenses = periodExpensesList
+      .filter((e) => (e.purpose || '').trim() !== INVENTORY_PURCHASE_PURPOSE)
+      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const expenses = Number(expensesPeriod) || 0;
+    const netProfit = (Number(profitPeriod) || 0) - operatingExpenses;
 
     // Average order value
     const avgOrderValue = ordersPeriod > 0 ? grossIncome / ordersPeriod : 0;
@@ -177,9 +192,11 @@ export default function ReportsPage() {
     const profitMargin = grossIncome > 0 ? (profitPeriod / grossIncome) * 100 : 0;
     const netProfitMargin = grossIncome > 0 ? (netProfit / grossIncome) * 100 : 0;
 
-    // Top selling products
+    // Top selling products (include returns as negative so net revenue/profit is correct)
     const productSalesMap = new Map<string, ProductSales>();
     periodOrders.forEach((order) => {
+      const isReturn = order.orderType === 'return';
+      const sign = isReturn ? -1 : 1;
       (order.items || []).forEach((item: any) => {
         const product = allProducts.find((p) => p.id === item.productId);
         if (product) {
@@ -190,25 +207,42 @@ export default function ReportsPage() {
             revenue: 0,
             profit: 0,
           };
-          existing.qty += item.qty;
-          existing.revenue += item.sellingPrice * item.qty;
-          existing.profit += (item.sellingPrice - item.costPrice) * item.qty;
+          const qty = Number(item.qty) || 0;
+          const sellingPrice = Number(item.sellingPrice) || 0;
+          const costPrice = Number(item.costPrice) || 0;
+          existing.qty += sign * qty;
+          existing.revenue += sign * sellingPrice * qty;
+          existing.profit += sign * (sellingPrice - costPrice) * qty;
           productSalesMap.set(item.productId, existing);
         }
       });
     });
     const topProducts = Array.from(productSalesMap.values())
+      .filter((p) => p.revenue > 0)
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    // Payment method breakdown
+    // Payment method breakdown (use paymentSplits when present so split payments are accurate)
     const paymentMap = new Map<string, PaymentMethodBreakdown>();
     periodOrders.forEach((order) => {
-      const method = order.paymentMethod || 'cash';
-      const existing = paymentMap.get(method) || { method, count: 0, amount: 0 };
-      existing.count += 1;
-      existing.amount += order.total;
-      paymentMap.set(method, existing);
+      const splits = order.paymentSplits && order.paymentSplits.length > 0 ? order.paymentSplits : null;
+      if (splits) {
+        splits.forEach((split: { method: string; amount: number }) => {
+          const method = split.method || 'cash';
+          const amount = Number(split.amount) || 0;
+          const existing = paymentMap.get(method) || { method, count: 0, amount: 0 };
+          existing.count += 1;
+          existing.amount += amount;
+          paymentMap.set(method, existing);
+        });
+      } else {
+        const method = order.paymentMethod || 'cash';
+        const amount = Number(order.total) || 0;
+        const existing = paymentMap.get(method) || { method, count: 0, amount: 0 };
+        existing.count += 1;
+        existing.amount += amount;
+        paymentMap.set(method, existing);
+      }
     });
     const paymentBreakdown = Array.from(paymentMap.values()).sort((a, b) => b.amount - a.amount);
 
@@ -218,10 +252,32 @@ export default function ReportsPage() {
       const channel = order.channel || 'physical';
       const existing = channelMap.get(channel) || { channel, count: 0, revenue: 0 };
       existing.count += 1;
-      existing.revenue += order.total;
+      existing.revenue += Number(order.total) || 0;
       channelMap.set(channel, existing);
     });
     const channelBreakdown = Array.from(channelMap.values()).sort((a, b) => b.revenue - a.revenue);
+
+    // Expenses by purpose (for period)
+    const expensesByPurposeMap = new Map<string, { purpose: string; count: number; amount: number }>();
+    periodExpensesList.forEach((e) => {
+      const purpose = (e.purpose || 'Other').trim();
+      const amount = Number(e.amount) || 0;
+      const existing = expensesByPurposeMap.get(purpose) || { purpose, count: 0, amount: 0 };
+      existing.count += 1;
+      existing.amount += amount;
+      expensesByPurposeMap.set(purpose, existing);
+    });
+    const expensesByPurpose = Array.from(expensesByPurposeMap.values()).sort((a, b) => b.amount - a.amount);
+
+    // Low stock products (current inventory)
+    const lowStockProducts = allProducts.filter(
+      (p) => (Number(p.stock) || 0) <= (Number(p.minStockLevel) || 0)
+    );
+    const lowStockCount = lowStockProducts.length;
+    const lowStockValue = lowStockProducts.reduce(
+      (sum, p) => sum + (Number(p.stock) || 0) * (Number(p.costPrice) || 0),
+      0
+    );
 
     // Unique customers
     const uniqueCustomers = new Set(
@@ -232,19 +288,36 @@ export default function ReportsPage() {
     const returnOrders = periodOrders.filter((o) => o.orderType === 'return').length;
     const returnRate = ordersPeriod > 0 ? (returnOrders / ordersPeriod) * 100 : 0;
 
-    // Growth calculations
+    // Growth calculations (avoid division by zero; treat 0 previous as no change)
     const revenueGrowth =
       previousPeriodRevenue > 0
         ? ((grossIncome - previousPeriodRevenue) / previousPeriodRevenue) * 100
-        : 0;
+        : grossIncome > 0 ? 100 : 0;
     const profitGrowth =
       previousPeriodProfit > 0
         ? ((profitPeriod - previousPeriodProfit) / previousPeriodProfit) * 100
-        : 0;
+        : profitPeriod > 0 ? 100 : 0;
     const ordersGrowth =
       previousPeriodOrders > 0
         ? ((ordersPeriod - previousPeriodOrders) / previousPeriodOrders) * 100
-        : 0;
+        : ordersPeriod > 0 ? 100 : 0;
+    const prevPeriodExpensesList = allExpenses.filter((e) => {
+      const expenseDate = e.date.slice(0, 10);
+      return expenseDate >= prevStart.slice(0, 10) && expenseDate < prevEnd.slice(0, 10);
+    });
+    const prevOperatingExpenses = prevPeriodExpensesList
+      .filter((e) => (e.purpose || '').trim() !== INVENTORY_PURCHASE_PURPOSE)
+      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const prevExpenses = Number(previousPeriodExpenses) || 0;
+    const expenseGrowth =
+      prevExpenses > 0
+        ? ((expenses - prevExpenses) / prevExpenses) * 100
+        : expenses > 0 ? 100 : 0;
+    const prevNetProfit = (Number(previousPeriodProfit) || 0) - prevOperatingExpenses;
+    const netProfitGrowth =
+      prevNetProfit !== 0
+        ? ((netProfit - prevNetProfit) / Math.abs(prevNetProfit)) * 100
+        : netProfit !== 0 ? 100 : 0;
 
     // Time series data for trends
     const timeSeriesData: Array<{ date: string; revenue: number; profit: number; expenses: number; orders: number }> = [];
@@ -265,9 +338,9 @@ export default function ReportsPage() {
         });
         timeSeriesData.push({
           date: format(day, 'MMM dd'),
-          revenue: dayOrders.reduce((s, o) => s + o.total, 0),
-          profit: dayOrders.reduce((s, o) => s + o.grossProfit, 0),
-          expenses: dayExpenses.reduce((s, e) => s + e.amount, 0),
+          revenue: dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
+          profit: dayOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          expenses: dayExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
           orders: dayOrders.length,
         });
       });
@@ -290,9 +363,9 @@ export default function ReportsPage() {
         });
         timeSeriesData.push({
           date: format(week, 'MMM dd'),
-          revenue: weekOrders.reduce((s, o) => s + o.total, 0),
-          profit: weekOrders.reduce((s, o) => s + o.grossProfit, 0),
-          expenses: weekExpenses.reduce((s, e) => s + e.amount, 0),
+          revenue: weekOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
+          profit: weekOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          expenses: weekExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
           orders: weekOrders.length,
         });
       });
@@ -312,9 +385,9 @@ export default function ReportsPage() {
         });
         timeSeriesData.push({
           date: format(month, 'MMM yyyy'),
-          revenue: monthOrders.reduce((s, o) => s + o.total, 0),
-          profit: monthOrders.reduce((s, o) => s + o.grossProfit, 0),
-          expenses: monthExpenses.reduce((s, e) => s + e.amount, 0),
+          revenue: monthOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
+          profit: monthOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          expenses: monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
           orders: monthOrders.length,
         });
       });
@@ -331,9 +404,9 @@ export default function ReportsPage() {
         });
         timeSeriesData.push({
           date: format(year, 'yyyy'),
-          revenue: yearOrders.reduce((s, o) => s + o.total, 0),
-          profit: yearOrders.reduce((s, o) => s + o.grossProfit, 0),
-          expenses: yearExpenses.reduce((s, e) => s + e.amount, 0),
+          revenue: yearOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
+          profit: yearOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          expenses: yearExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
           orders: yearOrders.length,
         });
       }
@@ -349,14 +422,19 @@ export default function ReportsPage() {
       topProducts,
       paymentBreakdown,
       channelBreakdown,
+      expensesByPurpose,
+      lowStockCount,
+      lowStockValue,
       uniqueCustomers,
       returnRate,
       revenueGrowth,
       profitGrowth,
       ordersGrowth,
+      expenseGrowth,
+      netProfitGrowth,
       timeSeriesData,
     };
-  }, [allOrders, allExpenses, allProducts, period, revenuePeriod, expensesPeriod, profitPeriod, ordersPeriod, previousPeriodRevenue, previousPeriodProfit, previousPeriodOrders]);
+  }, [allOrders, allExpenses, allProducts, period, revenuePeriod, expensesPeriod, profitPeriod, ordersPeriod, previousPeriodRevenue, previousPeriodProfit, previousPeriodOrders, previousPeriodExpenses]);
 
   if (!db) {
     return (
@@ -499,11 +577,21 @@ export default function ReportsPage() {
           </div>
           <div>
             <p className="text-sm text-slate-600">Expenses</p>
-            <p className="text-xl font-bold text-red-700">{formatUGX(periodMetrics.expenses)}</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl font-bold text-red-700">{formatUGX(periodMetrics.expenses)}</p>
+              {periodMetrics.expenseGrowth !== 0 && (
+                <span
+                  className={`text-xs ${periodMetrics.expenseGrowth > 0 ? 'text-red-600' : 'text-emerald-600'}`}
+                >
+                  {periodMetrics.expenseGrowth > 0 ? '+' : ''}{periodMetrics.expenseGrowth.toFixed(1)}%
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {formatUGX(previousPeriodExpenses)}</p>
           </div>
           <div>
             <p className="text-sm text-slate-600">Net Profit</p>
+            <p className="text-xs text-slate-500">(after expenses, excl. inventory purchase)</p>
             <div className="flex items-baseline gap-2">
               <p
                 className={`text-xl font-bold ${
@@ -529,10 +617,37 @@ export default function ReportsPage() {
             </div>
             <p className="text-xs text-slate-500">
               Margin: {periodMetrics.netProfitMargin.toFixed(1)}%
+              {periodMetrics.netProfitGrowth !== 0 && (
+                <span className="ml-1">
+                  · Net vs prev: {periodMetrics.netProfitGrowth > 0 ? '+' : ''}{periodMetrics.netProfitGrowth.toFixed(1)}%
+                </span>
+              )}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Low stock summary */}
+      {(periodMetrics.lowStockCount > 0 || period === 'daily') && (
+        <div className="card p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            Low stock
+          </h3>
+          <div className="flex flex-wrap items-baseline gap-4">
+            <div>
+              <p className="text-2xl font-bold text-amber-700">{periodMetrics.lowStockCount}</p>
+              <p className="text-xs text-slate-500">products at or below min level</p>
+            </div>
+            {periodMetrics.lowStockCount > 0 && (
+              <div>
+                <p className="text-lg font-semibold text-slate-700">{formatUGX(periodMetrics.lowStockValue)}</p>
+                <p className="text-xs text-slate-500">cost value of low stock</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Key Metrics */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -637,10 +752,33 @@ export default function ReportsPage() {
               })
             )}
           </div>
+</div>
         </div>
-      </div>
 
-      {/* Top Products */}
+        {/* Expenses by purpose */}
+        <div className="card p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Receipt className="h-4 w-4" />
+            Expenses by purpose ({periodLabel})
+          </h3>
+          <div className="space-y-2">
+            {periodMetrics.expensesByPurpose.length === 0 ? (
+              <p className="text-sm text-slate-500">No expenses in this period</p>
+            ) : (
+              periodMetrics.expensesByPurpose.slice(0, 8).map((ep) => (
+                <div key={ep.purpose} className="flex justify-between text-sm">
+                  <span className="text-slate-600 truncate max-w-[60%]" title={ep.purpose}>{ep.purpose}</span>
+                  <div className="text-right shrink-0">
+                    <span className="font-semibold text-red-700">{formatUGX(ep.amount)}</span>
+                    <span className="ml-2 text-xs text-slate-500">({ep.count})</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Top Products */}
       {periodMetrics.topProducts.length > 0 && (
         <div className="card p-5">
           <h3 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
@@ -694,6 +832,10 @@ export default function ReportsPage() {
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
+                <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
@@ -718,6 +860,14 @@ export default function ReportsPage() {
                 fillOpacity={1}
                 fill="url(#colorProfit)"
                 name="Profit"
+              />
+              <Area
+                type="monotone"
+                dataKey="expenses"
+                stroke="#ef4444"
+                fillOpacity={1}
+                fill="url(#colorExpenses)"
+                name="Expenses"
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
-import { Package } from 'lucide-react';
+import { Package, Pencil, Search, X } from 'lucide-react';
 
 interface ProductDoc {
   id: string;
@@ -42,6 +42,19 @@ export default function InventoryPage() {
   const [addStockPayment, setAddStockPayment] = useState<'cash' | 'credit'>('cash');
   const [addStockSupplierId, setAddStockSupplierId] = useState('');
   const [skuError, setSkuError] = useState<string | null>(null);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editSku, setEditSku] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editRetailPrice, setEditRetailPrice] = useState('');
+  const [editWholesalePrice, setEditWholesalePrice] = useState('');
+  const [editCostPrice, setEditCostPrice] = useState('');
+  const [editStock, setEditStock] = useState('');
+  const [editMinStockLevel, setEditMinStockLevel] = useState('');
+  const [editBarcode, setEditBarcode] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editSkuError, setEditSkuError] = useState<string | null>(null);
+  const [productSearch, setProductSearch] = useState('');
 
   useEffect(() => {
     if (!db) return;
@@ -82,6 +95,18 @@ export default function InventoryPage() {
   const valuationCost = products.reduce((s, p) => s + p.stock * p.costPrice, 0);
   const valuationRetail = products.reduce((s, p) => s + p.stock * p.retailPrice, 0);
 
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return products;
+    const q = productSearch.trim().toLowerCase();
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.sku && p.sku.toLowerCase().includes(q)) ||
+        (p.category && p.category.toLowerCase().includes(q)) ||
+        (p.barcode && p.barcode.toLowerCase().includes(q))
+    );
+  }, [products, productSearch]);
+
   // Real-time SKU validation
   useEffect(() => {
     if (!db || !sku.trim()) {
@@ -103,6 +128,94 @@ export default function InventoryPage() {
     const timeoutId = setTimeout(checkSku, 500); // Debounce
     return () => clearTimeout(timeoutId);
   }, [sku, db, products]);
+
+  // Edit SKU validation (duplicate only if another product has this SKU)
+  useEffect(() => {
+    if (!db || !editingProductId || !editSku.trim()) {
+      setEditSkuError(null);
+      return;
+    }
+    const check = async () => {
+      const existing = await db.products.findOne({ selector: { sku: editSku.trim() } }).exec();
+      if (existing && existing.id !== editingProductId && !(existing as { _deleted?: boolean })._deleted) {
+        setEditSkuError(`SKU "${editSku.trim()}" already used by another product`);
+      } else {
+        setEditSkuError(null);
+      }
+    };
+    const t = setTimeout(check, 500);
+    return () => clearTimeout(t);
+  }, [editSku, editingProductId, db]);
+
+  const openEdit = (p: ProductDoc) => {
+    setEditingProductId(p.id);
+    setEditName(p.name);
+    setEditSku(p.sku);
+    setEditCategory(p.category);
+    setEditRetailPrice(String(p.retailPrice));
+    setEditWholesalePrice(String(p.wholesalePrice));
+    setEditCostPrice(String(p.costPrice));
+    setEditStock(String(p.stock));
+    setEditMinStockLevel(String(p.minStockLevel));
+    setEditBarcode(p.barcode ?? '');
+    setEditSkuError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingProductId(null);
+    setEditName('');
+    setEditSku('');
+    setEditCategory('');
+    setEditRetailPrice('');
+    setEditWholesalePrice('');
+    setEditCostPrice('');
+    setEditStock('');
+    setEditMinStockLevel('');
+    setEditBarcode('');
+    setEditSkuError(null);
+  };
+
+  const saveEdit = async () => {
+    if (!db || !editingProductId) return;
+    const rp = parseFloat(editRetailPrice);
+    const wp = parseFloat(editWholesalePrice);
+    const cp = parseFloat(editCostPrice);
+    const st = parseInt(editStock, 10);
+    const minSt = parseInt(editMinStockLevel, 10);
+    if (Number.isNaN(rp) || rp < 0 || Number.isNaN(cp) || cp < 0) {
+      setMessage('Enter valid cost and retail prices.');
+      return;
+    }
+    if (!editName.trim()) {
+      setMessage('Name is required.');
+      return;
+    }
+    if (editSkuError) return;
+    setEditSaving(true);
+    setMessage(null);
+    try {
+      const doc = await db.products.findOne(editingProductId).exec();
+      if (!doc) return;
+      await doc.patch({
+        name: editName.trim(),
+        sku: editSku.trim() || doc.sku,
+        category: editCategory.trim() || 'General',
+        retailPrice: rp,
+        wholesalePrice: Number.isNaN(wp) ? rp : Math.max(0, wp),
+        costPrice: cp,
+        stock: Number.isNaN(st) ? doc.stock : Math.max(0, st),
+        minStockLevel: Number.isNaN(minSt) ? 0 : Math.max(0, minSt),
+        barcode: editBarcode.trim() || undefined,
+      });
+      setMessage('Product updated.');
+      setTimeout(() => setMessage(null), 3000);
+      cancelEdit();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to update product');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,8 +278,11 @@ export default function InventoryPage() {
 
   const addStock = async (productId: string) => {
     if (!db) return;
-    const qty = parseInt(addStockQty, 10);
-    if (Number.isNaN(qty) || qty <= 0) return;
+    const qty = parseInt(String(addStockQty).trim(), 10);
+    if (Number.isNaN(qty) || qty <= 0) {
+      setMessage('Enter a quantity (e.g. 1 or more).');
+      return;
+    }
     const doc = await db.products.findOne(productId).exec();
     if (!doc) return;
     const supplierIdForCredit = (addStockSupplierId || doc.supplierId || '').trim();
@@ -176,7 +292,8 @@ export default function InventoryPage() {
     }
     const costTotal = doc.costPrice * qty;
     const productName = doc.name;
-    const newStock = doc.stock + qty;
+    const currentStock = Number(doc.stock) || 0;
+    const newStock = currentStock + qty;
     await doc.patch({ stock: newStock });
 
     const today = new Date().toISOString().slice(0, 10);
@@ -307,19 +424,72 @@ export default function InventoryPage() {
         </section>
 
         <section className="card overflow-hidden">
-          <h2 className="mb-3 border-b border-slate-200/80 bg-slate-50/50 px-5 py-4 font-heading text-lg font-semibold text-smoky-black">
+          <h2 className="border-b border-slate-200/80 bg-slate-50/50 px-5 py-4 font-heading text-lg font-semibold text-smoky-black">
             Products & stock
           </h2>
+          <div className="border-b border-slate-100 px-4 py-3">
+            <label htmlFor="inventory-product-search" className="sr-only">Search products</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+              <input
+                id="inventory-product-search"
+                type="search"
+                placeholder="Search by name, SKU, category, barcode…"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="input-base w-full pl-9 pr-3 py-2 text-sm"
+                autoComplete="off"
+              />
+            </div>
+            {productSearch.trim() && (
+              <p className="mt-1.5 text-xs text-slate-500">
+                Showing {filteredProducts.length} of {products.length} products
+              </p>
+            )}
+          </div>
           <div className="max-h-[60vh] overflow-y-auto">
             {products.length === 0 ? (
               <p className="p-6 text-center text-slate-500">No products. Add one with the form.</p>
+            ) : filteredProducts.length === 0 ? (
+              <p className="p-6 text-center text-slate-500">No products match &quot;{productSearch.trim()}&quot;. Try a different search.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {products.map((p) => (
+                {filteredProducts.map((p) => (
                   <li
                     key={p.id}
                     className={`px-4 py-3 transition hover:bg-slate-50/50 ${p.stock <= p.minStockLevel ? 'bg-amber-50/50' : ''}`}
                   >
+                    {editingProductId === p.id ? (
+                      <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-600">Edit product</span>
+                          <button type="button" onClick={cancelEdit} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Cancel">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <input type="text" placeholder="Name *" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-base text-sm" />
+                          <div>
+                            <input type="text" placeholder="SKU" value={editSku} onChange={(e) => setEditSku(e.target.value)} className={`input-base text-sm ${editSkuError ? 'border-red-300' : ''}`} />
+                            {editSkuError && <p className="mt-0.5 text-xs text-red-600">{editSkuError}</p>}
+                          </div>
+                          <input type="text" placeholder="Category" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="input-base text-sm" />
+                          <input type="text" placeholder="Barcode" value={editBarcode} onChange={(e) => setEditBarcode(e.target.value)} className="input-base text-sm" />
+                          <input type="number" placeholder="Cost price (UGX)" value={editCostPrice} onChange={(e) => setEditCostPrice(e.target.value)} min="0" step="1" className="input-base text-sm" />
+                          <input type="number" placeholder="Retail price (UGX)" value={editRetailPrice} onChange={(e) => setEditRetailPrice(e.target.value)} min="0" step="1" className="input-base text-sm" />
+                          <input type="number" placeholder="Wholesale price (UGX)" value={editWholesalePrice} onChange={(e) => setEditWholesalePrice(e.target.value)} min="0" step="1" className="input-base text-sm" />
+                          <input type="number" placeholder="Stock" value={editStock} onChange={(e) => setEditStock(e.target.value)} min="0" step="1" className="input-base text-sm" />
+                          <input type="number" placeholder="Min stock level" value={editMinStockLevel} onChange={(e) => setEditMinStockLevel(e.target.value)} min="0" step="1" className="input-base text-sm" />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={saveEdit} disabled={editSaving || !!editSkuError} className="btn-primary py-1.5 text-sm disabled:opacity-50">
+                            {editSaving ? 'Saving…' : 'Save changes'}
+                          </button>
+                          <button type="button" onClick={cancelEdit} className="btn-secondary py-1.5 text-sm">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-smoky-black">{p.name}</p>
@@ -343,20 +513,30 @@ export default function InventoryPage() {
                       </div>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(p)}
+                        className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-tufts-blue"
+                        title="Edit product details"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
                       {addStockFor === p.id ? (
                         <>
                           <input
                             type="number"
-                            min="1"
-                            placeholder="Qty"
+                            min={1}
+                            placeholder="e.g. 5"
                             value={addStockQty}
                             onChange={(e) => setAddStockQty(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') addStock(p.id);
                               if (e.key === 'Escape') setAddStockFor(null);
                             }}
-                            className="input-base w-20 py-1 text-center text-sm"
+                            className="input-base w-24 py-1 text-center text-sm"
                             autoFocus
+                            aria-label="Quantity to add"
                           />
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs font-medium text-slate-600">Pay:</span>
@@ -427,6 +607,8 @@ export default function InventoryPage() {
                         ))}
                       </select>
                     </div>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
