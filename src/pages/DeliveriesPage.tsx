@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
-import { format, startOfDay } from 'date-fns';
+import { getTodayInAppTz, getStartOfDayAppTzAsUTC } from '@/lib/appTimezone';
+import { format } from 'date-fns';
 import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive } from 'lucide-react';
 import type { Delivery as DeliveryType, DeliveryStatus, DeliveryPaymentStatus, Order, Product } from '@/types';
 
@@ -146,7 +147,7 @@ export default function DeliveriesPage() {
     };
   }, [db]);
 
-  const todayStart = startOfDay(new Date()).getTime();
+  const todayStart = getStartOfDayAppTzAsUTC(getTodayInAppTz()).getTime();
   const isCompleted = (d: DeliveryType) =>
     d.deliveryStatus === 'delivered' && d.paymentStatus === 'paid';
   const isFromPreviousDay = (d: DeliveryType) =>

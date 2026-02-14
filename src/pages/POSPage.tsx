@@ -4,6 +4,7 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
 import { getSettings } from '@/lib/settings';
+import { getTodayInAppTz } from '@/lib/appTimezone';
 import { Bike } from 'lucide-react';
 import type { OrderItem, PaymentMethod, PaymentSplit, OrderChannel } from '@/types';
 
@@ -68,7 +69,7 @@ export default function POSPage() {
   const [scheduleForLater, setScheduleForLater] = useState(false);
   const [scheduledForDate, setScheduledForDate] = useState('');
   const [backdateOrder, setBackdateOrder] = useState(false);
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [orderDate, setOrderDate] = useState(() => getTodayInAppTz());
   const [orderTime, setOrderTime] = useState(() => {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -99,7 +100,7 @@ export default function POSPage() {
   useEffect(() => {
     if (!db) return;
     const sub = db.promotions.find().$.subscribe((docs) => {
-      const now = new Date().toISOString().slice(0, 10);
+      const now = getTodayInAppTz();
       setPromotions(
         docs
           .filter((d) => !(d as { _deleted?: boolean })._deleted && d.active && d.startDate <= now && d.endDate >= now)
@@ -880,7 +881,7 @@ export default function POSPage() {
                     <input
                       type="date"
                       value={scheduledForDate}
-                      min={new Date().toISOString().slice(0, 10)}
+                      min={getTodayInAppTz()}
                       onChange={(e) => setScheduledForDate(e.target.value)}
                       className="input-base w-full py-2 text-sm"
                     />
@@ -897,7 +898,7 @@ export default function POSPage() {
                       onChange={(e) => {
                         setBackdateOrder(e.target.checked);
                         if (!e.target.checked) {
-                          setOrderDate(new Date().toISOString().slice(0, 10));
+                          setOrderDate(getTodayInAppTz());
                           const d = new Date();
                           setOrderTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
                         }

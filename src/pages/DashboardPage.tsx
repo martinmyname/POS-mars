@@ -4,7 +4,8 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
-import { startOfDay, subDays, format, parseISO } from 'date-fns';
+import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC } from '@/lib/appTimezone';
+import { subDays, format, parseISO } from 'date-fns';
 import {
   ShoppingCart,
   Package,
@@ -41,11 +42,10 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!db) return;
 
-    // Recompute "today" range when dayTick changes (every minute) so after 00:00 stats reset
-    const now = new Date();
-    const today = startOfDay(now).toISOString();
-    const tomorrow = startOfDay(subDays(now, -1)).toISOString();
-    const todayStr = startOfDay(now).toISOString().slice(0, 10);
+    // Recompute "today" range in Uganda/EAT when dayTick changes
+    const todayStr = getTodayInAppTz();
+    const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+    const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
     const subProducts = db.products.find().$.subscribe((docs) => {
       const list = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);

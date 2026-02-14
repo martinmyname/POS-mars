@@ -3,7 +3,16 @@ import { Link, useParams } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
-import { startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subWeeks, subMonths, subYears, format, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
+import {
+  getTodayInAppTz,
+  getTomorrowDateStr,
+  getStartOfDayAppTzAsUTC,
+  getEndOfDayAppTzAsUTC,
+  addDaysToDateStr,
+  getWeekRangeInAppTz,
+  getMonthRangeInAppTz,
+  getYearRangeInAppTz,
+} from '@/lib/appTimezone';
 import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -49,36 +58,54 @@ export default function ReportsPage() {
   useEffect(() => {
     if (!db) return;
 
-    const today = startOfDay(new Date()).toISOString();
-    const tomorrow = startOfDay(subDays(new Date(), -1)).toISOString();
+    const todayStr = getTodayInAppTz();
+    const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+    const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
-    const start =
-      period === 'daily'
-        ? today
-        : period === 'weekly'
-          ? startOfWeek(new Date()).toISOString()
-          : period === 'monthly'
-            ? startOfMonth(new Date()).toISOString()
-            : startOfYear(new Date()).toISOString();
-    const end =
-      period === 'daily'
-        ? tomorrow
-        : period === 'weekly'
-          ? startOfWeek(subWeeks(new Date(), -1)).toISOString()
-          : period === 'monthly'
-            ? startOfMonth(subMonths(new Date(), -1)).toISOString()
-            : startOfYear(subYears(new Date(), -1)).toISOString();
+    let start: string;
+    let end: string;
+    let prevStart: string;
+    let prevEnd: string;
 
-    // Previous period for comparison
-    const prevStart =
-      period === 'daily'
-        ? startOfDay(subDays(new Date(), 1)).toISOString()
-        : period === 'weekly'
-          ? startOfWeek(subWeeks(new Date(), 1)).toISOString()
-          : period === 'monthly'
-            ? startOfMonth(subMonths(new Date(), 1)).toISOString()
-            : startOfYear(subYears(new Date(), 1)).toISOString();
-    const prevEnd = start;
+    if (period === 'daily') {
+      start = today;
+      end = tomorrow;
+      const yesterdayStr = addDaysToDateStr(todayStr, -1);
+      prevStart = getStartOfDayAppTzAsUTC(yesterdayStr).toISOString();
+      prevEnd = today;
+    } else if (period === 'weekly') {
+      const thisWeek = getWeekRangeInAppTz(todayStr);
+      start = thisWeek.start;
+      end = thisWeek.end;
+      const mondayStr = new Date(thisWeek.start).toLocaleDateString('en-CA', {
+        timeZone: 'Africa/Kampala',
+      });
+      const lastMondayStr = addDaysToDateStr(mondayStr, -7);
+      const prevWeek = getWeekRangeInAppTz(lastMondayStr);
+      prevStart = prevWeek.start;
+      prevEnd = start;
+    } else if (period === 'monthly') {
+      const thisMonth = getMonthRangeInAppTz(todayStr);
+      start = thisMonth.start;
+      end = thisMonth.end;
+      const [y, m] = todayStr.split('-').map(Number);
+      const lastMonthStr =
+        m === 1
+          ? `${y - 1}-12-01`
+          : `${y}-${String(m - 1).padStart(2, '0')}-01`;
+      const prevMonth = getMonthRangeInAppTz(lastMonthStr);
+      prevStart = prevMonth.start;
+      prevEnd = start;
+    } else {
+      const thisYear = getYearRangeInAppTz(todayStr);
+      start = thisYear.start;
+      end = thisYear.end;
+      const [y] = todayStr.split('-').map(Number);
+      const lastYearStr = `${y - 1}-01-01`;
+      const prevYear = getYearRangeInAppTz(lastYearStr);
+      prevStart = prevYear.start;
+      prevEnd = start;
+    }
 
     const subOrders = db.orders.find().$.subscribe((docs) => {
       const list = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
@@ -101,20 +128,40 @@ export default function ReportsPage() {
       setAllOrders(list);
     });
 
+    // Calendar date bounds in Uganda for expense filtering (expense.date is YYYY-MM-DD)
+    const periodStartDateStr =
+      period === 'daily'
+        ? todayStr
+        : period === 'weekly'
+          ? new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' })
+          : period === 'monthly'
+            ? todayStr.slice(0, 7) + '-01'
+            : todayStr.slice(0, 4) + '-01-01';
+    const periodEndDateStr =
+      period === 'daily'
+        ? todayStr
+        : period === 'weekly'
+          ? addDaysToDateStr(new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }), 6)
+          : period === 'monthly'
+            ? (() => {
+                const [y, m] = todayStr.split('-').map(Number);
+                const lastD = new Date(Date.UTC(y, m, 0)).getUTCDate();
+                return `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
+              })()
+            : todayStr.slice(0, 4) + '-12-31';
+    const prevStartDateStr = new Date(prevStart).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' });
+    const prevEndDateStr = new Date(prevEnd).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' });
+
     const subExpenses = db.expenses.find().$.subscribe((docs) => {
       const list = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
-      const todayStr = today.slice(0, 10);
-      const todayList = list.filter((e) => {
-        const expenseDate = e.date.slice(0, 10);
-        return expenseDate === todayStr;
-      });
+      const todayList = list.filter((e) => e.date.slice(0, 10) === todayStr);
       const periodList = list.filter((e) => {
-        const expenseDate = e.date.slice(0, 10);
-        return expenseDate >= start.slice(0, 10) && expenseDate < end.slice(0, 10);
+        const d = e.date.slice(0, 10);
+        return d >= periodStartDateStr && d <= periodEndDateStr;
       });
       const prevPeriodList = list.filter((e) => {
-        const expenseDate = e.date.slice(0, 10);
-        return expenseDate >= prevStart.slice(0, 10) && expenseDate < prevEnd.slice(0, 10);
+        const d = e.date.slice(0, 10);
+        return d >= prevStartDateStr && d < prevEndDateStr;
       });
 
       setExpensesToday(todayList.reduce((s, e) => s + (Number(e.amount) || 0), 0));
@@ -139,44 +186,82 @@ export default function ReportsPage() {
     };
   }, [db, period, dayTick]);
 
-  // Calculate period-specific metrics
+  // Calculate period-specific metrics (same Uganda/EAT ranges as in the effect)
   const periodMetrics = useMemo(() => {
-    const today = startOfDay(new Date()).toISOString();
-    const tomorrow = startOfDay(subDays(new Date(), -1)).toISOString();
-    const start =
-      period === 'daily'
-        ? today
-        : period === 'weekly'
-          ? startOfWeek(new Date()).toISOString()
-          : period === 'monthly'
-            ? startOfMonth(new Date()).toISOString()
-            : startOfYear(new Date()).toISOString();
-    const end =
-      period === 'daily'
-        ? tomorrow
-        : period === 'weekly'
-          ? startOfWeek(subWeeks(new Date(), -1)).toISOString()
-          : period === 'monthly'
-            ? startOfMonth(subMonths(new Date(), -1)).toISOString()
-            : startOfYear(subYears(new Date(), -1)).toISOString();
+    const todayStr = getTodayInAppTz();
+    const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+    const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
-    const prevStart =
-      period === 'daily'
-        ? startOfDay(subDays(new Date(), 1)).toISOString()
-        : period === 'weekly'
-          ? startOfWeek(subWeeks(new Date(), 1)).toISOString()
-          : period === 'monthly'
-            ? startOfMonth(subMonths(new Date(), 1)).toISOString()
-            : startOfYear(subYears(new Date(), 1)).toISOString();
-    const prevEnd = start;
+    let start: string;
+    let end: string;
+    let prevStart: string;
+    let prevEnd: string;
+    let periodStartDateStr: string;
+    let periodEndDateStr: string;
+    let prevStartDateStr: string;
+    let prevEndDateStr: string;
+
+    if (period === 'daily') {
+      start = today;
+      end = tomorrow;
+      const yesterdayStr = addDaysToDateStr(todayStr, -1);
+      prevStart = getStartOfDayAppTzAsUTC(yesterdayStr).toISOString();
+      prevEnd = today;
+      periodStartDateStr = todayStr;
+      periodEndDateStr = todayStr;
+      prevStartDateStr = yesterdayStr;
+      prevEndDateStr = todayStr;
+    } else if (period === 'weekly') {
+      const thisWeek = getWeekRangeInAppTz(todayStr);
+      start = thisWeek.start;
+      end = thisWeek.end;
+      const mondayStr = new Date(thisWeek.start).toLocaleDateString('en-CA', {
+        timeZone: 'Africa/Kampala',
+      });
+      const lastMondayStr = addDaysToDateStr(mondayStr, -7);
+      const prevWeek = getWeekRangeInAppTz(lastMondayStr);
+      prevStart = prevWeek.start;
+      prevEnd = start;
+      periodStartDateStr = mondayStr;
+      periodEndDateStr = addDaysToDateStr(mondayStr, 6);
+      prevStartDateStr = lastMondayStr;
+      prevEndDateStr = mondayStr;
+    } else if (period === 'monthly') {
+      const thisMonth = getMonthRangeInAppTz(todayStr);
+      start = thisMonth.start;
+      end = thisMonth.end;
+      const [y, m] = todayStr.split('-').map(Number);
+      const lastMonthStr = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, '0')}-01`;
+      const prevMonth = getMonthRangeInAppTz(lastMonthStr);
+      prevStart = prevMonth.start;
+      prevEnd = start;
+      periodStartDateStr = todayStr.slice(0, 7) + '-01';
+      const lastD = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      periodEndDateStr = `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
+      prevStartDateStr = lastMonthStr;
+      prevEndDateStr = todayStr.slice(0, 7) + '-01';
+    } else {
+      const thisYear = getYearRangeInAppTz(todayStr);
+      start = thisYear.start;
+      end = thisYear.end;
+      const [y] = todayStr.split('-').map(Number);
+      const lastYearStr = `${y - 1}-01-01`;
+      const prevYear = getYearRangeInAppTz(lastYearStr);
+      prevStart = prevYear.start;
+      prevEnd = start;
+      periodStartDateStr = todayStr.slice(0, 4) + '-01-01';
+      periodEndDateStr = todayStr.slice(0, 4) + '-12-31';
+      prevStartDateStr = lastYearStr;
+      prevEndDateStr = todayStr.slice(0, 4) + '-01-01';
+    }
 
     const periodOrders = allOrders.filter((o) => o.createdAt >= start && o.createdAt < end);
 
     const grossIncome = Number(revenuePeriod) || 0;
 
     const periodExpensesList = allExpenses.filter((e) => {
-      const expenseDate = e.date.slice(0, 10);
-      return expenseDate >= start.slice(0, 10) && expenseDate < end.slice(0, 10);
+      const d = e.date.slice(0, 10);
+      return d >= periodStartDateStr && d <= periodEndDateStr;
     });
     const INVENTORY_PURCHASE_PURPOSE = 'Inventory purchase';
     const operatingExpenses = periodExpensesList
@@ -302,8 +387,8 @@ export default function ReportsPage() {
         ? ((ordersPeriod - previousPeriodOrders) / previousPeriodOrders) * 100
         : ordersPeriod > 0 ? 100 : 0;
     const prevPeriodExpensesList = allExpenses.filter((e) => {
-      const expenseDate = e.date.slice(0, 10);
-      return expenseDate >= prevStart.slice(0, 10) && expenseDate < prevEnd.slice(0, 10);
+      const d = e.date.slice(0, 10);
+      return d >= prevStartDateStr && d < prevEndDateStr;
     });
     const prevOperatingExpenses = prevPeriodExpensesList
       .filter((e) => (e.purpose || '').trim() !== INVENTORY_PURCHASE_PURPOSE)
@@ -319,91 +404,96 @@ export default function ReportsPage() {
         ? ((netProfit - prevNetProfit) / Math.abs(prevNetProfit)) * 100
         : netProfit !== 0 ? 100 : 0;
 
-    // Time series data for trends
+    // Time series data for trends (Uganda/EAT)
     const timeSeriesData: Array<{ date: string; revenue: number; profit: number; expenses: number; orders: number }> = [];
-    
-    if (period === 'daily') {
-      // Last 7 days
-      const days = eachDayOfInterval({
-        start: subDays(new Date(), 6),
-        end: new Date(),
+    const formatDayLabel = (dayStr: string) =>
+      new Date(getStartOfDayAppTzAsUTC(dayStr).getTime()).toLocaleDateString('en-GB', {
+        timeZone: 'Africa/Kampala',
+        month: 'short',
+        day: '2-digit',
       });
-      days.forEach((day) => {
-        const dayStart = startOfDay(day).toISOString();
-        const dayEnd = startOfDay(subDays(day, -1)).toISOString();
+
+    if (period === 'daily') {
+      for (let i = 6; i >= 0; i--) {
+        const dayStr = addDaysToDateStr(todayStr, -i);
+        const dayStart = getStartOfDayAppTzAsUTC(dayStr).toISOString();
+        const dayEnd = getEndOfDayAppTzAsUTC(dayStr).toISOString();
         const dayOrders = allOrders.filter((o) => o.createdAt >= dayStart && o.createdAt < dayEnd);
-        const dayExpenses = allExpenses.filter((e) => {
-          const expenseDate = e.date.slice(0, 10);
-          return expenseDate === day.toISOString().slice(0, 10);
-        });
+        const dayExpenses = allExpenses.filter((e) => e.date.slice(0, 10) === dayStr);
         timeSeriesData.push({
-          date: format(day, 'MMM dd'),
+          date: formatDayLabel(dayStr),
           revenue: dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: dayOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
           expenses: dayExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
           orders: dayOrders.length,
         });
-      });
+      }
     } else if (period === 'weekly') {
-      // Last 8 weeks
-      const weeks = eachWeekOfInterval(
-        {
-          start: subWeeks(new Date(), 7),
-          end: new Date(),
-        },
-        { weekStartsOn: 1 }
-      );
-      weeks.forEach((week) => {
-        const weekStart = startOfWeek(week).toISOString();
-        const weekEnd = startOfWeek(subWeeks(week, -1)).toISOString();
-        const weekOrders = allOrders.filter((o) => o.createdAt >= weekStart && o.createdAt < weekEnd);
+      const mondayStr = new Date(getWeekRangeInAppTz(todayStr).start).toLocaleDateString('en-CA', {
+        timeZone: 'Africa/Kampala',
+      });
+      for (let i = 7; i >= 0; i--) {
+        const weekMondayStr = addDaysToDateStr(mondayStr, -7 * i);
+        const weekRange = getWeekRangeInAppTz(weekMondayStr);
+        const weekOrders = allOrders.filter(
+          (o) => o.createdAt >= weekRange.start && o.createdAt < weekRange.end
+        );
+        const weekEndDateStr = addDaysToDateStr(weekMondayStr, 6);
         const weekExpenses = allExpenses.filter((e) => {
-          const expenseDate = e.date.slice(0, 10);
-          return expenseDate >= weekStart.slice(0, 10) && expenseDate < weekEnd.slice(0, 10);
+          const d = e.date.slice(0, 10);
+          return d >= weekMondayStr && d <= weekEndDateStr;
         });
         timeSeriesData.push({
-          date: format(week, 'MMM dd'),
+          date: formatDayLabel(weekMondayStr),
           revenue: weekOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: weekOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
           expenses: weekExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
           orders: weekOrders.length,
         });
-      });
+      }
     } else if (period === 'monthly') {
-      // Last 12 months
-      const months = eachMonthOfInterval({
-        start: subMonths(new Date(), 11),
-        end: new Date(),
-      });
-      months.forEach((month) => {
-        const monthStart = startOfMonth(month).toISOString();
-        const monthEnd = startOfMonth(subMonths(month, -1)).toISOString();
-        const monthOrders = allOrders.filter((o) => o.createdAt >= monthStart && o.createdAt < monthEnd);
+      const [y, m] = todayStr.split('-').map(Number);
+      for (let i = 11; i >= 0; i--) {
+        const month = m - i <= 0 ? m - i + 12 : m - i;
+        const year = m - i <= 0 ? y - 1 : y;
+        const monthFirstStr = `${year}-${String(month).padStart(2, '0')}-01`;
+        const monthRange = getMonthRangeInAppTz(monthFirstStr);
+        const monthOrders = allOrders.filter(
+          (o) => o.createdAt >= monthRange.start && o.createdAt < monthRange.end
+        );
+        const lastD = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        const monthLastStr = `${year}-${String(month).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
         const monthExpenses = allExpenses.filter((e) => {
-          const expenseDate = e.date.slice(0, 10);
-          return expenseDate >= monthStart.slice(0, 10) && expenseDate < monthEnd.slice(0, 10);
+          const d = e.date.slice(0, 10);
+          return d >= monthFirstStr && d <= monthLastStr;
         });
         timeSeriesData.push({
-          date: format(month, 'MMM yyyy'),
+          date: new Date(getStartOfDayAppTzAsUTC(monthFirstStr).getTime()).toLocaleDateString('en-GB', {
+            timeZone: 'Africa/Kampala',
+            month: 'short',
+            year: 'numeric',
+          }),
           revenue: monthOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: monthOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
           expenses: monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
           orders: monthOrders.length,
         });
-      });
+      }
     } else {
-      // Yearly - last 5 years
+      const [y] = todayStr.split('-').map(Number);
       for (let i = 4; i >= 0; i--) {
-        const year = subYears(new Date(), i);
-        const yearStart = startOfYear(year).toISOString();
-        const yearEnd = startOfYear(subYears(year, -1)).toISOString();
-        const yearOrders = allOrders.filter((o) => o.createdAt >= yearStart && o.createdAt < yearEnd);
+        const yearStr = `${y - i}-01-01`;
+        const yearRange = getYearRangeInAppTz(yearStr);
+        const yearOrders = allOrders.filter(
+          (o) => o.createdAt >= yearRange.start && o.createdAt < yearRange.end
+        );
+        const yearEndStr = `${y - i}-12-31`;
         const yearExpenses = allExpenses.filter((e) => {
-          const expenseDate = e.date.slice(0, 10);
-          return expenseDate >= yearStart.slice(0, 10) && expenseDate < yearEnd.slice(0, 10);
+          const d = e.date.slice(0, 10);
+          return d >= yearStr && d <= yearEndStr;
         });
         timeSeriesData.push({
-          date: format(year, 'yyyy'),
+          date: String(y - i),
           revenue: yearOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: yearOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
           expenses: yearExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),

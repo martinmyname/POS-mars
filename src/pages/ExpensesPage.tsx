@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
+import { getTodayInAppTz } from '@/lib/appTimezone';
 import { format } from 'date-fns';
 
 interface ExpenseDoc {
@@ -25,7 +26,7 @@ export default function ExpensesPage() {
   const [paidBy, setPaidBy] = useState('');
   const [paidByWho, setPaidByWho] = useState('');
   const [notes, setNotes] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => getTodayInAppTz());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -81,7 +82,7 @@ export default function ExpensesPage() {
       setPaidBy('');
       setPaidByWho('');
       setNotes('');
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(getTodayInAppTz());
       setMessage('Expense added.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to add expense');

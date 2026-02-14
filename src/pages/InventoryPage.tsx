@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
-import { Package, Pencil, Search, X } from 'lucide-react';
+import { getTodayInAppTz } from '@/lib/appTimezone';
+import { AlertTriangle, Package, Pencil, Search, X } from 'lucide-react';
 
 interface ProductDoc {
   id: string;
@@ -94,6 +95,12 @@ export default function InventoryPage() {
 
   const valuationCost = products.reduce((s, p) => s + p.stock * p.costPrice, 0);
   const valuationRetail = products.reduce((s, p) => s + p.stock * p.retailPrice, 0);
+
+  const productsWithRetailAtOrBelowCost = useMemo(
+    () => products.filter((p) => p.retailPrice <= p.costPrice),
+    [products]
+  );
+  const showRetailBelowCostWarning = valuationRetail < valuationCost && products.length > 0;
 
   const filteredProducts = useMemo(() => {
     if (!productSearch.trim()) return products;
@@ -296,7 +303,7 @@ export default function InventoryPage() {
     const newStock = currentStock + qty;
     await doc.patch({ stock: newStock });
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayInAppTz();
     if (addStockPayment === 'cash') {
       const expenseId = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       await db.expenses.insert({
@@ -371,6 +378,33 @@ export default function InventoryPage() {
               <p className="text-sm font-medium text-slate-500">Inventory value (retail)</p>
               <p className="text-xl font-bold text-emerald-700">{formatUGX(valuationRetail)}</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showRetailBelowCostWarning && (
+        <div className="card flex gap-3 border-amber-200 bg-amber-50 p-4" role="alert">
+          <div className="shrink-0 rounded-lg bg-amber-100 p-2">
+            <AlertTriangle className="h-5 w-5 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-amber-800">
+              Retail value is below cost — some products are priced at or below cost.
+            </p>
+            <p className="mt-1 text-sm text-amber-700">
+              {productsWithRetailAtOrBelowCost.length === 1
+                ? '1 product has retail price ≤ cost price. Update it so retail is higher than cost to improve margin.'
+                : `${productsWithRetailAtOrBelowCost.length} products have retail price ≤ cost price. Update them so retail is higher than cost to improve margin.`}
+            </p>
+            <ul className="mt-2 list-inside list-disc text-sm text-amber-800">
+              {productsWithRetailAtOrBelowCost.map((p) => (
+                <li key={p.id}>
+                  <span className="font-medium">{p.name}</span>
+                  {p.sku && <span className="text-amber-700"> ({p.sku})</span>} — cost{' '}
+                  {formatUGX(p.costPrice)}, retail {formatUGX(p.retailPrice)}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}

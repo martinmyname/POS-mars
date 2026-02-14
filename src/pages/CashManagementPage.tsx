@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
+import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
-import { format, startOfDay, isToday } from 'date-fns';
+import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC } from '@/lib/appTimezone';
+import { format } from 'date-fns';
 import { Lock, Unlock, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface CashSession {
@@ -22,6 +24,7 @@ interface CashSession {
 
 export default function CashManagementPage() {
   const db = useRxDB();
+  const dayTick = useDayBoundaryTick();
   const { user } = useAuth();
   const [sessions, setSessions] = useState<CashSession[]>([]);
   const [todaySession, setTodaySession] = useState<CashSession | null>(null);
@@ -29,7 +32,7 @@ export default function CashManagementPage() {
   const [closingAmount, setClosingAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [openForPastDate, setOpenForPastDate] = useState(false);
-  const [sessionDate, setSessionDate] = useState(() => startOfDay(new Date()).toISOString().slice(0, 10));
+  const [sessionDate, setSessionDate] = useState(() => getTodayInAppTz());
   const [sessionToClose, setSessionToClose] = useState<CashSession | null>(null);
   const [closeAmountForPast, setCloseAmountForPast] = useState('');
   const [closeNotesForPast, setCloseNotesForPast] = useState('');
@@ -57,18 +60,18 @@ export default function CashManagementPage() {
         .sort((a, b) => (b.date > a.date ? 1 : -1));
       setSessions(list);
       
-      // Find today's session
-      const today = startOfDay(new Date()).toISOString().slice(0, 10);
+      // Find today's session (Uganda/EAT)
+      const today = getTodayInAppTz();
       const todaySess = list.find((s) => s.date === today && !s.closedAt);
       setTodaySession(todaySess || null);
     });
     return () => sub.unsubscribe();
-  }, [db]);
+  }, [db, dayTick]);
 
-  // Re-run expected cash when today's inventory expenses change
+  // Re-run expected cash when today's inventory expenses change (re-subscribe when date changes)
   useEffect(() => {
     if (!db) return;
-    const todayStr = startOfDay(new Date()).toISOString().slice(0, 10);
+    const todayStr = getTodayInAppTz();
     const sub = db.expenses
       .find({
         selector: {
@@ -79,18 +82,16 @@ export default function CashManagementPage() {
       })
       .$.subscribe(() => setInventoryExpensesTick((t) => t + 1));
     return () => sub.unsubscribe();
-  }, [db]);
+  }, [db, dayTick]);
 
   // Calculate expected cash from orders and inventory purchases (cash)
   useEffect(() => {
     if (!db || !todaySession) return;
 
     const calculateExpectedCash = async () => {
-      const today = startOfDay(new Date()).toISOString();
-      const tomorrow = new Date(startOfDay(new Date()));
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowIso = tomorrow.toISOString();
-      const todayStr = today.slice(0, 10);
+      const todayStr = getTodayInAppTz();
+      const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+      const tomorrowIso = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
       // Get all cash orders today
       const orders = await db.orders
@@ -127,7 +128,7 @@ export default function CashManagementPage() {
     };
 
     calculateExpectedCash();
-  }, [db, todaySession, inventoryExpensesTick]);
+  }, [db, todaySession, inventoryExpensesTick, dayTick]);
 
   const openCash = async () => {
     if (!db || !user) return;
@@ -136,7 +137,7 @@ export default function CashManagementPage() {
       setMessage('Enter a valid opening amount');
       return;
     }
-    const today = startOfDay(new Date()).toISOString().slice(0, 10);
+    const today = getTodayInAppTz();
     const dateToUse = openForPastDate ? sessionDate : today;
     if (!dateToUse) {
       setMessage('Select a date');
@@ -353,7 +354,7 @@ export default function CashManagementPage() {
                     checked={openForPastDate}
                     onChange={(e) => {
                       setOpenForPastDate(e.target.checked);
-                      if (!e.target.checked) setSessionDate(startOfDay(new Date()).toISOString().slice(0, 10));
+                      if (!e.target.checked) setSessionDate(getTodayInAppTz());
                     }}
                     className="h-4 w-4 rounded border-slate-300 text-tufts-blue focus:ring-tufts-blue"
                   />
@@ -395,7 +396,7 @@ export default function CashManagementPage() {
                       <div className="flex-1">
                         <p className="font-medium text-smoky-black">
                           {format(new Date(s.date), 'dd MMM yyyy')}
-                          {isToday(new Date(s.date)) && (
+                          {s.date === getTodayInAppTz() && (
                             <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
                               Today
                             </span>
