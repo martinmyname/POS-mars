@@ -185,7 +185,14 @@ export default function ReturnsPage() {
 
       for (const item of returnItems) {
         const doc = await db.products.findOne(item.productId).exec();
-        if (doc) await doc.patch({ stock: doc.stock + item.qty });
+        if (doc) {
+          // Ensure proper number conversion: handle null, undefined, string, or number
+          const currentStock = doc.stock != null ? Number(doc.stock) : 0;
+          if (!isNaN(currentStock)) {
+            const newStock = currentStock + item.qty;
+            await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
+          }
+        }
       }
 
       // 2) Exchange: create new order for replacement items and deduct stock
@@ -217,7 +224,14 @@ export default function ReturnsPage() {
         });
         for (const line of exchangeCart) {
           const doc = await db.products.findOne(line.productId).exec();
-          if (doc) await doc.patch({ stock: Math.max(0, doc.stock - line.qty) });
+          if (doc) {
+            // Ensure proper number conversion: handle null, undefined, string, or number
+            const currentStock = doc.stock != null ? Number(doc.stock) : 0;
+            if (!isNaN(currentStock)) {
+              const newStock = currentStock - line.qty;
+              await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
+            }
+          }
         }
       }
 

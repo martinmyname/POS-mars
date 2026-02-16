@@ -63,6 +63,7 @@ export default function POSPage() {
   const [deliveryMotorcycleId, setDeliveryMotorcycleId] = useState('');
   const [isDeposit, setIsDeposit] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
+  const [depositAmountError, setDepositAmountError] = useState<string | null>(null);
   const [depositCustomerName, setDepositCustomerName] = useState('');
   const [depositCustomerPhone, setDepositCustomerPhone] = useState('');
   const [orderChannel, setOrderChannel] = useState<OrderChannel>('facebook');
@@ -254,6 +255,10 @@ export default function POSPage() {
       return;
     }
     if (isDeposit) {
+      if (depositAmountError) {
+        setMessage('Please fix deposit amount error before placing order.');
+        return;
+      }
       const depositAmt = parseFloat(depositAmount.replace(/,/g, ''));
       if (Number.isNaN(depositAmt) || depositAmt <= 0 || depositAmt >= subtotal) {
         setMessage('Enter a valid deposit amount (must be less than total).');
@@ -359,8 +364,12 @@ export default function POSPage() {
         for (const line of cart) {
           const doc = await db.products.findOne(line.productId).exec();
           if (doc) {
-            const newStock = doc.stock - line.qty;
-            await doc.patch({ stock: Math.max(0, newStock) });
+            // Ensure proper number conversion: handle null, undefined, string, or number
+            const currentStock = doc.stock != null ? Number(doc.stock) : 0;
+            if (!isNaN(currentStock)) {
+              const newStock = currentStock - line.qty;
+              await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
+            }
           }
         }
 
@@ -466,6 +475,7 @@ export default function POSPage() {
       setDeliveryAddress('');
       setIsDeposit(false);
       setDepositAmount('');
+      setDepositAmountError(null);
       setDepositCustomerName('');
       setDepositCustomerPhone('');
       setOrderChannel('facebook'); // Reset to default channel
@@ -848,10 +858,13 @@ export default function POSPage() {
                       onChange={(e) => {
                         setIsDeposit(e.target.checked);
                         if (e.target.checked) {
-                          setDepositAmount(String(Math.round(subtotal * 0.3)));
+                          const suggested = String(Math.round(subtotal * 0.3));
+                          setDepositAmount(suggested);
+                          setDepositAmountError(null);
                           setPaymentMethod('cash');
                         } else {
                           setDepositAmount('');
+                          setDepositAmountError(null);
                           setDepositCustomerName('');
                           setDepositCustomerPhone('');
                         }
@@ -1001,10 +1014,28 @@ export default function POSPage() {
                         type="text"
                         placeholder={`Total: ${formatUGX(subtotal)}`}
                         value={depositAmount}
-                        onChange={(e) => setDepositAmount(e.target.value)}
-                        className="input-base w-full py-2 text-sm"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/,/g, '');
+                          setDepositAmount(val);
+                          if (!val.trim()) {
+                            setDepositAmountError(null);
+                            return;
+                          }
+                          const amt = parseFloat(val);
+                          if (isNaN(amt)) {
+                            setDepositAmountError('Amount must be a number');
+                          } else if (amt <= 0) {
+                            setDepositAmountError('Amount must be greater than 0');
+                          } else if (amt >= subtotal) {
+                            setDepositAmountError('Deposit must be less than total');
+                          } else {
+                            setDepositAmountError(null);
+                          }
+                        }}
+                        className={`input-base w-full py-2 text-sm ${depositAmountError ? 'border-red-300' : ''}`}
                       />
-                      {depositAmount && (() => {
+                      {depositAmountError && <p className="mt-1 text-xs text-red-600">{depositAmountError}</p>}
+                      {depositAmount && !depositAmountError && (() => {
                         const amt = parseFloat(depositAmount.replace(/,/g, ''));
                         if (!Number.isNaN(amt) && amt > 0) {
                           const remaining = subtotal - amt;

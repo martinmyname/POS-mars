@@ -48,6 +48,7 @@ export default function SuppliersPage() {
   const [ledgerDueDate, setLedgerDueDate] = useState(''); // empty = anytime
   const [ledgerNote, setLedgerNote] = useState('');
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
+  const [ledgerAmountError, setLedgerAmountError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) return;
@@ -161,6 +162,7 @@ export default function SuppliersPage() {
       setLedgerDate(todayISO());
       setLedgerDueDate('');
       setLedgerNote('');
+      setLedgerAmountError(null);
     } finally {
       setSaving(false);
     }
@@ -173,6 +175,7 @@ export default function SuppliersPage() {
     setLedgerDate(todayISO());
     setLedgerDueDate('');
     setLedgerNote('');
+    setLedgerAmountError(null);
   };
 
   if (!db) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
@@ -274,14 +277,32 @@ export default function SuppliersPage() {
                             {activeForm.type === 'credit' ? 'Record credit (we owe this)' : 'Record payment'}
                           </h3>
                           <div className="grid gap-2 sm:grid-cols-2">
-                            <input
-                              type="text"
-                              placeholder="Amount (UGX)"
-                              value={ledgerAmount}
-                              onChange={(e) => setLedgerAmount(e.target.value)}
-                              className="input"
-                              required
-                            />
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="Amount (UGX)"
+                                value={ledgerAmount}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/,/g, '');
+                                  setLedgerAmount(val);
+                                  if (!val.trim()) {
+                                    setLedgerAmountError(null);
+                                    return;
+                                  }
+                                  const num = parseFloat(val);
+                                  if (isNaN(num)) {
+                                    setLedgerAmountError('Amount must be a number');
+                                  } else if (num <= 0) {
+                                    setLedgerAmountError('Amount must be greater than 0');
+                                  } else {
+                                    setLedgerAmountError(null);
+                                  }
+                                }}
+                                className={`input ${ledgerAmountError ? 'border-red-300' : ''}`}
+                                required
+                              />
+                              {ledgerAmountError && <p className="mt-1 text-xs text-red-600">{ledgerAmountError}</p>}
+                            </div>
                             <input
                               type="date"
                               value={ledgerDate}
@@ -308,8 +329,18 @@ export default function SuppliersPage() {
                             />
                           </div>
                           <div className="mt-2 flex gap-2">
-                            <button type="submit" disabled={saving} className="btn-primary flex-1">Save</button>
-                            <button type="button" className="btn-secondary" onClick={() => setActiveForm(null)}>Cancel</button>
+                            <button type="submit" disabled={saving || !!ledgerAmountError} className="btn-primary flex-1">Save</button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => {
+                                setActiveForm(null);
+                                setLedgerAmount('');
+                                setLedgerAmountError(null);
+                              }}
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </form>
                       )}

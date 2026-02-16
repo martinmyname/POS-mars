@@ -104,8 +104,12 @@ export default function LayawaysPage() {
       for (const item of doc.items as LayawayItem[]) {
         const productDoc = await db.products.findOne(item.productId).exec();
         if (productDoc) {
-          const newStock = productDoc.stock - item.qty;
-          await productDoc.patch({ stock: Math.max(0, newStock) });
+          // Ensure proper number conversion: handle null, undefined, string, or number
+          const currentStock = productDoc.stock != null ? Number(productDoc.stock) : 0;
+          if (!isNaN(currentStock)) {
+            const newStock = currentStock - item.qty;
+            await productDoc.patch({ stock: Math.max(0, Math.round(newStock)) });
+          }
         }
       }
     }

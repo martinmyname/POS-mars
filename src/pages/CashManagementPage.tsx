@@ -38,6 +38,9 @@ export default function CashManagementPage() {
   const [closeNotesForPast, setCloseNotesForPast] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [inventoryExpensesTick, setInventoryExpensesTick] = useState(0);
+  const [openingAmountError, setOpeningAmountError] = useState<string | null>(null);
+  const [closingAmountError, setClosingAmountError] = useState<string | null>(null);
+  const [closeAmountForPastError, setCloseAmountForPastError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) return;
@@ -132,6 +135,10 @@ export default function CashManagementPage() {
 
   const openCash = async () => {
     if (!db || !user) return;
+    if (openingAmountError) {
+      setMessage('Please fix validation errors before opening cash drawer.');
+      return;
+    }
     const amount = parseFloat(openingAmount.replace(/,/g, ''));
     if (Number.isNaN(amount) || amount < 0) {
       setMessage('Enter a valid opening amount');
@@ -167,6 +174,7 @@ export default function CashManagementPage() {
         openedBy: user.email || 'Staff',
       });
       setOpeningAmount('');
+      setOpeningAmountError(null);
       setOpenForPastDate(false);
       setSessionDate(today);
       setMessage('Cash drawer opened' + (dateToUse !== today ? ` for ${dateToUse}` : ''));
@@ -178,6 +186,10 @@ export default function CashManagementPage() {
 
   const closePastSession = async () => {
     if (!db || !user || !sessionToClose) return;
+    if (closeAmountForPastError) {
+      setMessage('Please fix validation errors before closing session.');
+      return;
+    }
     const amount = parseFloat(closeAmountForPast.replace(/,/g, ''));
     if (Number.isNaN(amount) || amount < 0) {
       setMessage('Enter a valid closing amount');
@@ -208,6 +220,10 @@ export default function CashManagementPage() {
 
   const closeCash = async () => {
     if (!db || !user || !todaySession) return;
+    if (closingAmountError) {
+      setMessage('Please fix validation errors before closing cash drawer.');
+      return;
+    }
     const amount = parseFloat(closingAmount.replace(/,/g, ''));
     if (Number.isNaN(amount) || amount < 0) {
       setMessage('Enter a valid closing amount');
@@ -313,9 +329,25 @@ export default function CashManagementPage() {
                     type="text"
                     placeholder={todaySession.expectedAmount ? formatUGX(todaySession.expectedAmount) : 'Enter amount'}
                     value={closingAmount}
-                    onChange={(e) => setClosingAmount(e.target.value)}
-                    className="input-base"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/,/g, '');
+                      setClosingAmount(val);
+                      if (!val.trim()) {
+                        setClosingAmountError(null);
+                        return;
+                      }
+                      const num = parseFloat(val);
+                      if (isNaN(num)) {
+                        setClosingAmountError('Amount must be a number');
+                      } else if (num < 0) {
+                        setClosingAmountError('Amount cannot be negative');
+                      } else {
+                        setClosingAmountError(null);
+                      }
+                    }}
+                    className={`input-base ${closingAmountError ? 'border-red-300' : ''}`}
                   />
+                  {closingAmountError && <p className="mt-1 text-xs text-red-600">{closingAmountError}</p>}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</label>
@@ -327,7 +359,7 @@ export default function CashManagementPage() {
                     className="input-base resize-none"
                   />
                 </div>
-                <button type="button" onClick={closeCash} className="btn-primary w-full">
+                <button type="button" onClick={closeCash} disabled={!!closingAmountError} className="btn-primary w-full disabled:opacity-50">
                   <Lock className="mr-2 inline h-4 w-4" />
                   Close Cash Drawer
                 </button>
@@ -343,9 +375,25 @@ export default function CashManagementPage() {
                   type="text"
                   placeholder="Enter opening cash amount"
                   value={openingAmount}
-                  onChange={(e) => setOpeningAmount(e.target.value)}
-                  className="input-base"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/,/g, '');
+                    setOpeningAmount(val);
+                    if (!val.trim()) {
+                      setOpeningAmountError(null);
+                      return;
+                    }
+                    const num = parseFloat(val);
+                    if (isNaN(num)) {
+                      setOpeningAmountError('Amount must be a number');
+                    } else if (num < 0) {
+                      setOpeningAmountError('Amount cannot be negative');
+                    } else {
+                      setOpeningAmountError(null);
+                    }
+                  }}
+                  className={`input-base ${openingAmountError ? 'border-red-300' : ''}`}
                 />
+                {openingAmountError && <p className="mt-1 text-xs text-red-600">{openingAmountError}</p>}
               </div>
               <div className="flex items-center gap-2">
                 <label className="flex cursor-pointer items-center gap-2">
@@ -372,7 +420,7 @@ export default function CashManagementPage() {
                   />
                 </div>
               )}
-              <button type="button" onClick={openCash} className="btn-primary w-full">
+              <button type="button" onClick={openCash} disabled={!!openingAmountError} className="btn-primary w-full disabled:opacity-50">
                 <Unlock className="mr-2 inline h-4 w-4" />
                 Open Cash Drawer
               </button>
@@ -437,18 +485,45 @@ export default function CashManagementPage() {
                           </span>
                           {sessionToClose?.id === s.id ? (
                             <div className="flex flex-col gap-1">
-                              <input
-                                type="text"
-                                placeholder="Closing amount"
-                                value={closeAmountForPast}
-                                onChange={(e) => setCloseAmountForPast(e.target.value)}
-                                className="input-base w-28 py-1 text-sm"
-                              />
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="Closing amount"
+                                  value={closeAmountForPast}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/,/g, '');
+                                    setCloseAmountForPast(val);
+                                    if (!val.trim()) {
+                                      setCloseAmountForPastError(null);
+                                      return;
+                                    }
+                                    const num = parseFloat(val);
+                                    if (isNaN(num)) {
+                                      setCloseAmountForPastError('Must be a number');
+                                    } else if (num < 0) {
+                                      setCloseAmountForPastError('Cannot be negative');
+                                    } else {
+                                      setCloseAmountForPastError(null);
+                                    }
+                                  }}
+                                  className={`input-base w-28 py-1 text-sm ${closeAmountForPastError ? 'border-red-300' : ''}`}
+                                />
+                                {closeAmountForPastError && <p className="mt-0.5 text-xs text-red-600">{closeAmountForPastError}</p>}
+                              </div>
                               <div className="flex gap-1">
-                                <button type="button" onClick={closePastSession} className="rounded bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700">
+                                <button type="button" onClick={closePastSession} disabled={!!closeAmountForPastError} className="rounded bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700 disabled:opacity-50">
                                   Save
                                 </button>
-                                <button type="button" onClick={() => { setSessionToClose(null); setCloseAmountForPast(''); setCloseNotesForPast(''); }} className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSessionToClose(null);
+                                    setCloseAmountForPast('');
+                                    setCloseNotesForPast('');
+                                    setCloseAmountForPastError(null);
+                                  }}
+                                  className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                                >
                                   Cancel
                                 </button>
                               </div>

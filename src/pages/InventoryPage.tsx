@@ -56,6 +56,17 @@ export default function InventoryPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editSkuError, setEditSkuError] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState('');
+  
+  // Validation errors for immediate feedback
+  const [retailPriceError, setRetailPriceError] = useState<string | null>(null);
+  const [costPriceError, setCostPriceError] = useState<string | null>(null);
+  const [stockError, setStockError] = useState<string | null>(null);
+  const [minStockLevelError, setMinStockLevelError] = useState<string | null>(null);
+  const [addStockQtyError, setAddStockQtyError] = useState<string | null>(null);
+  const [editRetailPriceError, setEditRetailPriceError] = useState<string | null>(null);
+  const [editCostPriceError, setEditCostPriceError] = useState<string | null>(null);
+  const [editStockError, setEditStockError] = useState<string | null>(null);
+  const [editMinStockLevelError, setEditMinStockLevelError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) return;
@@ -166,6 +177,10 @@ export default function InventoryPage() {
     setEditMinStockLevel(String(p.minStockLevel));
     setEditBarcode(p.barcode ?? '');
     setEditSkuError(null);
+    setEditRetailPriceError(null);
+    setEditCostPriceError(null);
+    setEditStockError(null);
+    setEditMinStockLevelError(null);
   };
 
   const cancelEdit = () => {
@@ -180,10 +195,45 @@ export default function InventoryPage() {
     setEditMinStockLevel('');
     setEditBarcode('');
     setEditSkuError(null);
+    setEditRetailPriceError(null);
+    setEditCostPriceError(null);
+    setEditStockError(null);
+    setEditMinStockLevelError(null);
+  };
+
+  // Validation helpers
+  const validatePrice = (value: string, fieldName: string): string | null => {
+    if (!value.trim()) return null; // Allow empty for optional fields
+    const num = parseFloat(value);
+    if (isNaN(num)) return `${fieldName} must be a number`;
+    if (num < 0) return `${fieldName} cannot be negative`;
+    return null;
+  };
+
+  const validateStock = (value: string): string | null => {
+    if (!value.trim()) return null; // Allow empty
+    const num = parseInt(value, 10);
+    if (isNaN(num)) return 'Stock must be a whole number';
+    if (num < 0) return 'Stock cannot be negative';
+    if (num !== parseFloat(value)) return 'Stock must be a whole number';
+    return null;
+  };
+
+  const validatePriceComparison = (retail: string, cost: string): { retailError: string | null; costError: string | null } => {
+    const retailNum = parseFloat(retail);
+    const costNum = parseFloat(cost);
+    if (!isNaN(retailNum) && !isNaN(costNum) && retailNum < costNum) {
+      return { retailError: 'Retail price should be ≥ cost price', costError: null };
+    }
+    return { retailError: null, costError: null };
   };
 
   const saveEdit = async () => {
     if (!db || !editingProductId) return;
+    if (editSkuError || editRetailPriceError || editCostPriceError || editStockError || editMinStockLevelError) {
+      setMessage('Please fix validation errors before saving.');
+      return;
+    }
     const rp = parseFloat(editRetailPrice);
     const wp = parseFloat(editWholesalePrice);
     const cp = parseFloat(editCostPrice);
@@ -197,7 +247,6 @@ export default function InventoryPage() {
       setMessage('Name is required.');
       return;
     }
-    if (editSkuError) return;
     setEditSaving(true);
     setMessage(null);
     try {
@@ -299,9 +348,14 @@ export default function InventoryPage() {
     }
     const costTotal = doc.costPrice * qty;
     const productName = doc.name;
-    const currentStock = Number(doc.stock) || 0;
+    // Ensure proper number conversion: handle null, undefined, string, or number
+    const currentStock = doc.stock != null ? Number(doc.stock) : 0;
+    if (isNaN(currentStock)) {
+      setMessage('Invalid stock value. Please refresh and try again.');
+      return;
+    }
     const newStock = currentStock + qty;
-    await doc.patch({ stock: newStock });
+    await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
 
     const today = getTodayInAppTz();
     if (addStockPayment === 'cash') {
@@ -438,13 +492,83 @@ export default function InventoryPage() {
                 ))}
               </select>
             </div>
-            <input type="number" placeholder="Retail price (UGX)" value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} min="0" step="1" className="input-base" />
-            <input type="number" placeholder="Cost price (UGX)" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} min="0" step="1" className="input-base" />
-            <input type="number" placeholder="Stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" step="1" className="input-base" />
-            <input type="number" placeholder="Min stock level" value={minStockLevel} onChange={(e) => setMinStockLevel(e.target.value)} min="0" step="1" className="input-base" />
+            <div>
+              <input
+                type="number"
+                placeholder="Retail price (UGX)"
+                value={retailPrice}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRetailPrice(val);
+                  const error = validatePrice(val, 'Retail price');
+                  setRetailPriceError(error);
+                  if (!error && costPrice) {
+                    const comp = validatePriceComparison(val, costPrice);
+                    setRetailPriceError(comp.retailError);
+                  }
+                }}
+                min="0"
+                step="1"
+                className={`input-base ${retailPriceError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {retailPriceError && <p className="mt-1 text-xs text-red-600">{retailPriceError}</p>}
+            </div>
+            <div>
+              <input
+                type="number"
+                placeholder="Cost price (UGX)"
+                value={costPrice}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCostPrice(val);
+                  const error = validatePrice(val, 'Cost price');
+                  setCostPriceError(error);
+                  if (!error && retailPrice) {
+                    const comp = validatePriceComparison(retailPrice, val);
+                    setRetailPriceError(comp.retailError);
+                  }
+                }}
+                min="0"
+                step="1"
+                className={`input-base ${costPriceError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {costPriceError && <p className="mt-1 text-xs text-red-600">{costPriceError}</p>}
+            </div>
+            <div>
+              <input
+                type="number"
+                placeholder="Stock"
+                value={stock}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStock(val);
+                  setStockError(validateStock(val));
+                }}
+                min="0"
+                step="1"
+                className={`input-base ${stockError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {stockError && <p className="mt-1 text-xs text-red-600">{stockError}</p>}
+            </div>
+            <div>
+              <input
+                type="number"
+                placeholder="Min stock level"
+                value={minStockLevel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setMinStockLevel(val);
+                  setMinStockLevelError(validateStock(val));
+                }}
+                min="0"
+                step="1"
+                className={`input-base ${minStockLevelError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {minStockLevelError && <p className="mt-1 text-xs text-red-600">{minStockLevelError}</p>}
+            </div>
             <button
               type="submit"
-              disabled={saving || !!skuError}
+              disabled={saving || !!skuError || !!retailPriceError || !!costPriceError || !!stockError || !!minStockLevelError}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving…' : 'Add product'}
@@ -509,14 +633,99 @@ export default function InventoryPage() {
                           </div>
                           <input type="text" placeholder="Category" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="input-base text-sm" />
                           <input type="text" placeholder="Barcode" value={editBarcode} onChange={(e) => setEditBarcode(e.target.value)} className="input-base text-sm" />
-                          <input type="number" placeholder="Cost price (UGX)" value={editCostPrice} onChange={(e) => setEditCostPrice(e.target.value)} min="0" step="1" className="input-base text-sm" />
-                          <input type="number" placeholder="Retail price (UGX)" value={editRetailPrice} onChange={(e) => setEditRetailPrice(e.target.value)} min="0" step="1" className="input-base text-sm" />
-                          <input type="number" placeholder="Wholesale price (UGX)" value={editWholesalePrice} onChange={(e) => setEditWholesalePrice(e.target.value)} min="0" step="1" className="input-base text-sm" />
-                          <input type="number" placeholder="Stock" value={editStock} onChange={(e) => setEditStock(e.target.value)} min="0" step="1" className="input-base text-sm" />
-                          <input type="number" placeholder="Min stock level" value={editMinStockLevel} onChange={(e) => setEditMinStockLevel(e.target.value)} min="0" step="1" className="input-base text-sm" />
+                          <div>
+                            <input
+                              type="number"
+                              placeholder="Cost price (UGX)"
+                              value={editCostPrice}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditCostPrice(val);
+                                const error = validatePrice(val, 'Cost price');
+                                setEditCostPriceError(error);
+                                if (!error && editRetailPrice) {
+                                  const comp = validatePriceComparison(editRetailPrice, val);
+                                  setEditRetailPriceError(comp.retailError);
+                                }
+                              }}
+                              min="0"
+                              step="1"
+                              className={`input-base text-sm ${editCostPriceError ? 'border-red-300' : ''}`}
+                            />
+                            {editCostPriceError && <p className="mt-0.5 text-xs text-red-600">{editCostPriceError}</p>}
+                          </div>
+                          <div>
+                            <input
+                              type="number"
+                              placeholder="Retail price (UGX)"
+                              value={editRetailPrice}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditRetailPrice(val);
+                                const error = validatePrice(val, 'Retail price');
+                                setEditRetailPriceError(error);
+                                if (!error && editCostPrice) {
+                                  const comp = validatePriceComparison(val, editCostPrice);
+                                  setEditRetailPriceError(comp.retailError);
+                                }
+                              }}
+                              min="0"
+                              step="1"
+                              className={`input-base text-sm ${editRetailPriceError ? 'border-red-300' : ''}`}
+                            />
+                            {editRetailPriceError && <p className="mt-0.5 text-xs text-red-600">{editRetailPriceError}</p>}
+                          </div>
+                          <div>
+                            <input
+                              type="number"
+                              placeholder="Wholesale price (UGX)"
+                              value={editWholesalePrice}
+                              onChange={(e) => setEditWholesalePrice(e.target.value)}
+                              min="0"
+                              step="1"
+                              className="input-base text-sm"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="number"
+                              placeholder="Stock"
+                              value={editStock}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditStock(val);
+                                setEditStockError(validateStock(val));
+                              }}
+                              min="0"
+                              step="1"
+                              className={`input-base text-sm ${editStockError ? 'border-red-300' : ''}`}
+                            />
+                            {editStockError && <p className="mt-0.5 text-xs text-red-600">{editStockError}</p>}
+                          </div>
+                          <div>
+                            <input
+                              type="number"
+                              placeholder="Min stock level"
+                              value={editMinStockLevel}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditMinStockLevel(val);
+                                setEditMinStockLevelError(validateStock(val));
+                              }}
+                              min="0"
+                              step="1"
+                              className={`input-base text-sm ${editMinStockLevelError ? 'border-red-300' : ''}`}
+                            />
+                            {editMinStockLevelError && <p className="mt-0.5 text-xs text-red-600">{editMinStockLevelError}</p>}
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={saveEdit} disabled={editSaving || !!editSkuError} className="btn-primary py-1.5 text-sm disabled:opacity-50">
+                          <button
+                            type="button"
+                            onClick={saveEdit}
+                            disabled={editSaving || !!editSkuError || !!editRetailPriceError || !!editCostPriceError || !!editStockError || !!editMinStockLevelError}
+                            className="btn-primary py-1.5 text-sm disabled:opacity-50"
+                          >
                             {editSaving ? 'Saving…' : 'Save changes'}
                           </button>
                           <button type="button" onClick={cancelEdit} className="btn-secondary py-1.5 text-sm">Cancel</button>
@@ -558,20 +767,44 @@ export default function InventoryPage() {
                       </button>
                       {addStockFor === p.id ? (
                         <>
-                          <input
-                            type="number"
-                            min={1}
-                            placeholder="e.g. 5"
-                            value={addStockQty}
-                            onChange={(e) => setAddStockQty(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') addStock(p.id);
-                              if (e.key === 'Escape') setAddStockFor(null);
-                            }}
-                            className="input-base w-24 py-1 text-center text-sm"
-                            autoFocus
-                            aria-label="Quantity to add"
-                          />
+                          <div>
+                            <input
+                              type="number"
+                              min={1}
+                              placeholder="e.g. 5"
+                              value={addStockQty}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setAddStockQty(val);
+                                if (!val.trim()) {
+                                  setAddStockQtyError(null);
+                                  return;
+                                }
+                                const num = parseInt(val, 10);
+                                if (isNaN(num)) {
+                                  setAddStockQtyError('Must be a whole number');
+                                } else if (num <= 0) {
+                                  setAddStockQtyError('Must be greater than 0');
+                                } else if (num !== parseFloat(val)) {
+                                  setAddStockQtyError('Must be a whole number');
+                                } else {
+                                  setAddStockQtyError(null);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !addStockQtyError) addStock(p.id);
+                                if (e.key === 'Escape') {
+                                  setAddStockFor(null);
+                                  setAddStockQty('');
+                                  setAddStockQtyError(null);
+                                }
+                              }}
+                              className={`input-base w-24 py-1 text-center text-sm ${addStockQtyError ? 'border-red-300' : ''}`}
+                              autoFocus
+                              aria-label="Quantity to add"
+                            />
+                            {addStockQtyError && <p className="mt-0.5 text-xs text-red-600">{addStockQtyError}</p>}
+                          </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs font-medium text-slate-600">Pay:</span>
                             <label className="flex cursor-pointer items-center gap-1 text-sm">
@@ -608,7 +841,12 @@ export default function InventoryPage() {
                               </select>
                             )}
                           </div>
-                          <button type="button" onClick={() => addStock(p.id)} className="btn-primary py-1 text-sm">
+                          <button
+                            type="button"
+                            onClick={() => addStock(p.id)}
+                            disabled={!!addStockQtyError || !addStockQty.trim()}
+                            className="btn-primary py-1 text-sm disabled:opacity-50"
+                          >
                             Add
                           </button>
                           <button type="button" onClick={() => { setAddStockFor(null); setAddStockQty(''); setAddStockPayment('cash'); setAddStockSupplierId(''); }} className="btn-secondary py-1 text-sm">

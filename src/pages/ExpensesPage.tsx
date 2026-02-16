@@ -29,6 +29,7 @@ export default function ExpensesPage() {
   const [date, setDate] = useState(() => getTodayInAppTz());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [amountError, setAmountError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) return;
@@ -83,6 +84,7 @@ export default function ExpensesPage() {
       setPaidByWho('');
       setNotes('');
       setDate(getTodayInAppTz());
+      setAmountError(null);
       setMessage('Expense added.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to add expense');
@@ -117,11 +119,37 @@ export default function ExpensesPage() {
             </div>
             <input type="text" placeholder="Item bought" value={itemBought} onChange={(e) => setItemBought(e.target.value)} className="input-base" />
             <input type="text" placeholder="Purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className="input-base" />
-            <input type="number" placeholder="Amount (UGX)" value={amount} onChange={(e) => setAmount(e.target.value)} min="1" step="1" className="input-base" />
+            <div>
+              <input
+                type="number"
+                placeholder="Amount (UGX)"
+                value={amount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAmount(val);
+                  if (!val.trim()) {
+                    setAmountError(null);
+                    return;
+                  }
+                  const num = parseFloat(val);
+                  if (isNaN(num)) {
+                    setAmountError('Amount must be a number');
+                  } else if (num <= 0) {
+                    setAmountError('Amount must be greater than 0');
+                  } else {
+                    setAmountError(null);
+                  }
+                }}
+                min="1"
+                step="1"
+                className={`input-base ${amountError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {amountError && <p className="mt-1 text-xs text-red-600">{amountError}</p>}
+            </div>
             <input type="text" placeholder="Paid by (e.g. Cash, Mobile Money)" value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="input-base" />
             <input type="text" placeholder="Paid by who" value={paidByWho} onChange={(e) => setPaidByWho(e.target.value)} className="input-base" />
             <input type="text" placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="input-base" />
-            <button type="submit" disabled={saving} className="btn-primary disabled:opacity-50">
+            <button type="submit" disabled={saving || !!amountError} className="btn-primary disabled:opacity-50">
               {saving ? 'Saving…' : 'Add expense'}
             </button>
           </form>
