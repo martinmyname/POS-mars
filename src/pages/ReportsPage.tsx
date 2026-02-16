@@ -5,7 +5,6 @@ import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
 import {
   getTodayInAppTz,
-  getTomorrowDateStr,
   getStartOfDayAppTzAsUTC,
   getEndOfDayAppTzAsUTC,
   addDaysToDateStr,
@@ -194,8 +193,6 @@ export default function ReportsPage() {
 
     let start: string;
     let end: string;
-    let prevStart: string;
-    let prevEnd: string;
     let periodStartDateStr: string;
     let periodEndDateStr: string;
     let prevStartDateStr: string;
@@ -205,8 +202,6 @@ export default function ReportsPage() {
       start = today;
       end = tomorrow;
       const yesterdayStr = addDaysToDateStr(todayStr, -1);
-      prevStart = getStartOfDayAppTzAsUTC(yesterdayStr).toISOString();
-      prevEnd = today;
       periodStartDateStr = todayStr;
       periodEndDateStr = todayStr;
       prevStartDateStr = yesterdayStr;
@@ -219,9 +214,6 @@ export default function ReportsPage() {
         timeZone: 'Africa/Kampala',
       });
       const lastMondayStr = addDaysToDateStr(mondayStr, -7);
-      const prevWeek = getWeekRangeInAppTz(lastMondayStr);
-      prevStart = prevWeek.start;
-      prevEnd = start;
       periodStartDateStr = mondayStr;
       periodEndDateStr = addDaysToDateStr(mondayStr, 6);
       prevStartDateStr = lastMondayStr;
@@ -232,9 +224,6 @@ export default function ReportsPage() {
       end = thisMonth.end;
       const [y, m] = todayStr.split('-').map(Number);
       const lastMonthStr = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, '0')}-01`;
-      const prevMonth = getMonthRangeInAppTz(lastMonthStr);
-      prevStart = prevMonth.start;
-      prevEnd = start;
       periodStartDateStr = todayStr.slice(0, 7) + '-01';
       const lastD = new Date(Date.UTC(y, m, 0)).getUTCDate();
       periodEndDateStr = `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
@@ -246,9 +235,6 @@ export default function ReportsPage() {
       end = thisYear.end;
       const [y] = todayStr.split('-').map(Number);
       const lastYearStr = `${y - 1}-01-01`;
-      const prevYear = getYearRangeInAppTz(lastYearStr);
-      prevStart = prevYear.start;
-      prevEnd = start;
       periodStartDateStr = todayStr.slice(0, 4) + '-01-01';
       periodEndDateStr = todayStr.slice(0, 4) + '-12-31';
       prevStartDateStr = lastYearStr;

@@ -5,7 +5,7 @@ import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC } from '@/lib/appTimezone';
-import { subDays, format, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import {
   ShoppingCart,
   Package,
