@@ -632,7 +632,8 @@ export default function DeliveriesPage() {
                         {/* Assign Rider Section */}
                         {needsRider && (
                           <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                            <h3 className="mb-2 text-sm font-semibold text-blue-900">Assign Rider</h3>
+                            <h3 className="mb-1 text-sm font-semibold text-blue-900">Assign Rider</h3>
+                            <p className="mb-2 text-xs text-slate-600">Only needed when a rider wasn’t set at POS checkout.</p>
                             <div className="grid gap-2 sm:grid-cols-2">
                               <input
                                 type="text"

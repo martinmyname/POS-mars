@@ -431,6 +431,8 @@ export default function POSPage() {
             amountToCollect: subtotal, // Always set to order total
             paymentStatus: 'unpaid',
             deliveryStatus: 'pending',
+            ...(deliveryRiderName.trim() && { riderName: deliveryRiderName.trim() }),
+            ...(deliveryMotorcycleId.trim() && { motorcycleId: deliveryMotorcycleId.trim() }),
             createdAt: now,
           });
           setLastDeliveryCreated(true);
