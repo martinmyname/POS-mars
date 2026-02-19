@@ -281,6 +281,8 @@ export type MarsDatabase = import('rxdb').RxDatabase<MarsCollections>;
 
 let dbInstance: MarsDatabase | null = null;
 const replications: unknown[] = [];
+/** Map of table name to replication instance for targeted sync */
+const replicationMap = new Map<string, unknown>();
 /** Single in-flight init so logout→login doesn't run two inits at once. Cleared on destroy. */
 let initPromise: Promise<MarsDatabase> | null = null;
 
@@ -332,16 +334,21 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         { name: 'cash_sessions', collection: db.cash_sessions },
       ] as const;
 
+      // Critical tables that need immediate sync: deliveries, orders, products
+      const criticalTables = new Set(['deliveries', 'orders', 'products']);
+      
       for (const { name, collection } of tables) {
+        const isCritical = criticalTables.has(name);
+        
         const rep = replicateSupabase({
           collection,
           client: supabase,
           tableName: name,
           replicationIdentifier: `${DB_NAME}-${name}`,
           live: true,
-          retryTime: 2000, // Retry failed sync every 2s (skipped when coming back online)
+          retryTime: isCritical ? 1000 : 2000, // Critical tables retry faster (1s vs 2s)
           pull: {
-            batchSize: 100,
+            batchSize: isCritical ? 20 : 100, // Smaller batches for critical tables = faster sync
             modifier: (doc: Record<string, unknown>) => {
               if (doc._deleted === null) delete doc._deleted;
               if (doc._modified === null) delete doc._modified;
@@ -354,7 +361,7 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
             },
           },
           push: {
-            batchSize: 50,
+            batchSize: isCritical ? 10 : 50, // Smaller batches for critical tables = immediate push
             modifier: (doc: Record<string, unknown>) => {
               if (!doc._modified) {
                 doc._modified = new Date().toISOString();
@@ -364,6 +371,7 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
           },
         });
         replications.push(rep);
+        replicationMap.set(name, rep);
         
         // Replication starts automatically with live: true
         rep.active$.subscribe(() => {
@@ -437,6 +445,37 @@ export function triggerReSync(): void {
   }
 }
 
+/**
+ * Immediately sync a specific critical table (deliveries, orders, products).
+ * Use this after making critical changes that need to be visible to all users immediately.
+ * 
+ * @param tableName - Name of the table to sync immediately ('deliveries', 'orders', or 'products')
+ */
+export function triggerImmediateSync(tableName: 'deliveries' | 'orders' | 'products'): void {
+  const rep = replicationMap.get(tableName);
+  if (rep) {
+    try {
+      const state = rep as { reSync?: () => void };
+      if (typeof state.reSync === 'function') {
+        state.reSync();
+      }
+    } catch (_) {
+      /* reSync failure: sync status will show errors from error$ if replication fails */
+    }
+  }
+}
+
+/**
+ * Immediately sync all critical tables (deliveries, orders, products).
+ * Use this after making critical changes that need to be visible to all users immediately.
+ */
+export function triggerImmediateSyncCritical(): void {
+  const criticalTables: Array<'deliveries' | 'orders' | 'products'> = ['deliveries', 'orders', 'products'];
+  for (const tableName of criticalTables) {
+    triggerImmediateSync(tableName);
+  }
+}
+
 export async function destroyRxDB(): Promise<void> {
   initPromise = null;
   for (const rep of replications) {
@@ -445,6 +484,7 @@ export async function destroyRxDB(): Promise<void> {
     } catch (_) {}
   }
   replications.length = 0;
+  replicationMap.clear();
   if (dbInstance) {
     try {
       const db = dbInstance as unknown as { destroy?: () => Promise<void>; close?: () => Promise<void> };

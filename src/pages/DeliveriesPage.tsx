@@ -4,6 +4,7 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC } from '@/lib/appTimezone';
+import { triggerImmediateSync } from '@/lib/rxdb';
 import { format } from 'date-fns';
 import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive } from 'lucide-react';
 import type { Delivery as DeliveryType, DeliveryStatus, DeliveryPaymentStatus, Order, Product } from '@/types';
@@ -213,6 +214,7 @@ export default function DeliveriesPage() {
     const updates: Record<string, unknown> = {
       riderName: newRiderName || undefined,
       motorcycleId: newMotorcycleId || undefined,
+      _modified: new Date().toISOString(), // Ensure sync detects the change
     };
     
     // Auto-update status to "in_transit" when rider is assigned and status is still "pending"
@@ -221,6 +223,9 @@ export default function DeliveriesPage() {
     }
     
     await doc.patch(updates);
+    
+    // Trigger immediate sync so all active users see the rider assignment instantly
+    triggerImmediateSync('deliveries');
     
     // Clear form
     setRiderName((prev) => {
@@ -282,6 +287,7 @@ export default function DeliveriesPage() {
       paymentReceivedAmount: newAmount,
       paymentReceivedAt: new Date().toISOString(),
       paymentReceivedBy: receivedBy.trim(),
+      _modified: new Date().toISOString(), // Ensure sync detects the change
     };
     
     // If payment is fully received, also mark as delivered
@@ -291,6 +297,9 @@ export default function DeliveriesPage() {
     }
     
     await doc.patch(updates);
+    
+    // Trigger immediate sync so all active users see payment updates instantly
+    triggerImmediateSync('deliveries');
     
     // Clear form
     setPaymentAmount((prev) => {
@@ -337,13 +346,23 @@ export default function DeliveriesPage() {
           await orderDoc.patch({ status: 'cancelled' });
         }
       }
+      // Also sync products since stock was returned
+      triggerImmediateSync('products');
     }
-    const patch: Record<string, unknown> = { deliveryStatus: status };
+    const patch: Record<string, unknown> = { 
+      deliveryStatus: status,
+      _modified: new Date().toISOString(), // Ensure sync detects the change
+    };
     if (status === 'delivered' && doc.deliveryStatus !== 'delivered') {
       patch.deliveredAt = new Date().toISOString();
     }
     await doc.patch(patch);
+    
+    // Trigger immediate sync so all active users see status changes instantly
+    triggerImmediateSync('deliveries');
     if (status === 'cancelled') {
+      // Also sync orders since cancellation updates order status
+      triggerImmediateSync('orders');
       setMessage('Delivery cancelled. Stock has been returned and order marked cancelled.');
       setTimeout(() => setMessage(null), 5000);
     }

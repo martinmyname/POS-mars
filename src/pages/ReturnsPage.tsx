@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
+import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { format } from 'date-fns';
 import type { OrderItem } from '@/types';
 import { RefreshCw, Wrench } from 'lucide-react';
@@ -259,6 +260,9 @@ export default function ReturnsPage() {
           notes: 'Repair fee (return)',
         });
       }
+      
+      // Trigger immediate sync so all active users see return orders and stock changes instantly
+      triggerImmediateSyncCritical();
 
       setSelectedOrderId(null);
       setReturnQtys({});

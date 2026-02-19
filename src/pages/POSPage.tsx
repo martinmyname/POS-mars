@@ -5,6 +5,7 @@ import { formatUGX } from '@/lib/formatUGX';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
 import { getSettings } from '@/lib/settings';
 import { getTodayInAppTz } from '@/lib/appTimezone';
+import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { Bike } from 'lucide-react';
 import type { OrderItem, PaymentMethod, PaymentSplit, OrderChannel } from '@/types';
 
@@ -337,6 +338,9 @@ export default function POSPage() {
           ...(selectedPromoId && { promotionId: selectedPromoId }),
         };
         await db.orders.insert(orderPayload);
+        
+        // Trigger immediate sync so all active users see new orders and layaways instantly
+        triggerImmediateSyncCritical();
 
         // Don't reduce stock for layaways - items are held, not sold yet
         setMessage(`Deposit of ${formatUGX(depositAmt)} recorded. Remaining: ${formatUGX(subtotal - depositAmt)}. Items held.`);
@@ -372,6 +376,9 @@ export default function POSPage() {
             }
           }
         }
+        
+        // Trigger immediate sync so all active users see new orders, stock changes, and deliveries instantly
+        triggerImmediateSyncCritical();
 
         const selectedPaymentOption = PAYMENT_OPTIONS.find((o) => o.value === paymentMethod);
         const paymentLabel = useSplitPayment
