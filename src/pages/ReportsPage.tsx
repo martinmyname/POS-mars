@@ -274,30 +274,33 @@ export default function ReportsPage() {
     const netProfitMargin = grossIncome > 0 ? (netProfit / grossIncome) * 100 : 0;
 
     // Top selling products (include returns as negative so net revenue/profit is correct)
+    // Only count paid orders to ensure we're tracking actual sales
     const productSalesMap = new Map<string, ProductSales>();
-    periodOrders.forEach((order) => {
-      const isReturn = order.orderType === 'return';
-      const sign = isReturn ? -1 : 1;
-      (order.items || []).forEach((item: any) => {
-        const product = allProducts.find((p) => p.id === item.productId);
-        if (product) {
-          const existing = productSalesMap.get(item.productId) || {
-            productId: item.productId,
-            name: product.name,
-            qty: 0,
-            revenue: 0,
-            profit: 0,
-          };
-          const qty = Number(item.qty) || 0;
-          const sellingPrice = Number(item.sellingPrice) || 0;
-          const costPrice = Number(item.costPrice) || 0;
-          existing.qty += sign * qty;
-          existing.revenue += sign * sellingPrice * qty;
-          existing.profit += sign * (sellingPrice - costPrice) * qty;
-          productSalesMap.set(item.productId, existing);
-        }
+    periodOrders
+      .filter((order) => order.status === 'paid')
+      .forEach((order) => {
+        const isReturn = order.orderType === 'return';
+        const sign = isReturn ? -1 : 1;
+        (order.items || []).forEach((item: any) => {
+          const product = allProducts.find((p) => p.id === item.productId);
+          if (product) {
+            const existing = productSalesMap.get(item.productId) || {
+              productId: item.productId,
+              name: product.name,
+              qty: 0,
+              revenue: 0,
+              profit: 0,
+            };
+            const qty = Number(item.qty) || 0;
+            const sellingPrice = Number(item.sellingPrice) || 0;
+            const costPrice = Number(item.costPrice) || 0;
+            existing.qty += sign * qty;
+            existing.revenue += sign * sellingPrice * qty;
+            existing.profit += sign * (sellingPrice - costPrice) * qty;
+            productSalesMap.set(item.productId, existing);
+          }
+        });
       });
-    });
     const topProducts = Array.from(productSalesMap.values())
       .filter((p) => p.revenue > 0)
       .sort((a, b) => b.revenue - a.revenue)
