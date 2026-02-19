@@ -109,12 +109,15 @@ export default function CashManagementPage() {
 
       const cashReceived = orders.reduce((sum, o) => sum + o.total, 0);
 
-      // Get inventory purchases paid by cash today (deduct from expected)
+      // Get restock expenses (Stock purpose) and legacy inventory purchases paid by cash today (deduct from expected)
       const inventoryExpenses = await db.expenses
         .find({
           selector: {
             date: todayStr,
-            purpose: 'Inventory purchase',
+            $or: [
+              { purpose: 'Inventory purchase' },
+              { purpose: 'Stock' },
+            ],
             _deleted: { $ne: true },
           },
         })

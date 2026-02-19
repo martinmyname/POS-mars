@@ -4,6 +4,7 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { format } from 'date-fns';
+import { EXPENSE_PURPOSE_OPTIONS } from '@/lib/expenseConstants';
 
 interface ExpenseDoc {
   id: string;
@@ -70,7 +71,7 @@ export default function ExpensesPage() {
         id,
         date,
         itemBought: itemBought.trim() || 'Misc',
-        purpose: purpose.trim() || 'General',
+        purpose: purpose.trim() || 'other',
         amount: num,
         paidBy: paidBy.trim() || 'Cash',
         receiptAttached: false,
@@ -118,7 +119,17 @@ export default function ExpensesPage() {
               <p className="mt-0.5 text-xs text-slate-500">Use a past date to record historical expenses (e.g. January)</p>
             </div>
             <input type="text" placeholder="Item bought" value={itemBought} onChange={(e) => setItemBought(e.target.value)} className="input-base" />
-            <input type="text" placeholder="Purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className="input-base" />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Purpose</label>
+              <select value={purpose} onChange={(e) => setPurpose(e.target.value)} className="input-base w-full">
+                <option value="">Select purpose</option>
+                {EXPENSE_PURPOSE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <input
                 type="number"

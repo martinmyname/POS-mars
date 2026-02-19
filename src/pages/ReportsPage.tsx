@@ -12,6 +12,7 @@ import {
   getMonthRangeInAppTz,
   getYearRangeInAppTz,
 } from '@/lib/appTimezone';
+import { EXPENSE_PURPOSE_OPTIONS } from '@/lib/expenseConstants';
 import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -250,8 +251,17 @@ export default function ReportsPage() {
       return d >= periodStartDateStr && d <= periodEndDateStr;
     });
     const INVENTORY_PURCHASE_PURPOSE = 'Inventory purchase';
+    const RESTOCK_PURPOSE = 'Stock';
+    // Restock expenses (Stock purpose) - separate from operating expenses
+    const restockExpenses = periodExpensesList
+      .filter((e) => (e.purpose || '').trim() === RESTOCK_PURPOSE)
+      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    // Operating expenses exclude both Inventory purchase (legacy) and Stock (restock)
     const operatingExpenses = periodExpensesList
-      .filter((e) => (e.purpose || '').trim() !== INVENTORY_PURCHASE_PURPOSE)
+      .filter((e) => {
+        const purpose = (e.purpose || '').trim();
+        return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
+      })
       .reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const expenses = Number(expensesPeriod) || 0;
     const netProfit = (Number(profitPeriod) || 0) - operatingExpenses;
@@ -328,17 +338,33 @@ export default function ReportsPage() {
     });
     const channelBreakdown = Array.from(channelMap.values()).sort((a, b) => b.revenue - a.revenue);
 
-    // Expenses by purpose (for period)
+    // Expenses by purpose (for period) - only show predefined purposes, exclude Stock (shown separately)
     const expensesByPurposeMap = new Map<string, { purpose: string; count: number; amount: number }>();
+    
+    // Initialize all predefined purposes with zero values (except Stock)
+    EXPENSE_PURPOSE_OPTIONS.forEach((purpose) => {
+      if (purpose !== RESTOCK_PURPOSE) {
+        expensesByPurposeMap.set(purpose, { purpose, count: 0, amount: 0 });
+      }
+    });
+    
+    // Aggregate expenses, mapping non-standard purposes to 'other', excluding Stock
     periodExpensesList.forEach((e) => {
-      const purpose = (e.purpose || 'Other').trim();
+      const purpose = (e.purpose || '').trim();
+      // Skip Stock expenses - they're shown separately
+      if (purpose === RESTOCK_PURPOSE) return;
+      const normalizedPurpose = (EXPENSE_PURPOSE_OPTIONS as readonly string[]).includes(purpose) ? purpose : 'other';
       const amount = Number(e.amount) || 0;
-      const existing = expensesByPurposeMap.get(purpose) || { purpose, count: 0, amount: 0 };
+      const existing = expensesByPurposeMap.get(normalizedPurpose) || { purpose: normalizedPurpose, count: 0, amount: 0 };
       existing.count += 1;
       existing.amount += amount;
-      expensesByPurposeMap.set(purpose, existing);
+      expensesByPurposeMap.set(normalizedPurpose, existing);
     });
-    const expensesByPurpose = Array.from(expensesByPurposeMap.values()).sort((a, b) => b.amount - a.amount);
+    
+    // Filter out purposes with zero expenses and sort by amount
+    const expensesByPurpose = Array.from(expensesByPurposeMap.values())
+      .filter((ep) => ep.amount > 0 || ep.count > 0)
+      .sort((a, b) => b.amount - a.amount);
 
     // Low stock products (current inventory)
     const lowStockProducts = allProducts.filter(
@@ -377,7 +403,10 @@ export default function ReportsPage() {
       return d >= prevStartDateStr && d < prevEndDateStr;
     });
     const prevOperatingExpenses = prevPeriodExpensesList
-      .filter((e) => (e.purpose || '').trim() !== INVENTORY_PURCHASE_PURPOSE)
+      .filter((e) => {
+        const purpose = (e.purpose || '').trim();
+        return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
+      })
       .reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const prevExpenses = Number(previousPeriodExpenses) || 0;
     const expenseGrowth =
@@ -406,11 +435,17 @@ export default function ReportsPage() {
         const dayEnd = getEndOfDayAppTzAsUTC(dayStr).toISOString();
         const dayOrders = allOrders.filter((o) => o.createdAt >= dayStart && o.createdAt < dayEnd);
         const dayExpenses = allExpenses.filter((e) => e.date.slice(0, 10) === dayStr);
+        const dayOperatingExpenses = dayExpenses
+          .filter((e) => {
+            const purpose = (e.purpose || '').trim();
+            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
+          })
+          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
         timeSeriesData.push({
           date: formatDayLabel(dayStr),
           revenue: dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: dayOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
-          expenses: dayExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+          expenses: dayOperatingExpenses,
           orders: dayOrders.length,
         });
       }
@@ -429,11 +464,17 @@ export default function ReportsPage() {
           const d = e.date.slice(0, 10);
           return d >= weekMondayStr && d <= weekEndDateStr;
         });
+        const weekOperatingExpenses = weekExpenses
+          .filter((e) => {
+            const purpose = (e.purpose || '').trim();
+            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
+          })
+          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
         timeSeriesData.push({
           date: formatDayLabel(weekMondayStr),
           revenue: weekOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: weekOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
-          expenses: weekExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+          expenses: weekOperatingExpenses,
           orders: weekOrders.length,
         });
       }
@@ -453,6 +494,12 @@ export default function ReportsPage() {
           const d = e.date.slice(0, 10);
           return d >= monthFirstStr && d <= monthLastStr;
         });
+        const monthOperatingExpenses = monthExpenses
+          .filter((e) => {
+            const purpose = (e.purpose || '').trim();
+            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
+          })
+          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
         timeSeriesData.push({
           date: new Date(getStartOfDayAppTzAsUTC(monthFirstStr).getTime()).toLocaleDateString('en-GB', {
             timeZone: 'Africa/Kampala',
@@ -461,7 +508,7 @@ export default function ReportsPage() {
           }),
           revenue: monthOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: monthOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
-          expenses: monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+          expenses: monthOperatingExpenses,
           orders: monthOrders.length,
         });
       }
@@ -478,11 +525,17 @@ export default function ReportsPage() {
           const d = e.date.slice(0, 10);
           return d >= yearStr && d <= yearEndStr;
         });
+        const yearOperatingExpenses = yearExpenses
+          .filter((e) => {
+            const purpose = (e.purpose || '').trim();
+            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
+          })
+          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
         timeSeriesData.push({
           date: String(y - i),
           revenue: yearOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
           profit: yearOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
-          expenses: yearExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+          expenses: yearOperatingExpenses,
           orders: yearOrders.length,
         });
       }
@@ -491,6 +544,8 @@ export default function ReportsPage() {
     return {
       grossIncome,
       expenses,
+      restockExpenses,
+      operatingExpenses,
       netProfit,
       avgOrderValue,
       profitMargin,
@@ -652,22 +707,22 @@ export default function ReportsPage() {
             <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {formatUGX(previousPeriodRevenue)}</p>
           </div>
           <div>
-            <p className="text-sm text-slate-600">Expenses</p>
+            <p className="text-sm text-slate-600">Operating Expenses</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-red-700">{formatUGX(periodMetrics.expenses)}</p>
-              {periodMetrics.expenseGrowth !== 0 && (
-                <span
-                  className={`text-xs ${periodMetrics.expenseGrowth > 0 ? 'text-red-600' : 'text-emerald-600'}`}
-                >
-                  {periodMetrics.expenseGrowth > 0 ? '+' : ''}{periodMetrics.expenseGrowth.toFixed(1)}%
-                </span>
-              )}
+              <p className="text-xl font-bold text-red-700">{formatUGX(periodMetrics.operatingExpenses)}</p>
             </div>
-            <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {formatUGX(previousPeriodExpenses)}</p>
+            <p className="text-xs text-slate-500">(excl. restock expenses)</p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-600">Restock Expenses</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl font-bold text-orange-700">{formatUGX(periodMetrics.restockExpenses)}</p>
+            </div>
+            <p className="text-xs text-slate-500">(Stock purchases, not deducted from profit)</p>
           </div>
           <div>
             <p className="text-sm text-slate-600">Net Profit</p>
-            <p className="text-xs text-slate-500">(after expenses, excl. inventory purchase)</p>
+            <p className="text-xs text-slate-500">(after operating expenses, excl. restock)</p>
             <div className="flex items-baseline gap-2">
               <p
                 className={`text-xl font-bold ${
@@ -943,7 +998,7 @@ export default function ReportsPage() {
                 stroke="#ef4444"
                 fillOpacity={1}
                 fill="url(#colorExpenses)"
-                name="Expenses"
+                name="Operating Expenses"
               />
             </AreaChart>
           </ResponsiveContainer>
