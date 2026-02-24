@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
+import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { format } from 'date-fns';
 import { DollarSign, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -115,7 +116,9 @@ export default function LayawaysPage() {
     }
 
     await doc.patch(updates);
-
+    if (newRemaining <= 0) {
+      triggerImmediateSyncCritical();
+    }
     setPaymentAmount('');
     setSelectedLayaway(null);
     setMessage(newRemaining <= 0 ? 'Layaway completed! Items released.' : 'Payment recorded');

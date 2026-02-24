@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRxDB } from '@/hooks/useRxDB';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz } from '@/lib/appTimezone';
+import { triggerImmediateSync } from '@/lib/rxdb';
 import { AlertTriangle, Package, Pencil, Search, X } from 'lucide-react';
 
 interface ProductDoc {
@@ -102,6 +103,15 @@ export default function InventoryPage() {
       );
     });
     return () => sub.unsubscribe();
+  }, [db]);
+
+  // When Inventory page is open, periodically pull latest products so stock stays in sync across users.
+  useEffect(() => {
+    if (!db) return;
+    const interval = setInterval(() => {
+      triggerImmediateSync('products');
+    }, 15_000);
+    return () => clearInterval(interval);
   }, [db]);
 
   const valuationCost = products.reduce((s, p) => s + p.stock * p.costPrice, 0);
@@ -263,6 +273,7 @@ export default function InventoryPage() {
         minStockLevel: Number.isNaN(minSt) ? 0 : Math.max(0, minSt),
         barcode: editBarcode.trim() || undefined,
       });
+      triggerImmediateSync('products');
       setMessage('Product updated.');
       setTimeout(() => setMessage(null), 3000);
       cancelEdit();
@@ -325,6 +336,7 @@ export default function InventoryPage() {
       setMinStockLevel('0');
       setSupplierId('');
       setMessage('Product added.');
+      triggerImmediateSync('products');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to add product');
     } finally {
@@ -382,6 +394,7 @@ export default function InventoryPage() {
       });
     }
 
+    triggerImmediateSync('products');
     setAddStockFor(null);
     setAddStockQty('');
     setAddStockPayment('cash');
@@ -394,6 +407,7 @@ export default function InventoryPage() {
     const doc = await db.products.findOne(productId).exec();
     if (!doc) return;
     await doc.patch({ supplierId: newSupplierId || undefined });
+    triggerImmediateSync('products');
   };
 
   if (!db) {

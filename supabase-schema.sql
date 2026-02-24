@@ -300,6 +300,45 @@ BEGIN
   END IF;
 END $$;
 
+-- Ensure _modified is updated on every UPDATE so replication pull sees changes (fixes inconsistent stock across devices)
+CREATE OR REPLACE FUNCTION public.set_modified_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW."_modified" = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Products (critical for stock sync)
+DROP TRIGGER IF EXISTS products_set_modified ON public.products;
+CREATE TRIGGER products_set_modified
+  BEFORE UPDATE ON public.products
+  FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+
+-- Other replicated tables
+DROP TRIGGER IF EXISTS orders_set_modified ON public.orders;
+CREATE TRIGGER orders_set_modified BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS expenses_set_modified ON public.expenses;
+CREATE TRIGGER expenses_set_modified BEFORE UPDATE ON public.expenses FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS stock_adjustments_set_modified ON public.stock_adjustments;
+CREATE TRIGGER stock_adjustments_set_modified BEFORE UPDATE ON public.stock_adjustments FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS report_notes_set_modified ON public.report_notes;
+CREATE TRIGGER report_notes_set_modified BEFORE UPDATE ON public.report_notes FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS promotions_set_modified ON public.promotions;
+CREATE TRIGGER promotions_set_modified BEFORE UPDATE ON public.promotions FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS customers_set_modified ON public.customers;
+CREATE TRIGGER customers_set_modified BEFORE UPDATE ON public.customers FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS deliveries_set_modified ON public.deliveries;
+CREATE TRIGGER deliveries_set_modified BEFORE UPDATE ON public.deliveries FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS suppliers_set_modified ON public.suppliers;
+CREATE TRIGGER suppliers_set_modified BEFORE UPDATE ON public.suppliers FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS supplier_ledger_set_modified ON public.supplier_ledger;
+CREATE TRIGGER supplier_ledger_set_modified BEFORE UPDATE ON public.supplier_ledger FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS layaways_set_modified ON public.layaways;
+CREATE TRIGGER layaways_set_modified BEFORE UPDATE ON public.layaways FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+DROP TRIGGER IF EXISTS cash_sessions_set_modified ON public.cash_sessions;
+CREATE TRIGGER cash_sessions_set_modified BEFORE UPDATE ON public.cash_sessions FOR EACH ROW EXECUTE PROCEDURE public.set_modified_timestamp();
+
 -- Row Level Security (RLS) Policies
 -- Allow authenticated users to read/write all data
 -- Adjust these policies based on your security requirements

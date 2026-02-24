@@ -129,9 +129,10 @@ If nothing works, you can reset the local database:
 - Or manually add missing columns
 
 ### Items sync but don't appear on other devices
-- Check Realtime is enabled (step 4)
-- Verify both devices are online
-- Check both devices are signed in with the same account
+- **Deliveries / payment received:** The Deliveries page automatically syncs with the server every 15 seconds when open, so when one user marks delivery cash as received, other users will see it within about 15 seconds. Use the **Refresh** button to pull the latest immediately.
+- **Stock / inventory:** The Inventory page automatically syncs products every 15 seconds when open. After editing a product, adding stock, or completing a layaway, the app triggers an immediate sync so other users see updated stock. For **server-side consistency**, run the full `supabase-schema.sql` so the `_modified` triggers are applied: then every UPDATE in Supabase updates `_modified`, and replication pull will see changes.
+- For **instant** updates across devices, ensure Supabase Realtime is enabled for all tables (step 4 above). Then changes (e.g. delivery payment received, stock updates) appear on other devices as soon as they are saved.
+- Verify both devices are online and signed in (same or different accounts—all authenticated users share the same data).
 
 ### Sync works locally but not in production
 - Verify environment variables are set in Vercel

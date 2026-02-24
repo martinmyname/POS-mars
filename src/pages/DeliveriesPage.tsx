@@ -6,7 +6,7 @@ import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC } from '@/lib/appTimezone';
 import { triggerImmediateSync } from '@/lib/rxdb';
 import { format } from 'date-fns';
-import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive } from 'lucide-react';
+import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive, RefreshCw } from 'lucide-react';
 import type { Delivery as DeliveryType, DeliveryStatus, DeliveryPaymentStatus, Order, Product } from '@/types';
 
 const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
@@ -40,6 +40,17 @@ export default function DeliveriesPage() {
   const [motorcycleId, setMotorcycleId] = useState<Record<string, string>>({});
   const [paymentAmount, setPaymentAmount] = useState<Record<string, string>>({});
   const [paymentReceivedBy, setPaymentReceivedBy] = useState<Record<string, string>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // When Deliveries page is open, periodically pull latest from server so all users see
+  // the same state (e.g. when one user records delivery cash received, others see it within ~15s).
+  useEffect(() => {
+    if (!db) return;
+    const interval = setInterval(() => {
+      triggerImmediateSync('deliveries');
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [db]);
 
   useEffect(() => {
     if (!db) return;
@@ -368,6 +379,12 @@ export default function DeliveriesPage() {
     }
   };
 
+  const refreshDeliveriesFromServer = () => {
+    setIsRefreshing(true);
+    triggerImmediateSync('deliveries');
+    setTimeout(() => setIsRefreshing(false), 800);
+  };
+
   if (!db) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
@@ -383,9 +400,21 @@ export default function DeliveriesPage() {
           <h1 className="page-title">Deliveries</h1>
           <p className="page-subtitle">Manage rider deliveries and payment collection</p>
         </div>
-        <Link to="/pos" className="btn-secondary inline-flex w-fit shrink-0 text-sm">
-          ← Create Delivery from POS
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={refreshDeliveriesFromServer}
+            disabled={isRefreshing}
+            className="btn-secondary inline-flex w-fit shrink-0 items-center gap-1.5 text-sm disabled:opacity-70"
+            title="Refresh deliveries from server (see updates from other users)"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Syncing…' : 'Refresh'}
+          </button>
+          <Link to="/pos" className="btn-secondary inline-flex w-fit shrink-0 text-sm">
+            ← Create Delivery from POS
+          </Link>
+        </div>
       </div>
 
       {message && (

@@ -8,6 +8,7 @@ export function SyncStatus() {
   );
   const [syncErrors, setSyncErrors] = useState<Record<string, { message: string; timestamp: string }>>({});
   const [initError, setInitError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   const wasOffline = useRef(false);
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export function SyncStatus() {
   const errorCount = Object.keys(syncErrors).length;
 
   const handleRetrySync = () => {
+    setIsRetrying(true);
     triggerReSync();
     // Sync errors are cleared in rxdb when received$ fires (successful sync)
     // Init error requires full reload to re-init DB
@@ -77,13 +79,17 @@ export function SyncStatus() {
       localStorage.removeItem('rxdb_init_error');
       setInitError(null);
       window.location.reload();
+    } else {
+      setTimeout(() => setIsRetrying(false), 8000);
     }
   };
 
   const handleClearSyncIssues = () => {
+    setIsRetrying(true);
     triggerReSync();
-    localStorage.removeItem('rxdb_sync_errors');
-    setSyncErrors({});
+    // Do NOT clear localStorage/state here: errors are cleared in rxdb when received$ fires (successful sync).
+    // If we clear here and sync fails again, error$ writes back and the badge reappears ("issues come back").
+    setTimeout(() => setIsRetrying(false), 8000);
   };
 
   if (initError) {
@@ -112,16 +118,27 @@ export function SyncStatus() {
   }
 
   if (hasErrors) {
+    const firstError = Object.entries(syncErrors)[0];
+    const firstErrorMsg = firstError ? firstError[1].message : null;
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
-        <AlertCircle className="h-4 w-4" />
-        <span>Sync Issues ({errorCount})</span>
+      <div
+        className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700"
+        title={firstErrorMsg ? `${firstError[0]}: ${firstErrorMsg}` : 'Retry sync'}
+      >
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span>{isRetrying ? 'Retrying…' : `Sync Issues (${errorCount})`}</span>
+        {firstErrorMsg && !isRetrying && (
+          <span className="max-w-[120px] truncate text-amber-600" title={firstErrorMsg}>
+            — {firstErrorMsg}
+          </span>
+        )}
         <button
           onClick={handleClearSyncIssues}
-          className="ml-2 rounded px-1.5 py-0.5 hover:bg-amber-100"
+          disabled={isRetrying}
+          className="ml-2 rounded px-1.5 py-0.5 hover:bg-amber-100 disabled:opacity-70"
           title="Retry sync"
         >
-          <RefreshCw className="h-3 w-3" />
+          <RefreshCw className={`h-3 w-3 ${isRetrying ? 'animate-spin' : ''}`} />
         </button>
       </div>
     );
