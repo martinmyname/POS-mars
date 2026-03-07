@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrders, useProducts, ordersApi, productsApi, generateId } from '@/hooks/useData';
+import { getTodayInAppTz, getMonthRangeInAppTz } from '@/lib/appTimezone';
 import { formatUGX } from '@/lib/formatUGX';
 import { format } from 'date-fns';
 import type { OrderItem } from '@/types';
@@ -60,6 +61,18 @@ export default function ReturnsPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId);
+
+  // Return rate this month (same formula as Reports: return orders / total orders × 100)
+  const { returnRateThisMonth } = useMemo(() => {
+    const todayStr = getTodayInAppTz();
+    const monthRange = getMonthRangeInAppTz(todayStr);
+    const periodOrders = ordersList.filter(
+      (o) => (o.status ?? '') !== 'cancelled' && o.createdAt >= monthRange.start && o.createdAt < monthRange.end
+    );
+    const returnOrders = periodOrders.filter((o) => o.orderType === 'return').length;
+    const returnRate = periodOrders.length > 0 ? (returnOrders / periodOrders.length) * 100 : 0;
+    return { returnRateThisMonth: returnRate };
+  }, [ordersList]);
 
   const filteredExchangeProducts = useMemo(() => {
     if (!exchangeSearch.trim()) return productsForExchange.slice(0, 20);
@@ -259,6 +272,13 @@ export default function ReturnsPage() {
       </div>
       <p className="text-sm text-slate-600">
         Customers either receive <strong>replacement items</strong> (exchange) or the item is <strong>repaired and they pay a fee</strong>.
+      </p>
+      <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+        <span className="font-medium text-slate-700">Return rate this month: {returnRateThisMonth.toFixed(1)}%</span>
+        <span className="text-slate-400">|</span>
+        <Link to="/reports/daily" className="font-medium text-tufts-blue hover:underline">
+          See full return analytics → Reports
+        </Link>
       </p>
       <div className="grid gap-6 lg:grid-cols-2">
         <section>

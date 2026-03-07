@@ -1,9 +1,22 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useCustomers, customersApi, generateId } from '@/hooks/useData';
+import { useCustomers, useOrders, customersApi, generateId } from '@/hooks/useData';
+import { useCustomerSummary } from '@/hooks/useCustomerSummary';
 
 export default function CustomersPage() {
   const { data: customers, loading } = useCustomers({ realtime: true });
+  const { data: ordersList } = useOrders({ realtime: true });
+  const orders = useMemo(
+    () =>
+      (ordersList ?? []).map((o) => ({
+        customerId: o.customerId,
+        createdAt: o.createdAt,
+        orderType: o.orderType,
+        status: o.status,
+      })),
+    [ordersList]
+  );
+  const { uniqueCustomers, returningCustomerRate, atRiskCount } = useCustomerSummary(orders, 'monthly');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -36,6 +49,15 @@ export default function CustomersPage() {
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold text-smoky-black">Customers</h1>
         <Link to="/" className="text-tufts-blue underline">← Dashboard</Link>
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 dark:border-[#1f2937] dark:bg-[#111827]/50">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          <span className="font-medium text-slate-800 dark:text-slate-200">This month:</span>{' '}
+          {uniqueCustomers} unique customers · {returningCustomerRate.toFixed(0)}% returning · {atRiskCount} at-risk
+        </p>
+        <Link to="/reports/daily" className="mt-1 inline-block text-sm font-medium text-tufts-blue hover:underline">
+          See full customer analytics → Reports
+        </Link>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-slate-200 bg-white p-4">

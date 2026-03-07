@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, useSuppliers, productsApi, expensesApi, supplierLedgerApi, generateId } from '@/hooks/useData';
+import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { AlertTriangle, Package, Pencil, Search, X } from 'lucide-react';
@@ -98,6 +99,8 @@ export default function InventoryPage() {
         (p.barcode && p.barcode.toLowerCase().includes(q))
     );
   }, [products, productSearch]);
+
+  const { lowStockTable, totalRestockCost, lowStockCount } = useLowStockMetrics(products);
 
   // Real-time SKU validation
   useEffect(() => {
@@ -569,6 +572,12 @@ export default function InventoryPage() {
                 Showing {filteredProducts.length} of {products.length} products
               </p>
             )}
+            {lowStockCount > 0 && (
+              <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-900">
+                <span className="font-semibold">Total restock needed: {formatUGX(totalRestockCost)}</span>
+                <span className="text-amber-800"> ({lowStockCount} {lowStockCount === 1 ? 'item' : 'items'})</span>
+              </p>
+            )}
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
             {products.length === 0 ? (
@@ -717,6 +726,14 @@ export default function InventoryPage() {
                             <span className="ml-1 text-amber-600">(low)</span>
                           )}
                         </span>
+                        {p.stock <= p.minStockLevel && (() => {
+                          const row = lowStockTable.find((r) => r.id === p.id);
+                          return row ? (
+                            <span className="text-xs font-medium text-amber-700" title={`${row.unitsNeeded} units × ${formatUGX(p.costPrice)}`}>
+                              Restock cost: {formatUGX(row.restockCost)}
+                            </span>
+                          ) : null;
+                        })()}
                         <span className="text-slate-500">{formatUGX(p.retailPrice)}</span>
                       </div>
                     </div>

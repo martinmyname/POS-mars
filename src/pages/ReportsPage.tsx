@@ -1,610 +1,253 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useOrders, useExpenses, useProducts, useCustomers } from '@/hooks/useData';
+import { useTheme } from '@/context/ThemeContext';
+import { useOrders, useExpenses, useProducts, useCustomers, useSupplierLedger } from '@/hooks/useData';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
+import { usePeriodRange, type PeriodType } from '@/hooks/usePeriodRange';
+import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
+import { useCustomerSummary } from '@/hooks/useCustomerSummary';
+import {
+  useReportPeriodData,
+  useBreakEvenMetrics,
+  useHourlyMetrics,
+  useReturnMetrics,
+  usePaymentMetrics,
+  useChannelMetrics,
+  useProductMetrics,
+  useExpenseMetrics,
+  useCustomerMetrics,
+  useInventoryHealth,
+  usePeriodMetricsCore,
+} from '@/hooks/reports';
 import { formatUGX } from '@/lib/formatUGX';
+import { getDailyGoals, setDailyGoals, type DailyGoals } from '@/lib/dailyGoalsStorage';
 import {
   getTodayInAppTz,
   getStartOfDayAppTzAsUTC,
-  getEndOfDayAppTzAsUTC,
-  addDaysToDateStr,
   getWeekRangeInAppTz,
-  getMonthRangeInAppTz,
-  getYearRangeInAppTz,
 } from '@/lib/appTimezone';
-import { EXPENSE_PURPOSE_OPTIONS } from '@/lib/expenseConstants';
-import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, AlertTriangle, Receipt, Printer, FileText, ChevronRight } from 'lucide-react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
-
-type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
-
-interface ProductSales {
-  productId: string;
-  name: string;
-  qty: number;
-  revenue: number;
-  profit: number;
-}
-
-interface PaymentMethodBreakdown {
-  method: string;
-  count: number;
-  amount: number;
-}
+import { getChannelLabel } from '@/lib/orderConstants';
+import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, Receipt, Printer, FileText, ChevronRight, Settings, X, Store, Globe, MessageCircle, Share2, Users, Download } from 'lucide-react';
+import { exportToCSV } from '@/utils/exportUtils';
+import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, Bar, LineChart, Line, ComposedChart, PieChart, Pie, Cell } from 'recharts';
 
 export default function ReportsPage() {
+  const { theme } = useTheme();
   const { data: ordersList, loading } = useOrders({ realtime: true });
   const { data: expensesList } = useExpenses({ realtime: true });
   const { data: productsList } = useProducts({ realtime: true });
-  const { data: customersList } = useCustomers({ realtime: true });
+  useCustomers({ realtime: true });
+  const { data: supplierLedgerList } = useSupplierLedger({ realtime: true });
   useDayBoundaryTick();
+  const isDark = theme === 'dark';
+  const chartTooltipStyle = isDark
+    ? { backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '8px', color: '#e5e7eb' }
+    : { backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#0f172a' };
+  const chartGridStroke = isDark ? '#1f2937' : '#e2e8f0';
+  const chartAxisStroke = isDark ? '#9ca3af' : '#64748b';
+
+  const [dailyGoals, setDailyGoalsState] = useState<DailyGoals>(() => getDailyGoals());
+  const [goalsModalOpen, setGoalsModalOpen] = useState(false);
+  useEffect(() => {
+    setDailyGoalsState(getDailyGoals());
+  }, [goalsModalOpen]);
   const { '*': splat } = useParams();
-  const period: Period = splat === 'weekly' ? 'weekly' : splat === 'monthly' ? 'monthly' : splat === 'yearly' ? 'yearly' : 'daily';
+  const period: PeriodType = splat === 'weekly' ? 'weekly' : splat === 'monthly' ? 'monthly' : splat === 'yearly' ? 'yearly' : 'daily';
+
+  const periodRange = usePeriodRange(period);
+  const { current, previous, currentDateStr, previousDateStr } = periodRange;
+  const lowStockMetrics = useLowStockMetrics(productsList || []);
+  const customerSummary = useCustomerSummary(ordersList ?? [], period);
 
   const todayStr = getTodayInAppTz();
-  const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
-  const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
-  const reportData = useMemo(() => {
-    let start: string;
-    let end: string;
-    let prevStart: string;
-    let prevEnd: string;
-    if (period === 'daily') {
-      start = today;
-      end = tomorrow;
-      const yesterdayStr = addDaysToDateStr(todayStr, -1);
-      prevStart = getStartOfDayAppTzAsUTC(yesterdayStr).toISOString();
-      prevEnd = today;
-    } else if (period === 'weekly') {
-      const thisWeek = getWeekRangeInAppTz(todayStr);
-      start = thisWeek.start;
-      end = thisWeek.end;
-      const lastMondayStr = addDaysToDateStr(new Date(thisWeek.start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }), -7);
-      const prevWeek = getWeekRangeInAppTz(lastMondayStr);
-      prevStart = prevWeek.start;
-      prevEnd = start;
-    } else if (period === 'monthly') {
-      const thisMonth = getMonthRangeInAppTz(todayStr);
-      start = thisMonth.start;
-      end = thisMonth.end;
-      const [y, m] = todayStr.split('-').map(Number);
-      const lastMonthStr = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, '0')}-01`;
-      const prevMonth = getMonthRangeInAppTz(lastMonthStr);
-      prevStart = prevMonth.start;
-      prevEnd = start;
-    } else {
-      const thisYear = getYearRangeInAppTz(todayStr);
-      start = thisYear.start;
-      end = thisYear.end;
-      const [y] = todayStr.split('-').map(Number);
-      const lastYearStr = `${y - 1}-01-01`;
-      const prevYear = getYearRangeInAppTz(lastYearStr);
-      prevStart = prevYear.start;
-      prevEnd = start;
-    }
-    const periodStartDateStr = period === 'daily' ? todayStr : period === 'weekly' ? new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }) : period === 'monthly' ? todayStr.slice(0, 7) + '-01' : todayStr.slice(0, 4) + '-01-01';
-    const periodEndDateStr = period === 'daily' ? todayStr : period === 'weekly' ? addDaysToDateStr(new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }), 6) : period === 'monthly' ? (() => { const [yr, mo] = todayStr.split('-').map(Number); const lastD = new Date(Date.UTC(yr, mo, 0)).getUTCDate(); return `${yr}-${String(mo).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`; })() : todayStr.slice(0, 4) + '-12-31';
-    const prevStartDateStr = new Date(prevStart).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' });
-    const prevEndDateStr = new Date(prevEnd).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' });
+  const reportData = useReportPeriodData(
+    ordersList ?? [],
+    expensesList ?? [],
+    productsList ?? [],
+    current,
+    previous,
+    currentDateStr,
+    previousDateStr,
+    todayStr
+  );
 
-    const list = ordersList;
-    const todayList = list.filter((o) => o.createdAt >= today && o.createdAt < tomorrow);
-    const periodList = list.filter((o) => o.createdAt >= start && o.createdAt < end);
-    const prevPeriodList = list.filter((o) => o.createdAt >= prevStart && o.createdAt < prevEnd);
-    const ordersToday = todayList.length;
-    const revenueToday = todayList.reduce((s, o) => s + (Number(o.total) || 0), 0);
-    const profitToday = todayList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
-    const ordersPeriod = periodList.length;
-    const revenuePeriod = periodList.reduce((s, o) => s + (Number(o.total) || 0), 0);
-    const profitPeriod = periodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
-    const previousPeriodOrders = prevPeriodList.length;
-    const previousPeriodRevenue = prevPeriodList.reduce((s, o) => s + (Number(o.total) || 0), 0);
-    const previousPeriodProfit = prevPeriodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
+  const {
+    ordersToday,
+    revenueToday,
+    profitToday,
+    expensesToday,
+    ordersTodayPct,
+    revenueTodayPct,
+    profitTodayPct,
+    expensesTodayPct,
+    last7DaysSparkline,
+    ordersPeriod,
+    revenuePeriod,
+    profitPeriod,
+    expensesPeriod,
+    previousPeriodOrders,
+    previousPeriodRevenue,
+    previousPeriodProfit,
+    previousPeriodExpenses,
+    allOrders,
+    allExpenses,
+    allProducts,
+    periodExpList,
+    prevPeriodExpList,
+  } = reportData;
 
-    const expList = expensesList;
-    const todayExpList = expList.filter((e) => e.date.slice(0, 10) === todayStr);
-    const periodExpList = expList.filter((e) => { const d = e.date.slice(0, 10); return d >= periodStartDateStr && d <= periodEndDateStr; });
-    const prevPeriodExpList = expList.filter((e) => { const d = e.date.slice(0, 10); return d >= prevStartDateStr && d < prevEndDateStr; });
-    const expensesToday = todayExpList.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const expensesPeriod = periodExpList.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const previousPeriodExpenses = prevPeriodExpList.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const periodOrders = useMemo(
+    () => allOrders.filter((o) => o.createdAt >= current.from && o.createdAt < current.to),
+    [allOrders, current.from, current.to]
+  );
 
-    return {
-      ordersToday,
-      revenueToday,
-      profitToday,
-      expensesToday,
-      ordersPeriod,
-      revenuePeriod,
-      profitPeriod,
-      expensesPeriod,
-      previousPeriodOrders,
-      previousPeriodRevenue,
-      previousPeriodProfit,
-      previousPeriodExpenses,
-      allOrders: list,
-      allExpenses: expList,
-      allProducts: productsList,
-    };
-  }, [ordersList, expensesList, productsList, customersList, period, todayStr, today, tomorrow]);
+  const breakEven = useBreakEvenMetrics(
+    allOrders,
+    periodExpList,
+    period,
+    currentDateStr,
+    currentDateStr.to,
+    revenuePeriod,
+    profitPeriod
+  );
+  const hourly = useHourlyMetrics(allOrders, period, todayStr);
+  const productsArray = allProducts as Array<{ id: string; name?: string; stock?: number }>;
+  const returnMetrics = useReturnMetrics(periodOrders, productsArray, ordersPeriod);
+  const paymentBreakdown = usePaymentMetrics(periodOrders);
+  const channelBreakdown = useChannelMetrics(periodOrders);
+  const topProducts = useProductMetrics(periodOrders, productsArray);
+  const expenseMetrics = useExpenseMetrics(periodExpList, prevPeriodExpList);
+  const customerMetrics = useCustomerMetrics(
+    periodOrders,
+    allOrders,
+    current,
+    customerSummary.uniqueCustomers,
+    ordersPeriod,
+    Number(revenuePeriod) || 0
+  );
+  const inventoryHealth = useInventoryHealth(
+    allOrders,
+    productsArray,
+    lowStockMetrics.lowStockCount
+  );
+  const core = usePeriodMetricsCore(
+    allOrders,
+    allExpenses,
+    periodOrders,
+    periodExpList,
+    prevPeriodExpList,
+    period,
+    currentDateStr,
+    todayStr,
+    revenuePeriod,
+    profitPeriod,
+    expensesPeriod,
+    ordersPeriod,
+    previousPeriodRevenue,
+    previousPeriodProfit,
+    previousPeriodOrders,
+    previousPeriodExpenses,
+    supplierLedgerList
+  );
 
-  const { ordersToday, revenueToday, profitToday, expensesToday, ordersPeriod, revenuePeriod, profitPeriod, expensesPeriod, previousPeriodOrders, previousPeriodRevenue, previousPeriodProfit, previousPeriodExpenses, allOrders, allExpenses, allProducts } = reportData;
-
-  // Calculate period-specific metrics (same Uganda/EAT ranges as in the effect)
-  const periodMetrics = useMemo(() => {
-    const todayStr = getTodayInAppTz();
-    const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
-    const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
-
-    let start: string;
-    let end: string;
-    let periodStartDateStr: string;
-    let periodEndDateStr: string;
-    let prevStartDateStr: string;
-    let prevEndDateStr: string;
-
-    if (period === 'daily') {
-      start = today;
-      end = tomorrow;
-      const yesterdayStr = addDaysToDateStr(todayStr, -1);
-      periodStartDateStr = todayStr;
-      periodEndDateStr = todayStr;
-      prevStartDateStr = yesterdayStr;
-      prevEndDateStr = todayStr;
-    } else if (period === 'weekly') {
-      const thisWeek = getWeekRangeInAppTz(todayStr);
-      start = thisWeek.start;
-      end = thisWeek.end;
-      const mondayStr = new Date(thisWeek.start).toLocaleDateString('en-CA', {
-        timeZone: 'Africa/Kampala',
-      });
-      const lastMondayStr = addDaysToDateStr(mondayStr, -7);
-      periodStartDateStr = mondayStr;
-      periodEndDateStr = addDaysToDateStr(mondayStr, 6);
-      prevStartDateStr = lastMondayStr;
-      prevEndDateStr = mondayStr;
-    } else if (period === 'monthly') {
-      const thisMonth = getMonthRangeInAppTz(todayStr);
-      start = thisMonth.start;
-      end = thisMonth.end;
-      const [y, m] = todayStr.split('-').map(Number);
-      const lastMonthStr = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, '0')}-01`;
-      periodStartDateStr = todayStr.slice(0, 7) + '-01';
-      const lastD = new Date(Date.UTC(y, m, 0)).getUTCDate();
-      periodEndDateStr = `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
-      prevStartDateStr = lastMonthStr;
-      prevEndDateStr = todayStr.slice(0, 7) + '-01';
-    } else {
-      const thisYear = getYearRangeInAppTz(todayStr);
-      start = thisYear.start;
-      end = thisYear.end;
-      const [y] = todayStr.split('-').map(Number);
-      const lastYearStr = `${y - 1}-01-01`;
-      periodStartDateStr = todayStr.slice(0, 4) + '-01-01';
-      periodEndDateStr = todayStr.slice(0, 4) + '-12-31';
-      prevStartDateStr = lastYearStr;
-      prevEndDateStr = todayStr.slice(0, 4) + '-01-01';
-    }
-
-    const periodOrders = allOrders.filter((o) => o.createdAt >= start && o.createdAt < end);
-
-    const grossIncome = Number(revenuePeriod) || 0;
-
-    const periodExpensesList = allExpenses.filter((e) => {
-      const d = e.date.slice(0, 10);
-      return d >= periodStartDateStr && d <= periodEndDateStr;
-    });
-    const INVENTORY_PURCHASE_PURPOSE = 'Inventory purchase';
-    const RESTOCK_PURPOSE = 'Stock';
-    // Restock expenses (Stock purpose) - separate from operating expenses
-    const restockExpenses = periodExpensesList
-      .filter((e) => (e.purpose || '').trim() === RESTOCK_PURPOSE)
-      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    // Operating expenses exclude both Inventory purchase (legacy) and Stock (restock)
-    const operatingExpenses = periodExpensesList
-      .filter((e) => {
-        const purpose = (e.purpose || '').trim();
-        return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
-      })
-      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const expenses = Number(expensesPeriod) || 0;
-    const netProfit = (Number(profitPeriod) || 0) - operatingExpenses;
-
-    // Average order value
-    const avgOrderValue = ordersPeriod > 0 ? grossIncome / ordersPeriod : 0;
-
-    // Profit margin percentage
-    const profitMargin = grossIncome > 0 ? (profitPeriod / grossIncome) * 100 : 0;
-    const netProfitMargin = grossIncome > 0 ? (netProfit / grossIncome) * 100 : 0;
-
-    // Top selling products (include returns as negative so net revenue/profit is correct)
-    // Only count paid orders to ensure we're tracking actual sales
-    const productSalesMap = new Map<string, ProductSales>();
-    periodOrders
-      .filter((order) => order.status === 'paid')
-      .forEach((order) => {
-        const isReturn = order.orderType === 'return';
-        const sign = isReturn ? -1 : 1;
-        (order.items || []).forEach((item: any) => {
-          const product = allProducts.find((p) => p.id === item.productId);
-          if (product) {
-            const existing = productSalesMap.get(item.productId) || {
-              productId: item.productId,
-              name: product.name,
-              qty: 0,
-              revenue: 0,
-              profit: 0,
-            };
-            const qty = Number(item.qty) || 0;
-            const sellingPrice = Number(item.sellingPrice) || 0;
-            const costPrice = Number(item.costPrice) || 0;
-            existing.qty += sign * qty;
-            existing.revenue += sign * sellingPrice * qty;
-            existing.profit += sign * (sellingPrice - costPrice) * qty;
-            productSalesMap.set(item.productId, existing);
-          }
-        });
-      });
-    const topProducts = Array.from(productSalesMap.values())
-      .filter((p) => p.revenue > 0)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-
-    // Payment method breakdown (use paymentSplits when present so split payments are accurate)
-    const paymentMap = new Map<string, PaymentMethodBreakdown>();
-    periodOrders.forEach((order) => {
-      const splits = order.paymentSplits && order.paymentSplits.length > 0 ? order.paymentSplits : null;
-      if (splits) {
-        (splits as { method: string; amount: number }[]).forEach((split) => {
-          const method = split.method || 'cash';
-          const amount = Number(split.amount) || 0;
-          const existing = paymentMap.get(method) || { method, count: 0, amount: 0 };
-          existing.count += 1;
-          existing.amount += amount;
-          paymentMap.set(method, existing);
-        });
-      } else {
-        const method = order.paymentMethod || 'cash';
-        const amount = Number(order.total) || 0;
-        const existing = paymentMap.get(method) || { method, count: 0, amount: 0 };
-        existing.count += 1;
-        existing.amount += amount;
-        paymentMap.set(method, existing);
-      }
-    });
-    const paymentBreakdown = Array.from(paymentMap.values()).sort((a, b) => b.amount - a.amount);
-
-    // Sales by channel
-    const channelMap = new Map<string, { channel: string; count: number; revenue: number }>();
-    periodOrders.forEach((order) => {
-      const channel = order.channel || 'physical';
-      const existing = channelMap.get(channel) || { channel, count: 0, revenue: 0 };
-      existing.count += 1;
-      existing.revenue += Number(order.total) || 0;
-      channelMap.set(channel, existing);
-    });
-    const channelBreakdown = Array.from(channelMap.values()).sort((a, b) => b.revenue - a.revenue);
-
-    // Expenses by purpose (for period) - only show predefined purposes, exclude Stock (shown separately)
-    const expensesByPurposeMap = new Map<string, { purpose: string; count: number; amount: number }>();
-    
-    // Initialize all predefined purposes with zero values (except Stock)
-    EXPENSE_PURPOSE_OPTIONS.forEach((purpose) => {
-      if (purpose !== RESTOCK_PURPOSE) {
-        expensesByPurposeMap.set(purpose, { purpose, count: 0, amount: 0 });
-      }
-    });
-    
-    // Aggregate expenses, mapping non-standard purposes to 'other', excluding Stock
-    periodExpensesList.forEach((e) => {
-      const purpose = (e.purpose || '').trim();
-      // Skip Stock expenses - they're shown separately
-      if (purpose === RESTOCK_PURPOSE) return;
-      const normalizedPurpose = (EXPENSE_PURPOSE_OPTIONS as readonly string[]).includes(purpose) ? purpose : 'other';
-      const amount = Number(e.amount) || 0;
-      const existing = expensesByPurposeMap.get(normalizedPurpose) || { purpose: normalizedPurpose, count: 0, amount: 0 };
-      existing.count += 1;
-      existing.amount += amount;
-      expensesByPurposeMap.set(normalizedPurpose, existing);
-    });
-    
-    // Filter out purposes with zero expenses and sort by amount
-    const expensesByPurpose = Array.from(expensesByPurposeMap.values())
-      .filter((ep) => ep.amount > 0 || ep.count > 0)
-      .sort((a, b) => b.amount - a.amount);
-
-    // Low stock products (current inventory)
-    const lowStockProducts = allProducts.filter(
-      (p) => (Number(p.stock) || 0) <= (Number(p.minStockLevel) || 0)
-    );
-    const lowStockCount = lowStockProducts.length;
-    const lowStockValue = lowStockProducts.reduce(
-      (sum, p) => sum + (Number(p.stock) || 0) * (Number(p.costPrice) || 0),
-      0
-    );
-
-    // Unique customers
-    const uniqueCustomers = new Set(
-      periodOrders.filter((o) => o.customerId).map((o) => o.customerId)
-    ).size;
-
-    // Return rate
-    const returnOrders = periodOrders.filter((o) => o.orderType === 'return').length;
-    const returnRate = ordersPeriod > 0 ? (returnOrders / ordersPeriod) * 100 : 0;
-
-    // Growth calculations (avoid division by zero; treat 0 previous as no change)
-    const revenueGrowth =
-      previousPeriodRevenue > 0
-        ? ((grossIncome - previousPeriodRevenue) / previousPeriodRevenue) * 100
-        : grossIncome > 0 ? 100 : 0;
-    const profitGrowth =
-      previousPeriodProfit > 0
-        ? ((profitPeriod - previousPeriodProfit) / previousPeriodProfit) * 100
-        : profitPeriod > 0 ? 100 : 0;
-    const ordersGrowth =
-      previousPeriodOrders > 0
-        ? ((ordersPeriod - previousPeriodOrders) / previousPeriodOrders) * 100
-        : ordersPeriod > 0 ? 100 : 0;
-    const prevPeriodExpensesList = allExpenses.filter((e) => {
-      const d = e.date.slice(0, 10);
-      return d >= prevStartDateStr && d < prevEndDateStr;
-    });
-    const prevOperatingExpenses = prevPeriodExpensesList
-      .filter((e) => {
-        const purpose = (e.purpose || '').trim();
-        return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
-      })
-      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const prevExpenses = Number(previousPeriodExpenses) || 0;
-    const expenseGrowth =
-      prevExpenses > 0
-        ? ((expenses - prevExpenses) / prevExpenses) * 100
-        : expenses > 0 ? 100 : 0;
-    const prevNetProfit = (Number(previousPeriodProfit) || 0) - prevOperatingExpenses;
-    const netProfitGrowth =
-      prevNetProfit !== 0
-        ? ((netProfit - prevNetProfit) / Math.abs(prevNetProfit)) * 100
-        : netProfit !== 0 ? 100 : 0;
-
-    // Time series data for trends (Uganda/EAT) — include margin % for gross profit analytics
-    const timeSeriesData: Array<{
-      date: string;
-      revenue: number;
-      profit: number;
-      expenses: number;
-      orders: number;
-      marginPct: number;
-    }> = [];
-    const formatDayLabel = (dayStr: string) =>
-      new Date(getStartOfDayAppTzAsUTC(dayStr).getTime()).toLocaleDateString('en-GB', {
-        timeZone: 'Africa/Kampala',
-        month: 'short',
-        day: '2-digit',
-      });
-
-    if (period === 'daily') {
-      for (let i = 13; i >= 0; i--) {
-        const dayStr = addDaysToDateStr(todayStr, -i);
-        const dayStart = getStartOfDayAppTzAsUTC(dayStr).toISOString();
-        const dayEnd = getEndOfDayAppTzAsUTC(dayStr).toISOString();
-        const dayOrders = allOrders.filter((o) => o.createdAt >= dayStart && o.createdAt < dayEnd);
-        const dayExpenses = allExpenses.filter((e) => e.date.slice(0, 10) === dayStr);
-        const dayOperatingExpenses = dayExpenses
-          .filter((e) => {
-            const purpose = (e.purpose || '').trim();
-            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
-          })
-          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-        const dayRevenue = dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-        const dayProfit = dayOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
-        timeSeriesData.push({
-          date: formatDayLabel(dayStr),
-          revenue: dayRevenue,
-          profit: dayProfit,
-          expenses: dayOperatingExpenses,
-          orders: dayOrders.length,
-          marginPct: dayRevenue > 0 ? (dayProfit / dayRevenue) * 100 : 0,
-        });
-      }
-    } else if (period === 'weekly') {
-      const mondayStr = new Date(getWeekRangeInAppTz(todayStr).start).toLocaleDateString('en-CA', {
-        timeZone: 'Africa/Kampala',
-      });
-      for (let i = 11; i >= 0; i--) {
-        const weekMondayStr = addDaysToDateStr(mondayStr, -7 * i);
-        const weekRange = getWeekRangeInAppTz(weekMondayStr);
-        const weekOrders = allOrders.filter(
-          (o) => o.createdAt >= weekRange.start && o.createdAt < weekRange.end
-        );
-        const weekEndDateStr = addDaysToDateStr(weekMondayStr, 6);
-        const weekExpenses = allExpenses.filter((e) => {
-          const d = e.date.slice(0, 10);
-          return d >= weekMondayStr && d <= weekEndDateStr;
-        });
-        const weekOperatingExpenses = weekExpenses
-          .filter((e) => {
-            const purpose = (e.purpose || '').trim();
-            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
-          })
-          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-        const weekRevenue = weekOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-        const weekProfit = weekOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
-        timeSeriesData.push({
-          date: formatDayLabel(weekMondayStr),
-          revenue: weekRevenue,
-          profit: weekProfit,
-          expenses: weekOperatingExpenses,
-          orders: weekOrders.length,
-          marginPct: weekRevenue > 0 ? (weekProfit / weekRevenue) * 100 : 0,
-        });
-      }
-    } else if (period === 'monthly') {
-      const [y, m] = todayStr.split('-').map(Number);
-      for (let i = 11; i >= 0; i--) {
-        const month = m - i <= 0 ? m - i + 12 : m - i;
-        const year = m - i <= 0 ? y - 1 : y;
-        const monthFirstStr = `${year}-${String(month).padStart(2, '0')}-01`;
-        const monthRange = getMonthRangeInAppTz(monthFirstStr);
-        const monthOrders = allOrders.filter(
-          (o) => o.createdAt >= monthRange.start && o.createdAt < monthRange.end
-        );
-        const lastD = new Date(Date.UTC(year, month, 0)).getUTCDate();
-        const monthLastStr = `${year}-${String(month).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
-        const monthExpenses = allExpenses.filter((e) => {
-          const d = e.date.slice(0, 10);
-          return d >= monthFirstStr && d <= monthLastStr;
-        });
-        const monthOperatingExpenses = monthExpenses
-          .filter((e) => {
-            const purpose = (e.purpose || '').trim();
-            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
-          })
-          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-        const monthRevenue = monthOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-        const monthProfit = monthOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
-        timeSeriesData.push({
-          date: new Date(getStartOfDayAppTzAsUTC(monthFirstStr).getTime()).toLocaleDateString('en-GB', {
-            timeZone: 'Africa/Kampala',
-            month: 'short',
-            year: 'numeric',
-          }),
-          revenue: monthRevenue,
-          profit: monthProfit,
-          expenses: monthOperatingExpenses,
-          orders: monthOrders.length,
-          marginPct: monthRevenue > 0 ? (monthProfit / monthRevenue) * 100 : 0,
-        });
-      }
-    } else {
-      const [y] = todayStr.split('-').map(Number);
-      for (let i = 5; i >= 0; i--) {
-        const yearStr = `${y - i}-01-01`;
-        const yearRange = getYearRangeInAppTz(yearStr);
-        const yearOrders = allOrders.filter(
-          (o) => o.createdAt >= yearRange.start && o.createdAt < yearRange.end
-        );
-        const yearEndStr = `${y - i}-12-31`;
-        const yearExpenses = allExpenses.filter((e) => {
-          const d = e.date.slice(0, 10);
-          return d >= yearStr && d <= yearEndStr;
-        });
-        const yearOperatingExpenses = yearExpenses
-          .filter((e) => {
-            const purpose = (e.purpose || '').trim();
-            return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
-          })
-          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
-        const yearRevenue = yearOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-        const yearProfit = yearOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
-        timeSeriesData.push({
-          date: String(y - i),
-          revenue: yearRevenue,
-          profit: yearProfit,
-          expenses: yearOperatingExpenses,
-          orders: yearOrders.length,
-          marginPct: yearRevenue > 0 ? (yearProfit / yearRevenue) * 100 : 0,
-        });
-      }
-    }
-
-    // Gross profit past analytics: same buckets as time series with labels for table
-    const grossProfitHistory = timeSeriesData.map((row) => ({
-      periodLabel: row.date,
-      revenue: row.revenue,
-      grossProfit: row.profit,
-      marginPct: row.marginPct,
-      orders: row.orders,
-    })).reverse();
-
-    // Hourly breakdown for daily view (today only, app timezone)
-    type HourlyBucket = { hour: number; hourLabel: string; revenue: number; profit: number; orders: number };
-    const hourlyBreakdown: HourlyBucket[] = [];
-    if (period === 'daily') {
-      const dayStart = getStartOfDayAppTzAsUTC(todayStr).toISOString();
-      const dayEnd = getEndOfDayAppTzAsUTC(todayStr).toISOString();
-      const todayOrders = allOrders.filter((o) => o.createdAt >= dayStart && o.createdAt < dayEnd);
-      const getHourAppTz = (iso: string) => {
-        const h = new Date(iso).toLocaleString('en-GB', { timeZone: 'Africa/Kampala', hour: '2-digit', hour12: false });
-        return parseInt(h, 10) || 0;
-      };
-      for (let h = 0; h < 24; h++) {
-        hourlyBreakdown.push({
-          hour: h,
-          hourLabel: `${String(h).padStart(2, '0')}:00`,
-          revenue: 0,
-          profit: 0,
-          orders: 0,
-        });
-      }
-      todayOrders.forEach((o) => {
-        const hour = getHourAppTz(o.createdAt);
-        if (hour >= 0 && hour < 24) {
-          const b = hourlyBreakdown[hour];
-          b.revenue += Number(o.total) || 0;
-          b.profit += Number(o.grossProfit) || 0;
-          b.orders += 1;
-        }
-      });
-    }
-
-    return {
+  const periodMetrics = useMemo(
+    () => ({
       grossProfit: Number(profitPeriod) || 0,
       previousPeriodGrossProfit: Number(previousPeriodProfit) || 0,
-      grossIncome,
-      expenses,
-      restockExpenses,
-      operatingExpenses,
-      netProfit,
-      avgOrderValue,
-      profitMargin,
-      netProfitMargin,
+      grossIncome: core.grossIncome,
+      expenses: Number(expensesPeriod) || 0,
+      restockExpenses: core.restockExpenses,
+      operatingExpenses: core.operatingExpenses,
+      operatingExpensesGrowth: core.operatingExpensesGrowth,
+      restockExpensesGrowth: core.restockExpensesGrowth,
+      netProfit: core.netProfit,
+      avgOrderValue: core.avgOrderValue,
+      profitMargin: core.profitMargin,
+      netProfitMargin: core.netProfitMargin,
       topProducts,
       paymentBreakdown,
       channelBreakdown,
-      expensesByPurpose,
-      lowStockCount,
-      lowStockValue,
-      uniqueCustomers,
-      returnRate,
-      revenueGrowth,
-      profitGrowth,
-      ordersGrowth,
-      expenseGrowth,
-      netProfitGrowth,
-      timeSeriesData,
-      grossProfitHistory,
-      hourlyBreakdown,
-    };
-  }, [allOrders, allExpenses, allProducts, period, revenuePeriod, expensesPeriod, profitPeriod, ordersPeriod, previousPeriodRevenue, previousPeriodProfit, previousPeriodOrders, previousPeriodExpenses]);
+      expensesByPurpose: expenseMetrics.expensesByPurpose,
+      lowStockCount: lowStockMetrics.lowStockCount,
+      lowStockValue: lowStockMetrics.lowStockValue,
+      uniqueCustomers: customerSummary.uniqueCustomers,
+      returnRate: returnMetrics.returnRate,
+      returnOrders: returnMetrics.returnOrders,
+      revenueGrowth: core.revenueGrowth,
+      profitGrowth: core.profitGrowth,
+      ordersGrowth: core.ordersGrowth,
+      expenseGrowth: core.expenseGrowth,
+      netProfitGrowth: core.netProfitGrowth,
+      timeSeriesData: core.timeSeriesData,
+      grossProfitHistory: core.grossProfitHistory,
+      bestProfitPeriodLabel: core.bestProfitPeriodLabel,
+      worstProfitPeriodLabel: core.worstProfitPeriodLabel,
+      hourlyBreakdown: hourly.hourlyBreakdown,
+      peakRevenueHour: hourly.peakRevenueHour,
+      cashFlowWaterfall: core.cashFlowWaterfall,
+      fixedCosts: breakEven.fixedCosts,
+      breakEvenRevenue: breakEven.breakEvenRevenue,
+      breakEvenProgress: breakEven.breakEvenProgress,
+      breakEvenReached: breakEven.breakEvenReached,
+      breakEvenDay: breakEven.breakEvenDay,
+      returningCustomerRate: customerSummary.returningCustomerRate,
+      revenuePerCustomer: customerMetrics.revenuePerCustomer,
+      avgVisitsPerCustomer: customerMetrics.avgVisitsPerCustomer,
+      costToRevenueRatio: core.costToRevenueRatio,
+      newCustomersCount: customerMetrics.newCustomersCount,
+      returningCustomersCount: customerMetrics.returningCustomersCount,
+      atRiskCount: customerSummary.atRiskCount,
+      topCustomersBySpend: customerMetrics.topCustomersBySpend,
+      lowStockTable: lowStockMetrics.lowStockTable,
+      deadStockCount: inventoryHealth.deadStockCount,
+      inventoryHealthScore: inventoryHealth.inventoryHealthScore,
+      totalRefunded: returnMetrics.totalRefunded,
+      topReturnedProducts: returnMetrics.topReturnedProducts,
+    }),
+    [
+      profitPeriod,
+      previousPeriodProfit,
+      expensesPeriod,
+      core,
+      breakEven,
+      hourly,
+      returnMetrics,
+      paymentBreakdown,
+      channelBreakdown,
+      topProducts,
+      expenseMetrics.expensesByPurpose,
+      lowStockMetrics,
+      customerSummary,
+      customerMetrics,
+      inventoryHealth,
+    ]
+  );
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
-        Loading database…
+      <div className="report-page p-4 sm:p-6 space-y-6">
+        <div className="h-8 w-48 report-skeleton rounded" />
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-10 w-20 report-skeleton rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="report-card p-5 h-28 report-skeleton rounded-xl" />
+          ))}
+        </div>
+        <div className="report-card p-5 h-48 report-skeleton rounded-xl" />
       </div>
     );
   }
 
-  const periodLabel =
-    period === 'daily'
-      ? 'Today'
-      : period === 'weekly'
-        ? 'This week'
-        : period === 'monthly'
-          ? 'This month'
-          : 'This year';
-
-  const prevPeriodLabel =
-    period === 'daily'
-      ? 'Yesterday'
-      : period === 'weekly'
-        ? 'Last week'
-        : period === 'monthly'
-          ? 'Last month'
-          : 'Last year';
+  const periodLabel = periodRange.periodLabel;
+  const prevPeriodLabel = periodRange.prevPeriodLabel;
 
   // Report period date range and generated time for stakeholders
+  const REPORT_BUSINESS_NAME = 'Mars Kitchen Essentials';
   const formatDate = (d: Date) => d.toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: 'numeric', month: 'short', year: 'numeric' });
   let periodRangeLabel = formatDate(getStartOfDayAppTzAsUTC(todayStr));
   if (period === 'weekly') {
@@ -621,31 +264,51 @@ export default function ReportsPage() {
   }
   const generatedAt = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' });
 
+  const ChangeBadge = ({ value, inverse }: { value: number; inverse?: boolean }) => {
+    if (value === 0) return null;
+    const improved = inverse ? value < 0 : value > 0;
+    const color = improved ? 'report-accent-teal' : 'report-accent-red';
+    return (
+      <span className={`flex items-center gap-1 text-xs ${color}`}>
+        {value > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+        {value > 0 ? '+' : ''}{value.toFixed(1)}%
+      </span>
+    );
+  };
+
+  const Sparkline = ({ dataKey, data }: { dataKey: 'orders' | 'revenue' | 'profit' | 'expenses'; data: typeof last7DaysSparkline }) => (
+    <ResponsiveContainer width="100%" height={32}>
+      <LineChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+        <Line type="monotone" dataKey={dataKey} stroke="#f59e0b" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+
   return (
-    <div className="report-page space-y-6">
+    <div className="report-page space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black">Reports</h1>
+        <h1 className="report-heading text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports</h1>
         <div className="flex flex-wrap items-center gap-2 no-print">
           <button
             type="button"
             onClick={() => window.print()}
-            className="btn-secondary inline-flex items-center gap-2 text-sm"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] px-5 py-2.5 text-sm font-medium text-slate-800 dark:text-[#e5e7eb] hover:border-slate-400 dark:hover:border-[#374151] no-print"
             aria-label="Print or save as PDF"
           >
             <Printer className="h-4 w-4" />
             Print / Save as PDF
           </button>
-          <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
+          <Link to="/" className="inline-flex w-fit rounded-xl border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] px-5 py-2.5 text-sm font-medium text-slate-800 dark:text-[#e5e7eb] hover:border-slate-400 dark:hover:border-[#374151] no-print">
             ← Dashboard
           </Link>
         </div>
       </div>
 
-      <nav className="flex gap-2 no-print" aria-label="Report period">
+      <nav className="flex gap-2 no-print sticky top-0 z-10 bg-background-grey dark:bg-[#0d1117] py-2 -mx-4 px-4 sm:mx-0 sm:px-0" aria-label="Report period">
         <Link
           to="/reports/daily"
           className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'daily' ? 'btn-primary' : 'btn-secondary'
+            period === 'daily' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
           }`}
         >
           Daily
@@ -653,7 +316,7 @@ export default function ReportsPage() {
         <Link
           to="/reports/weekly"
           className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'weekly' ? 'btn-primary' : 'btn-secondary'
+            period === 'weekly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
           }`}
         >
           Weekly
@@ -661,7 +324,7 @@ export default function ReportsPage() {
         <Link
           to="/reports/monthly"
           className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'monthly' ? 'btn-primary' : 'btn-secondary'
+            period === 'monthly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
           }`}
         >
           Monthly
@@ -669,458 +332,911 @@ export default function ReportsPage() {
         <Link
           to="/reports/yearly"
           className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'yearly' ? 'btn-primary' : 'btn-secondary'
+            period === 'yearly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
           }`}
         >
           Yearly
         </Link>
       </nav>
 
-      {/* Today's Summary */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm text-slate-600">Today – Orders</p>
-          <p className="text-lg sm:text-2xl font-bold truncate">{ordersToday}</p>
-        </div>
-        <div className="card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm font-medium text-slate-500">Today – Revenue</p>
-          <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate">{formatUGX(revenueToday)}</p>
-        </div>
-        <div className="card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm font-medium text-slate-500">Today – Profit</p>
-          <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate">{formatUGX(profitToday)}</p>
-        </div>
-        <div className="card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm font-medium text-slate-500">Today – Expenses</p>
-          <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUGX(expensesToday)}</p>
-        </div>
+      {/* Today's Summary — real-time, % vs same day last week, 7-day sparkline */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2 no-print">
+        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Today&apos;s summary</span>
+        <button
+          type="button"
+          onClick={() => exportToCSV('today_summary', ['Metric', 'Value', 'vs Last Week'], [
+            ['Orders', ordersToday, ordersTodayPct !== 0 ? `${ordersTodayPct > 0 ? '+' : ''}${ordersTodayPct.toFixed(1)}%` : '—'],
+            ['Revenue (UGX)', revenueToday, revenueTodayPct !== 0 ? `${revenueTodayPct > 0 ? '+' : ''}${revenueTodayPct.toFixed(1)}%` : '—'],
+            ['Gross Profit (UGX)', profitToday, profitTodayPct !== 0 ? `${profitTodayPct > 0 ? '+' : ''}${profitTodayPct.toFixed(1)}%` : '—'],
+            ['Operating Expenses (UGX)', expensesToday, expensesTodayPct !== 0 ? `${expensesTodayPct > 0 ? '+' : ''}${expensesTodayPct.toFixed(1)}%` : '—'],
+          ])}
+          className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100"
+        >
+          <Download className="h-3.5 w-3.5" /> CSV
+        </button>
       </div>
-
-      {/* Period Overview */}
-      <div className="card p-5">
-        <h2 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
-          <BarChart3 className="h-5 w-5 text-tufts-blue" />
-          {periodLabel} Overview
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <p className="text-sm text-slate-600">Orders</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold">{ordersPeriod}</p>
-              {periodMetrics.ordersGrowth !== 0 && (
-                <span
-                  className={`flex items-center gap-1 text-xs ${
-                    periodMetrics.ordersGrowth > 0 ? 'text-emerald-600' : 'text-red-600'
-                  }`}
-                >
-                  {periodMetrics.ordersGrowth > 0 ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3" />
-                  )}
-                  {Math.abs(periodMetrics.ordersGrowth).toFixed(1)}%
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {previousPeriodOrders}</p>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="report-card p-4 sm:p-5">
+          <p className="text-xs sm:text-sm report-muted">Today – Orders</p>
+          <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-100 truncate">{ordersToday}</p>
+          {ordersTodayPct !== 0 && <ChangeBadge value={ordersTodayPct} />}
+          <div className="mt-2 h-8">
+            <Sparkline dataKey="orders" data={last7DaysSparkline} />
           </div>
-          <div>
-            <p className="text-sm text-slate-600">Revenue</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-emerald-700">{formatUGX(periodMetrics.grossIncome)}</p>
-              {periodMetrics.revenueGrowth !== 0 && (
-                <span
-                  className={`flex items-center gap-1 text-xs ${
-                    periodMetrics.revenueGrowth > 0 ? 'text-emerald-600' : 'text-red-600'
-                  }`}
-                >
-                  {periodMetrics.revenueGrowth > 0 ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3" />
-                  )}
-                  {Math.abs(periodMetrics.revenueGrowth).toFixed(1)}%
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {formatUGX(previousPeriodRevenue)}</p>
+        </div>
+        <div className="report-card p-4 sm:p-5">
+          <p className="text-xs sm:text-sm report-muted">Today – Revenue</p>
+          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate">{formatUGX(revenueToday)}</p>
+          {revenueTodayPct !== 0 && <ChangeBadge value={revenueTodayPct} />}
+          <div className="mt-2 h-8">
+            <Sparkline dataKey="revenue" data={last7DaysSparkline} />
           </div>
-          <div>
-            <p className="text-sm text-slate-600">Gross Profit</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-emerald-700">{formatUGX(periodMetrics.grossProfit)}</p>
-              {periodMetrics.profitGrowth !== 0 && (
-                <span
-                  className={`flex items-center gap-1 text-xs ${
-                    periodMetrics.profitGrowth > 0 ? 'text-emerald-600' : 'text-red-600'
-                  }`}
-                >
-                  {periodMetrics.profitGrowth > 0 ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3" />
-                  )}
-                  {Math.abs(periodMetrics.profitGrowth).toFixed(1)}%
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {formatUGX(periodMetrics.previousPeriodGrossProfit)} · Margin: {periodMetrics.profitMargin.toFixed(1)}%</p>
+        </div>
+        <div className="report-card p-4 sm:p-5">
+          <p className="text-xs sm:text-sm report-muted">Today – Gross Profit</p>
+          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate">{formatUGX(profitToday)}</p>
+          {profitTodayPct !== 0 && <ChangeBadge value={profitTodayPct} />}
+          <div className="mt-2 h-8">
+            <Sparkline dataKey="profit" data={last7DaysSparkline} />
           </div>
-          <div>
-            <p className="text-sm text-slate-600">Operating Expenses</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-red-700">{formatUGX(periodMetrics.operatingExpenses)}</p>
-            </div>
-            <p className="text-xs text-slate-500">(excl. restock expenses)</p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-600">Restock Expenses</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-orange-700">{formatUGX(periodMetrics.restockExpenses)}</p>
-            </div>
-            <p className="text-xs text-slate-500">(Stock purchases, not deducted from profit)</p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-600">Net Profit</p>
-            <p className="text-xs text-slate-500">(after operating expenses, excl. restock)</p>
-            <div className="flex items-baseline gap-2">
-              <p
-                className={`text-xl font-bold ${
-                  periodMetrics.netProfit >= 0 ? 'text-emerald-700' : 'text-red-700'
-                }`}
-              >
-                {formatUGX(periodMetrics.netProfit)}
-              </p>
-              {periodMetrics.profitGrowth !== 0 && (
-                <span
-                  className={`flex items-center gap-1 text-xs ${
-                    periodMetrics.profitGrowth > 0 ? 'text-emerald-600' : 'text-red-600'
-                  }`}
-                >
-                  {periodMetrics.profitGrowth > 0 ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3" />
-                  )}
-                  {Math.abs(periodMetrics.profitGrowth).toFixed(1)}%
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500">
-              Margin: {periodMetrics.netProfitMargin.toFixed(1)}%
-              {periodMetrics.netProfitGrowth !== 0 && (
-                <span className="ml-1">
-                  · Net vs prev: {periodMetrics.netProfitGrowth > 0 ? '+' : ''}{periodMetrics.netProfitGrowth.toFixed(1)}%
-                </span>
-              )}
-            </p>
+        </div>
+        <div className="report-card p-4 sm:p-5">
+          <p className="text-xs sm:text-sm report-muted">Today – Operating Expenses</p>
+          <p className="text-lg sm:text-2xl font-bold report-accent-red truncate">{formatUGX(expensesToday)}</p>
+          {expensesTodayPct !== 0 && <ChangeBadge value={expensesTodayPct} inverse />}
+          <div className="mt-2 h-8">
+            <Sparkline dataKey="expenses" data={last7DaysSparkline} />
           </div>
         </div>
       </div>
 
-      {/* Sales by Hour (daily view only) */}
-      {period === 'daily' && periodMetrics.hourlyBreakdown.length > 0 && (
-        <div className="card p-5">
-          <h3 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
-            <BarChart3 className="h-5 w-5 text-tufts-blue" />
-            Sales by Hour (Today)
-          </h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={periodMetrics.hourlyBreakdown} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="hourLabel" stroke="#64748b" fontSize={11} />
-              <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => formatUGX(v)} />
-              <Tooltip
-                formatter={(value: number) => formatUGX(value)}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                labelFormatter={(label) => `Hour ${label}`}
+      {/* Daily Goals Tracker — targets vs today, progress bars */}
+      <div className="report-card p-5 no-print">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Daily Goals</h2>
+          <button
+            type="button"
+            onClick={() => setGoalsModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] px-3 py-2 text-sm text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151] hover:text-slate-900 dark:hover:text-white"
+            aria-label="Edit daily goals"
+          >
+            <Settings className="h-4 w-4" />
+            Set targets
+          </button>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-sm report-muted mb-1">Revenue</p>
+            <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-[#1f2937] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[#34d399] transition-all"
+                style={{ width: `${dailyGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / dailyGoals.revenueTarget) * 100) : 0}%` }}
               />
-              <Bar dataKey="revenue" fill="#10b981" name="Revenue" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="profit" fill="#3b82f6" name="Gross Profit" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            {periodMetrics.hourlyBreakdown.filter((h) => h.orders > 0).length > 0 ? (
-              periodMetrics.hourlyBreakdown
-                .filter((h) => h.orders > 0)
-                .map((h) => (
-                  <div key={h.hour} className="rounded-lg bg-slate-50 p-2">
-                    <span className="font-medium text-slate-700">{h.hourLabel}</span>
-                    <span className="ml-1 text-slate-500">· {h.orders} orders</span>
-                    <div className="mt-0.5 text-emerald-700">{formatUGX(h.revenue)}</div>
-                    <div className="text-tufts-blue">{formatUGX(h.profit)} profit</div>
-                  </div>
-                ))
-            ) : (
-              <p className="text-slate-500">No sales yet today.</p>
-            )}
+            </div>
+            <p className="text-xs report-muted mt-1">{formatUGX(revenueToday)} / {formatUGX(dailyGoals.revenueTarget)}</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted mb-1">Orders</p>
+            <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-[#1f2937] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[#34d399] transition-all"
+                style={{ width: `${dailyGoals.ordersTarget > 0 ? Math.min(100, (ordersToday / dailyGoals.ordersTarget) * 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-xs report-muted mt-1">{ordersToday} / {dailyGoals.ordersTarget}</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted mb-1">Profit</p>
+            <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-[#1f2937] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[#34d399] transition-all"
+                style={{ width: `${dailyGoals.profitTarget > 0 ? Math.min(100, (profitToday / dailyGoals.profitTarget) * 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-xs report-muted mt-1">{formatUGX(profitToday)} / {formatUGX(dailyGoals.profitTarget)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Daily Goals settings modal */}
+      {goalsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="goals-modal-title">
+          <div className="report-card w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 id="goals-modal-title" className="report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Daily targets</h3>
+              <button type="button" onClick={() => setGoalsModalOpen(false)} className="p-1 text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-white" aria-label="Close">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const revenueTarget = Number((form.querySelector('[name="revenueTarget"]') as HTMLInputElement)?.value) || 0;
+                const ordersTarget = Number((form.querySelector('[name="ordersTarget"]') as HTMLInputElement)?.value) || 0;
+                const profitTarget = Number((form.querySelector('[name="profitTarget"]') as HTMLInputElement)?.value) || 0;
+                const next = { revenueTarget, ordersTarget, profitTarget };
+                setDailyGoals(next);
+                setDailyGoalsState(next);
+                setGoalsModalOpen(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label htmlFor="goals-revenue" className="block text-sm font-medium text-slate-700 dark:text-[#e5e7eb] mb-1">Revenue target (UGX)</label>
+                <input id="goals-revenue" name="revenueTarget" type="number" min={0} step={1000} defaultValue={dailyGoals.revenueTarget} className="input-base w-full rounded-lg" />
+              </div>
+              <div>
+                <label htmlFor="goals-orders" className="block text-sm font-medium text-slate-700 dark:text-[#e5e7eb] mb-1">Orders target</label>
+                <input id="goals-orders" name="ordersTarget" type="number" min={0} step={1} defaultValue={dailyGoals.ordersTarget} className="input-base w-full rounded-lg" />
+              </div>
+              <div>
+                <label htmlFor="goals-profit" className="block text-sm font-medium text-slate-700 dark:text-[#e5e7eb] mb-1">Profit target (UGX)</label>
+                <input id="goals-profit" name="profitTarget" type="number" min={0} step={1000} defaultValue={dailyGoals.profitTarget} className="input-base w-full rounded-lg" />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button type="button" onClick={() => setGoalsModalOpen(false)} className="rounded-lg border border-slate-200 dark:border-[#1f2937] px-4 py-2 text-sm text-slate-500 dark:text-[#9ca3af] hover:bg-slate-100 dark:hover:bg-[#1f2937]">Cancel</button>
+                <button type="submit" className="rounded-lg bg-[#f59e0b] px-4 py-2 text-sm font-medium text-[#0d1117]">Save</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Gross Profit Past Analytics */}
-      {periodMetrics.grossProfitHistory.length > 0 && (
-        <div className="card p-5">
-          <h3 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
-            <TrendingUp className="h-5 w-5 text-tufts-blue" />
-            Gross Profit Past Analytics
+      {/* Period Overview — all metrics with % change vs previous period */}
+      <div className="report-card p-5">
+        <h2 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <BarChart3 className="h-5 w-5 report-accent-blue" />
+          {periodLabel} Overview
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <p className="text-sm report-muted">Orders</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{ordersPeriod}</p>
+              {periodMetrics.ordersGrowth !== 0 && <ChangeBadge value={periodMetrics.ordersGrowth} />}
+            </div>
+            <p className="text-xs report-muted">vs {prevPeriodLabel}: {previousPeriodOrders}</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted">Revenue</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="text-xl font-bold report-accent-teal">{formatUGX(periodMetrics.grossIncome)}</p>
+              {periodMetrics.revenueGrowth !== 0 && <ChangeBadge value={periodMetrics.revenueGrowth} />}
+            </div>
+            <p className="text-xs report-muted">vs {prevPeriodLabel}: {formatUGX(previousPeriodRevenue)}</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted">Gross Profit</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="text-xl font-bold report-accent-teal">{formatUGX(periodMetrics.grossProfit)}</p>
+              {periodMetrics.profitGrowth !== 0 && <ChangeBadge value={periodMetrics.profitGrowth} />}
+            </div>
+            <p className="text-xs report-muted">vs {prevPeriodLabel}: {formatUGX(periodMetrics.previousPeriodGrossProfit)}</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted">Gross Margin %</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="text-xl font-bold report-accent-teal">{periodMetrics.profitMargin.toFixed(1)}%</p>
+            </div>
+            <p className="text-xs report-muted">Gross profit / Revenue × 100</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted">Operating Expenses</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="text-xl font-bold report-accent-red">{formatUGX(periodMetrics.operatingExpenses)}</p>
+              {periodMetrics.operatingExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.operatingExpensesGrowth} inverse />}
+            </div>
+            <p className="text-xs report-muted">excl. Stock &amp; Inventory purchase</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted">Restock Expenses</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="text-xl font-bold text-[#f59e0b]">{formatUGX(periodMetrics.restockExpenses)}</p>
+              {periodMetrics.restockExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.restockExpensesGrowth} inverse />}
+            </div>
+            <p className="text-xs report-muted">Stock purchases (not deducted from profit)</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted">Net Profit</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className={`text-xl font-bold ${periodMetrics.netProfit >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
+                {formatUGX(periodMetrics.netProfit)}
+              </p>
+              {periodMetrics.netProfitGrowth !== 0 && <ChangeBadge value={periodMetrics.netProfitGrowth} />}
+            </div>
+            <p className="text-xs report-muted">Gross profit − Operating expenses</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted">Net Margin %</p>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className={`text-xl font-bold ${periodMetrics.netProfitMargin >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
+                {periodMetrics.netProfitMargin.toFixed(1)}%
+              </p>
+            </div>
+            <p className="text-xs report-muted">Net profit / Revenue × 100</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Cash Flow Waterfall */}
+      {periodMetrics.cashFlowWaterfall.length > 0 && (
+        <div className="report-card p-5">
+          <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <BarChart3 className="h-5 w-5 report-accent-blue" />
+            Cash Flow Waterfall ({periodLabel})
           </h3>
-          <div className="overflow-x-auto">
+          <ul className="space-y-2">
+            {periodMetrics.cashFlowWaterfall.map((row, i) => (
+              <li key={i} className="flex items-center justify-between gap-4 py-1.5 border-b border-slate-200 dark:border-[#1f2937] last:border-0">
+                <span className="report-muted text-sm">
+                  {row.type === 'inflow' && '+'}
+                  {row.type === 'outflow' && '-'}
+                  {row.type === 'subtotal' && '='}
+                  {' '}{row.label}
+                </span>
+                <span
+                  className={`font-medium tabular-nums ${
+                    row.type === 'inflow' ? 'report-accent-teal' : row.type === 'outflow' ? 'report-accent-red' : 'text-[#f59e0b]'
+                  }`}
+                >
+                  {formatUGX(row.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Sales by Hour (daily only) — revenue bars, profit line, table, peak hour highlight */}
+      {period === 'daily' && periodMetrics.hourlyBreakdown.length > 0 && (
+        <div className="report-card p-5">
+          <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <BarChart3 className="h-5 w-5 report-accent-blue" />
+            Sales by Hour (Today)
+          </h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={periodMetrics.hourlyBreakdown} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+              <XAxis dataKey="hourLabel" stroke={chartAxisStroke} fontSize={11} />
+              <YAxis stroke={chartAxisStroke} fontSize={11} tickFormatter={(v) => formatUGX(v)} />
+              <Tooltip
+                formatter={(value: number) => formatUGX(value)}
+                contentStyle={chartTooltipStyle}
+                labelFormatter={(label) => `Hour ${label}`}
+              />
+              <Bar dataKey="revenue" fill="#34d399" name="Revenue" radius={[2, 2, 0, 0]} />
+              <Line type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} name="Gross Profit" dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+          <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="px-3 py-2 text-left text-slate-600">Period</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Orders</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Revenue</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Gross Profit</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Margin %</th>
+                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
+                  <th className="px-3 py-2 text-left report-muted">Hour</th>
+                  <th className="px-3 py-2 text-right report-muted">Orders</th>
+                  <th className="px-3 py-2 text-right report-muted">Revenue</th>
+                  <th className="px-3 py-2 text-right report-muted">Gross Profit</th>
+                  <th className="px-3 py-2 text-right report-muted">Avg Order Value</th>
                 </tr>
               </thead>
               <tbody>
-                {periodMetrics.grossProfitHistory.map((row, idx) => (
-                  <tr key={idx} className="border-b border-slate-100">
-                    <td className="px-3 py-2 font-medium">{row.periodLabel}</td>
-                    <td className="px-3 py-2 text-right">{row.orders}</td>
-                    <td className="px-3 py-2 text-right text-slate-700">{formatUGX(row.revenue)}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatUGX(row.grossProfit)}</td>
-                    <td className="px-3 py-2 text-right text-slate-600">{row.marginPct.toFixed(1)}%</td>
+                {periodMetrics.hourlyBreakdown.map((h) => (
+                  <tr
+                    key={h.hour}
+                    className={`border-b border-slate-200/80 dark:border-[#1f2937]/50 ${periodMetrics.peakRevenueHour === h.hour && h.revenue > 0 ? 'bg-[#f59e0b]/15' : ''}`}
+                  >
+                    <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                      {h.hourLabel}
+                      {periodMetrics.peakRevenueHour === h.hour && h.revenue > 0 && (
+                        <span className="ml-2 text-xs text-[#f59e0b]">Peak</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right text-slate-700 dark:text-[#e5e7eb]">{h.orders}</td>
+                    <td className="px-3 py-2 text-right report-accent-teal">{formatUGX(h.revenue)}</td>
+                    <td className="px-3 py-2 text-right text-[#f59e0b]">{formatUGX(h.profit)}</td>
+                    <td className="px-3 py-2 text-right report-muted">{formatUGX(h.avgOrderValue)}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+          {periodMetrics.hourlyBreakdown.every((h) => h.orders === 0) && (
+            <p className="mt-3 text-sm report-muted">No sales yet today.</p>
+          )}
+        </div>
+      )}
+
+      {/* Gross Profit History — vs Previous %, highlight best/worst */}
+      {periodMetrics.grossProfitHistory.length > 0 && (
+        <div className="report-card p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <TrendingUp className="h-5 w-5 report-accent-blue" />
+              Gross Profit History
+            </h3>
+            <button
+              type="button"
+              onClick={() => exportToCSV('profit_history', ['Period', 'Orders', 'Revenue (UGX)', 'Gross Profit (UGX)', 'Margin %', 'vs Previous'], periodMetrics.grossProfitHistory.map((row: { periodLabel: string; orders: number; revenue: number; grossProfit: number; marginPct: number; vsPreviousPct?: number | null }) => [
+                row.periodLabel, row.orders, row.revenue, row.grossProfit, row.marginPct.toFixed(1), row.vsPreviousPct != null ? `${row.vsPreviousPct >= 0 ? '+' : ''}${row.vsPreviousPct.toFixed(1)}%` : '—',
+              ]))}
+              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+            >
+              <Download className="h-3.5 w-3.5" /> CSV
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
+                  <th className="px-3 py-2 text-left report-muted">Period</th>
+                  <th className="px-3 py-2 text-right report-muted">Orders</th>
+                  <th className="px-3 py-2 text-right report-muted">Revenue</th>
+                  <th className="px-3 py-2 text-right report-muted">Gross Profit</th>
+                  <th className="px-3 py-2 text-right report-muted">Margin %</th>
+                  <th className="px-3 py-2 text-right report-muted">vs Previous</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodMetrics.grossProfitHistory.map((row: { periodLabel: string; orders: number; revenue: number; grossProfit: number; marginPct: number; vsPreviousPct?: number | null }, idx) => {
+                  const isBest = row.periodLabel === periodMetrics.bestProfitPeriodLabel;
+                  const isWorst = row.periodLabel === periodMetrics.worstProfitPeriodLabel && (periodMetrics.grossProfitHistory?.length ?? 0) > 1;
+                  return (
+                    <tr
+                      key={idx}
+                      className={`border-b border-slate-200/80 dark:border-[#1f2937]/50 ${isBest ? 'bg-[#34d399]/15' : ''} ${isWorst ? 'bg-[#f87171]/15' : ''}`}
+                    >
+                      <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                        {row.periodLabel}
+                        {isBest && <span className="ml-2 text-xs report-accent-teal">Best</span>}
+                        {isWorst && <span className="ml-2 text-xs report-accent-red">Worst</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{row.orders}</td>
+                      <td className="px-3 py-2 text-right report-muted">{formatUGX(row.revenue)}</td>
+                      <td className="px-3 py-2 text-right font-semibold report-accent-teal">{formatUGX(row.grossProfit)}</td>
+                      <td className="px-3 py-2 text-right report-muted">{row.marginPct.toFixed(1)}%</td>
+                      <td className="px-3 py-2 text-right">
+                        {row.vsPreviousPct != null ? (
+                          <span className={row.vsPreviousPct >= 0 ? 'report-accent-teal' : 'report-accent-red'}>
+                            {row.vsPreviousPct >= 0 ? '+' : ''}{row.vsPreviousPct.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="report-muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Low stock summary */}
-      {(periodMetrics.lowStockCount > 0 || period === 'daily') && (
-        <div className="card p-5">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            Low stock
+      {/* Customer Analytics — New / Returning / At-risk + Top Customers */}
+      <div className="report-card p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <Users className="h-5 w-5 report-accent-blue" />
+            Customer Analytics ({periodLabel})
           </h3>
-          <div className="flex flex-wrap items-baseline gap-4">
-            <div>
-              <p className="text-2xl font-bold text-amber-700">{periodMetrics.lowStockCount}</p>
-              <p className="text-xs text-slate-500">products at or below min level</p>
-            </div>
-            {periodMetrics.lowStockCount > 0 && (
-              <div>
-                <p className="text-lg font-semibold text-slate-700">{formatUGX(periodMetrics.lowStockValue)}</p>
-                <p className="text-xs text-slate-500">cost value of low stock</p>
-              </div>
-            )}
+          {periodMetrics.topCustomersBySpend.length > 0 && (
+            <button
+              type="button"
+              onClick={() => exportToCSV('top_customers', ['Name', 'Phone', 'Visits', 'Total Spent (UGX)', 'Avg per Visit (UGX)', 'Last Visit'], periodMetrics.topCustomersBySpend.map((c) => [
+                c.name, c.phone, c.visits, c.totalSpent, c.avgPerVisit, new Date(c.lastVisit).toISOString().slice(0, 10),
+              ]))}
+              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+            >
+              <Download className="h-3.5 w-3.5" /> CSV
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-4">
+          <div className="rounded-lg bg-[#1f2937] p-3">
+            <p className="text-xs report-muted">New customers</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{periodMetrics.newCustomersCount}</p>
+          </div>
+          <div className="rounded-lg bg-[#1f2937] p-3">
+            <p className="text-xs report-muted">Returning</p>
+            <p className="text-xl font-bold report-accent-teal">{periodMetrics.returningCustomersCount}</p>
+          </div>
+          <div className="rounded-lg bg-[#1f2937] p-3">
+            <p className="text-xs report-muted">At-risk</p>
+            <p className="text-xl font-bold report-accent-red">{periodMetrics.atRiskCount}</p>
+            <p className="text-xs report-muted">no order in 30 days</p>
           </div>
         </div>
-      )}
+        {periodMetrics.topCustomersBySpend.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
+                  <th className="px-2 py-1.5 text-left report-muted">Name</th>
+                  <th className="px-2 py-1.5 text-left report-muted">Phone</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Visits</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Total spent</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Avg/visit</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Last visit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodMetrics.topCustomersBySpend.map((c) => (
+                  <tr key={c.customerId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                    <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100">{c.name}</td>
+                    <td className="px-2 py-1.5 report-muted">{c.phone}</td>
+                    <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{c.visits}</td>
+                    <td className="px-2 py-1.5 text-right report-accent-teal">{formatUGX(c.totalSpent)}</td>
+                    <td className="px-2 py-1.5 text-right report-muted">{formatUGX(c.avgPerVisit)}</td>
+                    <td className="px-2 py-1.5 text-right report-muted">
+                      {new Date(c.lastVisit).toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: '2-digit', month: 'short' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm report-muted">No customer orders in this period.</p>
+        )}
+      </div>
 
-      {/* Key Metrics */}
+      {/* Inventory Health — Health score, Low Stock table, Dead stock, Restock cost */}
+      <div className="report-card p-5">
+        <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <Package className="h-5 w-5 report-accent-amber" />
+          Inventory Health
+        </h3>
+        <div className="flex flex-wrap items-baseline gap-4 mb-4">
+          <div>
+            <p className="text-xs report-muted">Health score</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{periodMetrics.inventoryHealthScore}<span className="text-lg report-muted">/100</span></p>
+          </div>
+          <div>
+            <p className="text-xs report-muted">Low stock items</p>
+            <p className="text-xl font-bold text-[#f59e0b]">{periodMetrics.lowStockCount}</p>
+          </div>
+          <div>
+            <p className="text-xs report-muted">Dead stock (no sales 60+ days)</p>
+            <p className="text-xl font-bold report-accent-red">{periodMetrics.deadStockCount}</p>
+          </div>
+          <div>
+            <p className="text-xs report-muted">Restock cost (to min level)</p>
+            <p className="text-lg font-semibold report-accent-teal">{formatUGX(periodMetrics.lowStockTable.reduce((s, r) => s + r.restockCost, 0))}</p>
+          </div>
+        </div>
+        {periodMetrics.lowStockTable.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
+                  <th className="px-2 py-1.5 text-left report-muted">Product</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Stock</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Min</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Units needed</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Restock cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodMetrics.lowStockTable.map((row) => (
+                  <tr key={row.id} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                    <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={row.name}>{row.name}</td>
+                    <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{row.stock}</td>
+                    <td className="px-2 py-1.5 text-right report-muted">{row.minStockLevel}</td>
+                    <td className="px-2 py-1.5 text-right text-[#f59e0b]">{row.unitsNeeded}</td>
+                    <td className="px-2 py-1.5 text-right report-accent-red">{formatUGX(row.restockCost)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm report-muted">All products above minimum stock level.</p>
+        )}
+      </div>
+
+      {/* Refund & Return Analytics */}
+      <div className="report-card p-5">
+        <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <Receipt className="h-5 w-5 report-accent-red" />
+          Refund & Return Analytics ({periodLabel})
+        </h3>
+        <div className="flex flex-wrap items-baseline gap-4 mb-4">
+          <div>
+            <p className="text-xs report-muted">Return orders</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{periodMetrics.returnOrders}</p>
+          </div>
+          <div>
+            <p className="text-xs report-muted">Total refunded</p>
+            <p className="text-xl font-bold report-accent-red">{formatUGX(periodMetrics.totalRefunded)}</p>
+          </div>
+          <div>
+            <p className="text-xs report-muted">Return rate</p>
+            <p className="text-xl font-bold report-muted">{periodMetrics.returnRate.toFixed(1)}%</p>
+          </div>
+        </div>
+        {periodMetrics.topReturnedProducts.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
+                  <th className="px-2 py-1.5 text-left report-muted">Product</th>
+                  <th className="px-2 py-1.5 text-right report-muted">Qty returned</th>
+                  <th className="px-2 py-1.5 text-left report-muted">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodMetrics.topReturnedProducts.map((r) => (
+                  <tr key={r.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                    <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[180px]" title={r.name}>{r.name}</td>
+                    <td className="px-2 py-1.5 text-right report-accent-red">{r.qtyReturned}</td>
+                    <td className="px-2 py-1.5 report-muted truncate max-w-[200px]" title={r.reason}>{r.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm report-muted">No returns in this period.</p>
+        )}
+      </div>
+
+      {/* Key Metrics — 10 KPIs */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="card p-5">
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">Key Metrics</h3>
+        <div className="report-card p-5">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Key Metrics</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-sm text-slate-600">Average Order Value</span>
-              <span className="font-semibold">{formatUGX(periodMetrics.avgOrderValue)}</span>
+              <span className="text-sm report-muted">Avg Order Value</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatUGX(periodMetrics.avgOrderValue)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-slate-600">Gross Profit Margin</span>
-              <span className="font-semibold text-emerald-700">
-                {periodMetrics.profitMargin.toFixed(1)}%
-              </span>
+              <span className="text-sm report-muted">Gross Margin %</span>
+              <span className="font-semibold report-accent-teal">{periodMetrics.profitMargin.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-slate-600">Net Profit Margin</span>
-              <span
-                className={`font-semibold ${
-                  periodMetrics.netProfitMargin >= 0 ? 'text-emerald-700' : 'text-red-700'
-                }`}
-              >
+              <span className="text-sm report-muted">Net Margin %</span>
+              <span className={`font-semibold ${periodMetrics.netProfitMargin >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
                 {periodMetrics.netProfitMargin.toFixed(1)}%
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-slate-600">Unique Customers</span>
-              <span className="font-semibold">{periodMetrics.uniqueCustomers}</span>
+              <span className="text-sm report-muted">Unique Customers</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.uniqueCustomers}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-slate-600">Return Rate</span>
-              <span className="font-semibold">{periodMetrics.returnRate.toFixed(1)}%</span>
+              <span className="text-sm report-muted">Returning Customer Rate</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.returningCustomerRate.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm report-muted">Return Rate</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.returnRate.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm report-muted">Revenue per Customer</span>
+              <span className="font-semibold report-accent-teal">{formatUGX(periodMetrics.revenuePerCustomer)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm report-muted">Avg Visits per Customer</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.avgVisitsPerCustomer.toFixed(1)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm report-muted">Cost-to-Revenue Ratio</span>
+              <span className="font-semibold report-accent-red">{periodMetrics.costToRevenueRatio.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm report-muted">Break-even Day</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.breakEvenDay ?? '—'}</span>
             </div>
           </div>
         </div>
 
-        {/* Payment Method Breakdown */}
-        <div className="card p-5">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <CreditCard className="h-4 w-4" />
-            Payment Methods
-          </h3>
-          <div className="space-y-2">
-            {periodMetrics.paymentBreakdown.length === 0 ? (
-              <p className="text-sm text-slate-500">No payments</p>
-            ) : (
-              periodMetrics.paymentBreakdown.map((pm) => {
+        {/* Payment Methods — donut chart + bar list with share % */}
+        <div className="report-card p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <CreditCard className="h-4 w-4 report-accent-blue" />
+              Payment Methods
+            </h3>
+            {periodMetrics.paymentBreakdown.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const total = periodMetrics.paymentBreakdown.reduce((s, pm) => s + pm.amount, 0);
+                  const labels: Record<string, string> = { cash: 'Cash', mtn_momo: 'MTN MoMo', airtel_pay: 'Airtel Pay' };
+                  exportToCSV('payment_methods', ['Method', 'Total (UGX)', 'Orders', 'Share %'], periodMetrics.paymentBreakdown.map((pm) => {
+                    const share = total > 0 ? (pm.amount / total) * 100 : 0;
+                    return [labels[pm.method] || pm.method, pm.amount, pm.count, share.toFixed(1)] as [string, number, number, string];
+                  }));
+                }}
+                className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+              >
+                <Download className="h-3.5 w-3.5" /> CSV
+              </button>
+            )}
+          </div>
+          {periodMetrics.paymentBreakdown.length === 0 ? (
+            <p className="text-sm report-muted">No payments</p>
+          ) : (
+            <>
+              {(() => {
+                const total = periodMetrics.paymentBreakdown.reduce((s, pm) => s + pm.amount, 0);
                 const paymentLabels: Record<string, string> = {
                   cash: 'Cash',
                   mtn_momo: 'MTN MoMo',
                   airtel_pay: 'Airtel Pay',
                 };
-                const label = paymentLabels[pm.method] || pm.method.replace('_', ' ');
+                const COLORS = ['#34d399', '#f59e0b', '#60a5fa', '#a78bfa', '#f87171'];
+                const pieData = periodMetrics.paymentBreakdown.map((pm, i) => ({
+                  name: paymentLabels[pm.method] || pm.method.replace('_', ' '),
+                  value: pm.amount,
+                  fill: COLORS[i % COLORS.length],
+                }));
                 return (
-                  <div key={pm.method} className="flex justify-between text-sm">
-                    <span className="text-slate-600">{label}</span>
-                    <div className="text-right">
-                      <span className="font-semibold">{formatUGX(pm.amount)}</span>
-                      <span className="ml-2 text-xs text-slate-500">
-                        ({pm.count} {pm.count === 1 ? 'order' : 'orders'})
-                      </span>
+                  <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    <ResponsiveContainer width="100%" height={160} className="sm:w-40 sm:shrink-0">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={44}
+                          outerRadius={64}
+                          paddingAngle={2}
+                          label={false}
+                        >
+                          {pieData.map((_, i) => (
+                            <Cell key={i} fill={pieData[i].fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => formatUGX(v)} contentStyle={chartTooltipStyle} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex-1 space-y-2 min-w-0">
+                      {periodMetrics.paymentBreakdown.map((pm) => {
+                        const label = paymentLabels[pm.method] || pm.method.replace('_', ' ');
+                        const share = total > 0 ? (pm.amount / total) * 100 : 0;
+                        return (
+                          <div key={pm.method} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="report-muted truncate">{label}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="w-16 text-right font-medium text-slate-900 dark:text-slate-100 tabular-nums">{formatUGX(pm.amount)}</span>
+                              <span className="text-xs report-muted w-10 text-right">({share.toFixed(1)}%)</span>
+                              <span className="text-xs report-muted">({pm.count})</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })()}
+            </>
+          )}
         </div>
 
-        {/* Sales by Channel */}
-        <div className="card p-5">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <ShoppingCart className="h-4 w-4" />
-            Sales by Channel
-          </h3>
-          <div className="space-y-2">
-            {periodMetrics.channelBreakdown.length === 0 ? (
-              <p className="text-sm text-slate-500">No sales</p>
-            ) : (
-              periodMetrics.channelBreakdown.map((ch) => {
-                const channelLabels: Record<string, string> = {
-                  physical: 'Physical Store',
-                  ecommerce: 'Website / E-commerce',
-                  whatsapp: 'WhatsApp',
-                  facebook: 'Facebook',
-                  instagram: 'Instagram',
-                  tiktok: 'TikTok',
+        {/* Sales by Channel — icon, revenue, orders, % share bar */}
+        <div className="report-card p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <ShoppingCart className="h-4 w-4 report-accent-blue" />
+              Sales by Channel
+            </h3>
+            {periodMetrics.channelBreakdown.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const totalRevenue = periodMetrics.channelBreakdown.reduce((s, ch) => s + ch.revenue, 0);
+                  exportToCSV('sales_by_channel', ['Channel', 'Revenue (UGX)', 'Orders', 'Share %'], periodMetrics.channelBreakdown.map((ch) => {
+                    const share = totalRevenue > 0 ? (ch.revenue / totalRevenue) * 100 : 0;
+                    return [getChannelLabel(ch.channel), ch.revenue, ch.count, share.toFixed(1)] as [string, number, number, string];
+                  }));
+                }}
+                className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+              >
+                <Download className="h-3.5 w-3.5" /> CSV
+              </button>
+            )}
+          </div>
+          {periodMetrics.channelBreakdown.length === 0 ? (
+            <p className="text-sm report-muted">No sales</p>
+          ) : (
+            <div className="space-y-3">
+              {(() => {
+                const totalRevenue = periodMetrics.channelBreakdown.reduce((s, ch) => s + ch.revenue, 0);
+                const channelIcons: Record<string, typeof Store> = {
+                  physical: Store,
+                  ecommerce: Globe,
+                  whatsapp: MessageCircle,
+                  facebook: Share2,
+                  instagram: Share2,
+                  tiktok: Share2,
                 };
-                const channelLabel = channelLabels[ch.channel] || ch.channel;
-                return (
-                  <div key={ch.channel} className="flex justify-between text-sm">
-                    <span className="text-slate-600">{channelLabel}</span>
-                    <div className="text-right">
-                      <span className="font-semibold">{formatUGX(ch.revenue)}</span>
-                      <span className="ml-2 text-xs text-slate-500">
-                        ({ch.count} {ch.count === 1 ? 'order' : 'orders'})
-                      </span>
+                return periodMetrics.channelBreakdown.map((ch) => {
+                  const Icon = channelIcons[ch.channel] || Share2;
+                  const label = getChannelLabel(ch.channel);
+                  const share = totalRevenue > 0 ? (ch.revenue / totalRevenue) * 100 : 0;
+                  return (
+                    <div key={ch.channel} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                          <Icon className="h-4 w-4 report-muted shrink-0" />
+                          {label}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-medium report-accent-teal tabular-nums">{formatUGX(ch.revenue)}</span>
+                          <span className="text-xs report-muted">({ch.count} {ch.count === 1 ? 'order' : 'orders'})</span>
+                          <span className="text-xs text-[#f59e0b] w-10 text-right">{share.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-[#1f2937] overflow-hidden">
+                        <div className="h-full rounded-full bg-[#f59e0b] transition-all" style={{ width: `${share}%` }} />
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-</div>
+                  );
+                });
+              })()}
+            </div>
+          )}
         </div>
 
-        {/* Expenses by purpose */}
-        <div className="card p-5">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Receipt className="h-4 w-4" />
-            Expenses by purpose ({periodLabel})
-          </h3>
-          <div className="space-y-2">
-            {periodMetrics.expensesByPurpose.length === 0 ? (
-              <p className="text-sm text-slate-500">No expenses in this period</p>
-            ) : (
-              periodMetrics.expensesByPurpose.slice(0, 8).map((ep) => (
-                <div key={ep.purpose} className="flex justify-between text-sm">
-                  <span className="text-slate-600 truncate max-w-[60%]" title={ep.purpose}>{ep.purpose}</span>
-                  <div className="text-right shrink-0">
-                    <span className="font-semibold text-red-700">{formatUGX(ep.amount)}</span>
-                    <span className="ml-2 text-xs text-slate-500">({ep.count})</span>
-                  </div>
-                </div>
-              ))
+        {/* Expenses by purpose — with vs previous period change */}
+        <div className="report-card p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <Receipt className="h-4 w-4 report-accent-red" />
+              Expenses by purpose ({periodLabel})
+            </h3>
+            {periodMetrics.expensesByPurpose.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const total = periodMetrics.expensesByPurpose.reduce((s, ep) => s + ep.amount, 0);
+                  exportToCSV('expenses_by_purpose', ['Purpose', 'Amount (UGX)', 'Count', '% of Total'], periodMetrics.expensesByPurpose.map((ep) => {
+                    const pct = total > 0 ? (ep.amount / total) * 100 : 0;
+                    return [ep.purpose, ep.amount, ep.count, pct.toFixed(1)] as [string, number, number, string];
+                  }));
+                }}
+                className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+              >
+                <Download className="h-3.5 w-3.5" /> CSV
+              </button>
             )}
           </div>
+          {periodMetrics.expensesByPurpose.length === 0 ? (
+            <p className="text-sm report-muted">No expenses in this period</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-[#1f2937]">
+                    <th className="px-2 py-1.5 text-left report-muted">Purpose</th>
+                    <th className="px-2 py-1.5 text-right report-muted">This period</th>
+                    <th className="px-2 py-1.5 text-right report-muted">vs previous</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periodMetrics.expensesByPurpose.slice(0, 10).map((ep) => (
+                    <tr key={ep.purpose} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                      <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[140px]" title={ep.purpose}>{ep.purpose}</td>
+                      <td className="px-2 py-1.5 text-right">
+                        <span className="report-accent-red font-medium">{formatUGX(ep.amount)}</span>
+                        <span className="ml-1 text-xs report-muted">({ep.count})</span>
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        {(ep.pctChange ?? 0) !== 0 ? (
+                          <span className={(ep.pctChange ?? 0) > 0 ? 'report-accent-red' : 'report-accent-teal'}>
+                            {(ep.pctChange ?? 0) > 0 ? '+' : ''}{(ep.pctChange ?? 0).toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="report-muted">—</span>
+                        )}
+                        <span className="ml-1 text-xs report-muted">({formatUGX(ep.prevAmount ?? 0)})</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Top Products */}
+        {/* Top Selling Products — margin % badge (green/amber/red), returns column */}
       {periodMetrics.topProducts.length > 0 && (
-        <div className="card p-5">
-          <h3 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
-            <Package className="h-5 w-5 text-tufts-blue" />
-            Top Selling Products ({periodLabel})
-          </h3>
+        <div className="report-card p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <Package className="h-5 w-5 report-accent-blue" />
+              Top Selling Products ({periodLabel})
+            </h3>
+            <button
+              type="button"
+              onClick={() => exportToCSV('top_products', ['Product', 'Qty Sold', 'Revenue (UGX)', 'Gross Profit (UGX)', 'Margin %', 'Returns'], periodMetrics.topProducts.map((p) => [p.name, p.qty, p.revenue, p.profit, p.marginPct.toFixed(1), p.totalReturns]))}
+              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+            >
+              <Download className="h-3.5 w-3.5" /> CSV
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="px-3 py-2 text-left text-slate-600">Product</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Quantity</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Revenue</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Profit</th>
+                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
+                  <th className="px-3 py-2 text-left report-muted">Product</th>
+                  <th className="px-3 py-2 text-right report-muted">Quantity</th>
+                  <th className="px-3 py-2 text-right report-muted">Revenue</th>
+                  <th className="px-3 py-2 text-right report-muted">Profit</th>
+                  <th className="px-3 py-2 text-right report-muted">Margin %</th>
+                  <th className="px-3 py-2 text-right report-muted">Returns</th>
                 </tr>
               </thead>
               <tbody>
-                {periodMetrics.topProducts.map((product) => (
-                  <tr key={product.productId} className="border-b border-slate-100">
-                    <td className="px-3 py-2 font-medium">{product.name}</td>
-                    <td className="px-3 py-2 text-right">{product.qty}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-emerald-700">
-                      {formatUGX(product.revenue)}
-                    </td>
-                    <td className="px-3 py-2 text-right text-emerald-600">
-                      {formatUGX(product.profit)}
-                    </td>
-                  </tr>
-                ))}
+                {periodMetrics.topProducts.map((product) => {
+                  const marginColor = product.marginPct > 35 ? 'report-accent-teal' : product.marginPct >= 20 ? 'text-[#f59e0b]' : 'report-accent-red';
+                  return (
+                    <tr key={product.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                      <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={product.name}>{product.name}</td>
+                      <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{product.qty}</td>
+                      <td className="px-3 py-2 text-right report-accent-teal">{formatUGX(product.revenue)}</td>
+                      <td className="px-3 py-2 text-right report-accent-teal">{formatUGX(product.profit)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <span className={`font-medium ${marginColor}`}>{product.marginPct.toFixed(1)}%</span>
+                      </td>
+                      <td className="px-3 py-2 text-right report-muted">{product.totalReturns}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Revenue & Profit Trend Chart */}
+      </div>
+
+      {/* Revenue & Profit Trend Chart — three lines, tooltip with exact values */}
       {periodMetrics.timeSeriesData.length > 0 && (
-        <div className="card p-5">
-          <h3 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
-            <TrendingUp className="h-5 w-5 text-tufts-blue" />
+        <div className="report-card p-5">
+          <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <TrendingUp className="h-5 w-5 report-accent-blue" />
             Revenue & Profit Trend
           </h3>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={periodMetrics.timeSeriesData}>
               <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                <linearGradient id="reportColorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                <linearGradient id="reportColorProfit" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                <linearGradient id="reportColorExpenses" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f87171" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#f87171" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-              <YAxis stroke="#64748b" fontSize={12} tickFormatter={(value) => formatUGX(value)} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+              <XAxis dataKey="date" stroke={chartAxisStroke} fontSize={12} />
+              <YAxis stroke={chartAxisStroke} fontSize={12} tickFormatter={(value) => formatUGX(value)} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                contentStyle={chartTooltipStyle}
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
                   const row = periodMetrics.timeSeriesData.find((d) => d.date === label);
                   return (
-                    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-                      <p className="mb-2 font-medium text-slate-800">{label}</p>
+                    <div className="rounded-lg border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] p-3 shadow-lg">
+                      <p className="mb-2 font-medium text-slate-900 dark:text-slate-100">{label}</p>
                       {payload.map((p) => (
                         <div key={p.dataKey} className="flex justify-between gap-4 text-sm">
-                          <span className="text-slate-600">{p.name}</span>
-                          <span className="font-medium">{formatUGX(Number(p.value))}</span>
+                          <span className="report-muted">{p.name}</span>
+                          <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">{formatUGX(Number(p.value))}</span>
                         </div>
                       ))}
                       {row && row.revenue > 0 && (
-                        <div className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                        <div className="mt-2 border-t border-slate-200 dark:border-[#1f2937] pt-2 text-xs report-muted">
                           Gross margin: {row.marginPct.toFixed(1)}%
                         </div>
                       )}
@@ -1128,51 +1244,71 @@ export default function ReportsPage() {
                   );
                 }}
               />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#10b981"
-                fillOpacity={1}
-                fill="url(#colorRevenue)"
-                name="Revenue"
-              />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stroke="#3b82f6"
-                fillOpacity={1}
-                fill="url(#colorProfit)"
-                name="Profit"
-              />
-              <Area
-                type="monotone"
-                dataKey="expenses"
-                stroke="#ef4444"
-                fillOpacity={1}
-                fill="url(#colorExpenses)"
-                name="Operating Expenses"
-              />
+              <Legend wrapperStyle={{ color: isDark ? '#9ca3af' : '#64748b' }} />
+              <Area type="monotone" dataKey="revenue" stroke="#34d399" fillOpacity={1} fill="url(#reportColorRevenue)" name="Revenue" />
+              <Area type="monotone" dataKey="profit" stroke="#60a5fa" fillOpacity={1} fill="url(#reportColorProfit)" name="Gross Profit" />
+              <Area type="monotone" dataKey="expenses" stroke="#f87171" fillOpacity={1} fill="url(#reportColorExpenses)" name="Operating Expenses" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* ——— Shareholder section (end of page) ——— */}
-      <div className="border-t border-slate-200 pt-8">
-        <h2 className="mb-4 font-heading text-xl font-bold text-smoky-black">For shareholders &amp; stakeholders</h2>
+      {/* Break-even Tracker */}
+      <div className="report-card p-5">
+        <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <BarChart3 className="h-5 w-5 text-[#f59e0b]" />
+          Break-even Tracker
+        </h3>
+        <p className="text-sm report-muted mb-3">
+          Fixed costs (Rent, Labour, Utility, Maintenance) this period: {formatUGX(periodMetrics.fixedCosts)}
+        </p>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm report-muted mb-1">Break-even revenue threshold</p>
+            <p className="text-xl font-bold text-[#f59e0b]">{formatUGX(periodMetrics.breakEvenRevenue)}</p>
+          </div>
+          <div>
+            <p className="text-sm report-muted mb-1">Progress (current revenue vs break-even)</p>
+            <div className="h-3 w-full rounded-full bg-slate-200 dark:bg-[#1f2937] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, Math.max(0, periodMetrics.breakEvenProgress))}%`,
+                  backgroundColor: periodMetrics.breakEvenReached ? '#34d399' : '#f59e0b',
+                }}
+              />
+            </div>
+            <p className="text-xs report-muted mt-1">
+              {formatUGX(periodMetrics.grossIncome)} / {formatUGX(periodMetrics.breakEvenRevenue)} ({periodMetrics.breakEvenProgress.toFixed(0)}%)
+            </p>
+          </div>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+            {periodMetrics.breakEvenReached
+              ? (periodMetrics.breakEvenDay
+                  ? `Break-even reached on ${periodMetrics.breakEvenDay}`
+                  : 'Break-even reached this period')
+              : periodMetrics.breakEvenRevenue > 0
+                ? `Need ${formatUGX(Math.max(0, periodMetrics.breakEvenRevenue - periodMetrics.grossIncome))} more to break even`
+                : 'Set fixed costs and earn revenue to see break-even'}
+          </p>
+        </div>
+      </div>
 
-        {/* Report header */}
-        <div className="card border-tufts-blue/20 bg-slate-50/50 p-5 print:bg-white print:border-slate-200">
+      {/* ——— Shareholder / Executive Summary (bottom) ——— */}
+      <div className="border-t border-slate-200 dark:border-[#1f2937] pt-8 print:border-t-slate-300">
+        <h2 className="mb-4 report-heading text-xl font-bold text-slate-900 dark:text-slate-100">For shareholders &amp; stakeholders</h2>
+
+        {/* Report header: business name + period + generated timestamp (EAT) */}
+        <div className="report-card border-l-4 border-l-[#60a5fa] p-5 print:bg-white print:border-slate-200 print:border-l-slate-400">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="font-heading text-xl font-bold tracking-tight text-smoky-black">
-                Sales &amp; Performance Report
+              <h3 className="report-heading text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 print:text-black">
+                {REPORT_BUSINESS_NAME}
               </h3>
-              <p className="mt-1 text-sm text-slate-600">
-                {periodLabel} · {periodRangeLabel}
+              <p className="mt-1 text-sm report-muted print:text-slate-600">
+                Sales &amp; Performance Report · {periodLabel} · {periodRangeLabel}
               </p>
-              <p className="mt-1 text-xs text-slate-500 print:block">
+              <p className="mt-1 text-xs report-muted print:text-slate-500">
                 Generated on {generatedAt} (EAT)
               </p>
             </div>
@@ -1180,7 +1316,7 @@ export default function ReportsPage() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="btn-primary inline-flex items-center gap-2 text-sm"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#f59e0b] px-5 py-2.5 text-sm font-semibold text-[#0d1117] hover:opacity-90"
                 aria-label="Print or save as PDF"
               >
                 <Printer className="h-4 w-4" />
@@ -1190,25 +1326,25 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Executive summary */}
-        <div className="card border-l-4 border-l-tufts-blue p-5 print:border-l-slate-300 mt-6">
-          <h3 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
-            <FileText className="h-5 w-5 text-tufts-blue" />
+        {/* Executive summary bullets */}
+        <div className="report-card border-l-4 border-l-[#34d399] p-5 print:bg-white print:border-slate-200 print:border-l-slate-400 mt-6">
+          <h3 className="mb-3 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100 print:text-black">
+            <FileText className="h-5 w-5 report-accent-blue print:text-slate-600" />
             Executive Summary
           </h3>
-          <ul className="space-y-2 text-sm text-slate-700">
+          <ul className="space-y-2 text-sm text-slate-700 dark:text-[#e5e7eb] print:text-slate-700">
             <li>
-              <strong>Revenue</strong> for {periodLabel.toLowerCase()} was <strong className="text-emerald-700">{formatUGX(periodMetrics.grossIncome)}</strong>
+              <strong>Revenue</strong> for {periodLabel.toLowerCase()} was <strong className="report-accent-teal print:text-emerald-700">{formatUGX(periodMetrics.grossIncome)}</strong>
               {periodMetrics.revenueGrowth !== 0 && (
-                <span className={periodMetrics.revenueGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}>
+                <span className={periodMetrics.revenueGrowth > 0 ? 'report-accent-teal print:text-emerald-600' : 'report-accent-red print:text-red-600'}>
                   {' '}({periodMetrics.revenueGrowth > 0 ? '+' : ''}{periodMetrics.revenueGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()}).
                 </span>
               )}
             </li>
             <li>
-              <strong>Gross profit</strong> was <strong className="text-emerald-700">{formatUGX(periodMetrics.grossProfit)}</strong>
+              <strong>Gross profit</strong> was <strong className="report-accent-teal print:text-emerald-700">{formatUGX(periodMetrics.grossProfit)}</strong>
               {periodMetrics.profitGrowth !== 0 && (
-                <span className={periodMetrics.profitGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}>
+                <span className={periodMetrics.profitGrowth > 0 ? 'report-accent-teal print:text-emerald-600' : 'report-accent-red print:text-red-600'}>
                   {' '}({periodMetrics.profitGrowth > 0 ? '+' : ''}{periodMetrics.profitGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()})
                 </span>
               )}
@@ -1216,11 +1352,11 @@ export default function ReportsPage() {
             </li>
             <li>
               <strong>Net profit</strong> (after operating expenses, excluding stock purchases) was{' '}
-              <strong className={periodMetrics.netProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+              <strong className={periodMetrics.netProfit >= 0 ? 'report-accent-teal print:text-emerald-700' : 'report-accent-red print:text-red-700'}>
                 {formatUGX(periodMetrics.netProfit)}
               </strong>
               {periodMetrics.netProfitGrowth !== 0 && (
-                <span className={periodMetrics.netProfitGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}>
+                <span className={periodMetrics.netProfitGrowth > 0 ? 'report-accent-teal print:text-emerald-600' : 'report-accent-red print:text-red-600'}>
                   {' '}({periodMetrics.netProfitGrowth > 0 ? '+' : ''}{periodMetrics.netProfitGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()}).
                 </span>
               )}
@@ -1231,20 +1367,21 @@ export default function ReportsPage() {
           </ul>
         </div>
 
-        {/* Understanding this report */}
-        <details className="no-print group card overflow-hidden mt-6">
-          <summary className="flex cursor-pointer list-none items-center gap-2 p-4 font-medium text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tufts-blue">
+        {/* Expandable definitions */}
+        <details className="no-print group report-card overflow-hidden mt-6">
+          <summary className="flex cursor-pointer list-none items-center gap-2 p-4 font-medium text-slate-900 dark:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]">
             <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
             Understanding this report
           </summary>
-          <div className="border-t border-slate-200 px-4 pb-4 pt-2 text-sm text-slate-600">
+          <div className="border-t border-slate-200 dark:border-[#1f2937] px-4 pb-4 pt-2 text-sm report-muted">
             <dl className="grid gap-2 sm:grid-cols-2">
-              <div><dt className="font-medium text-slate-700">Revenue</dt><dd>Total sales (before any deductions).</dd></div>
-              <div><dt className="font-medium text-slate-700">Gross profit</dt><dd>Revenue minus cost of goods sold (what we paid for products).</dd></div>
-              <div><dt className="font-medium text-slate-700">Gross margin</dt><dd>Gross profit as a % of revenue.</dd></div>
-              <div><dt className="font-medium text-slate-700">Operating expenses</dt><dd>Day-to-day costs (rent, utilities, salaries, etc.), excluding stock purchases.</dd></div>
-              <div><dt className="font-medium text-slate-700">Restock / Stock</dt><dd>Money spent on buying inventory; shown separately and not deducted from profit here.</dd></div>
-              <div><dt className="font-medium text-slate-700">Net profit</dt><dd>Gross profit minus operating expenses.</dd></div>
+              <div><dt className="font-medium text-slate-900 dark:text-slate-100">Revenue</dt><dd>Total sales (before any deductions).</dd></div>
+              <div><dt className="font-medium text-slate-900 dark:text-slate-100">Gross profit</dt><dd>Revenue minus cost of goods sold (what we paid for products).</dd></div>
+              <div><dt className="font-medium text-slate-900 dark:text-slate-100">Gross margin</dt><dd>Gross profit as a % of revenue.</dd></div>
+              <div><dt className="font-medium text-slate-900 dark:text-slate-100">Operating expenses</dt><dd>Day-to-day costs (rent, utilities, salaries, etc.), excluding stock purchases.</dd></div>
+              <div><dt className="font-medium text-slate-900 dark:text-slate-100">Restock / Stock</dt><dd>Money spent on buying inventory; shown separately and not deducted from profit here.</dd></div>
+              <div><dt className="font-medium text-slate-900 dark:text-slate-100">Payment to suppliers</dt><dd>Recorded in the Suppliers section when paying money owed; not part of expenses or operating expenses.</dd></div>
+              <div><dt className="font-medium text-slate-900 dark:text-slate-100">Net profit</dt><dd>Gross profit minus operating expenses.</dd></div>
             </dl>
           </div>
         </details>

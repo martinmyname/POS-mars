@@ -7,6 +7,7 @@ import { getSettings } from '@/lib/settings';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { Bike } from 'lucide-react';
 import type { OrderItem, PaymentMethod, PaymentSplit, OrderChannel } from '@/types';
+import { CHANNEL_OPTIONS, DEFAULT_ORDER_CHANNEL } from '@/lib/orderConstants';
 
 interface CartLine {
   productId: string;
@@ -74,7 +75,7 @@ export default function POSPage() {
   const [depositAmountError, setDepositAmountError] = useState<string | null>(null);
   const [depositCustomerName, setDepositCustomerName] = useState('');
   const [depositCustomerPhone, setDepositCustomerPhone] = useState('');
-  const [orderChannel, setOrderChannel] = useState<OrderChannel>('facebook');
+  const [orderChannel, setOrderChannel] = useState<OrderChannel>(DEFAULT_ORDER_CHANNEL);
   const [scheduleForLater, setScheduleForLater] = useState(false);
   const [scheduledForDate, setScheduledForDate] = useState('');
   const [backdateOrder, setBackdateOrder] = useState(false);
@@ -449,7 +450,7 @@ export default function POSPage() {
       setDepositAmountError(null);
       setDepositCustomerName('');
       setDepositCustomerPhone('');
-      setOrderChannel('facebook'); // Reset to default channel
+      setOrderChannel(DEFAULT_ORDER_CHANNEL);
       setScheduleForLater(false);
       setScheduledForDate('');
       if (!isDeposit) {
@@ -797,12 +798,11 @@ export default function POSPage() {
                     onChange={(e) => setOrderChannel(e.target.value as OrderChannel)}
                     className="input-base w-full py-2 text-sm"
                   >
-                    <option value="facebook">Facebook</option>
-                    <option value="tiktok">TikTok</option>
-                    <option value="instagram">Instagram</option>
-                    <option value="physical">Physical Store</option>
-                    <option value="whatsapp">WhatsApp</option>
-                    <option value="ecommerce">Website / E-commerce</option>
+                    {CHANNEL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

@@ -9,6 +9,7 @@ export const EXPENSE_PURPOSE_OPTIONS = [
   'Delivery & operations',
   'Savings',
   'Labour',
+  'Maintenance',
   'Packaging',
   'other',
 ] as const;

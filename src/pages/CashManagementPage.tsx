@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useCashSessions, useOrders, useExpenses, cashSessionsApi, generateId } from '@/hooks/useData';
+import { useCashSessions, useOrders, useExpenses, useSupplierLedger, cashSessionsApi, generateId } from '@/hooks/useData';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC } from '@/lib/appTimezone';
 import { format } from 'date-fns';
-import { Lock, Unlock, TrendingUp, TrendingDown } from 'lucide-react';
+import { Lock, Unlock, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 
 interface CashSession {
   id: string;
@@ -26,6 +26,7 @@ export default function CashManagementPage() {
   const { data: sessionsList, loading } = useCashSessions({ realtime: true });
   const { data: ordersList } = useOrders({ realtime: true });
   const { data: expensesList } = useExpenses({ realtime: true });
+  const { data: ledgerList } = useSupplierLedger({ realtime: true });
   useDayBoundaryTick();
   const { user } = useAuth();
   const sessions = useMemo(
@@ -65,20 +66,61 @@ export default function CashManagementPage() {
   const [closingAmountError, setClosingAmountError] = useState<string | null>(null);
   const [closeAmountForPastError, setCloseAmountForPastError] = useState<string | null>(null);
 
-  // Recalculate expected cash when session, orders, or expenses change
-  useEffect(() => {
-    if (!todaySession) return;
+  // Today's expected amounts by payment method and deductions (orders use paymentSplits when present)
+  const todayExpected = useMemo(() => {
     const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
     const tomorrowIso = getEndOfDayAppTzAsUTC(todayStr).toISOString();
-    const cashOrders = ordersList.filter((o) => o.createdAt >= today && o.createdAt < tomorrowIso && o.paymentMethod === 'cash');
-    const cashReceived = cashOrders.reduce((sum, o) => sum + o.total, 0);
-    const inventoryExpenses = expensesList.filter((e) => e.date.slice(0, 10) === todayStr && (e.purpose === 'Inventory purchase' || e.purpose === 'Stock'));
-    const cashOutForInventory = inventoryExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const expected = todaySession.openingAmount + cashReceived - cashOutForInventory;
-    if (todaySession.expectedAmount !== expected) {
-      cashSessionsApi.update(todaySession.id, { expectedAmount: expected }).catch(() => {});
+    const periodOrders = ordersList.filter((o) => o.createdAt >= today && o.createdAt < tomorrowIso);
+
+    const byMethod: Record<string, number> = { cash: 0, mtn_momo: 0, airtel_pay: 0 };
+    periodOrders.forEach((order) => {
+      const splits = order.paymentSplits && Array.isArray(order.paymentSplits) && order.paymentSplits.length > 0
+        ? (order.paymentSplits as { method?: string; amount?: number }[])
+        : null;
+      if (splits) {
+        splits.forEach((s) => {
+          const method = (s.method || 'cash').toLowerCase().trim();
+          const amount = Number(s.amount) || 0;
+          const key = method === 'mtn_momo' || method === 'airtel_pay' ? method : 'cash';
+          byMethod[key] = (byMethod[key] ?? 0) + amount;
+        });
+      } else {
+        const method = (order.paymentMethod || 'cash').toLowerCase().trim();
+        const amount = Number(order.total) || 0;
+        const key = method === 'mtn_momo' || method === 'airtel_pay' ? method : 'cash';
+        byMethod[key] = (byMethod[key] ?? 0) + amount;
+      }
+    });
+
+    const allExpensesToday = expensesList
+      .filter((e) => e.date.slice(0, 10) === todayStr)
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const supplierPaymentsToday = ledgerList
+      .filter((e) => e.type === 'payment' && e.date.slice(0, 10) === todayStr)
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const totalDeductions = allExpensesToday + supplierPaymentsToday;
+
+    return {
+      cashFromOrders: byMethod.cash ?? 0,
+      mtnFromOrders: byMethod.mtn_momo ?? 0,
+      airtelFromOrders: byMethod.airtel_pay ?? 0,
+      allExpensesToday,
+      supplierPaymentsToday,
+      totalDeductions,
+    };
+  }, [ordersList, expensesList, ledgerList, todayStr]);
+
+  // Recalculate and persist expected cash in drawer when session or totals change
+  useEffect(() => {
+    if (!todaySession) return;
+    const expectedCash =
+      todaySession.openingAmount +
+      todayExpected.cashFromOrders -
+      todayExpected.totalDeductions;
+    if (todaySession.expectedAmount !== expectedCash) {
+      cashSessionsApi.update(todaySession.id, { expectedAmount: expectedCash }).catch(() => {});
     }
-  }, [todaySession, ordersList, expensesList, todayStr]);
+  }, [todaySession, todayExpected.cashFromOrders, todayExpected.totalDeductions]);
 
   const openCash = async () => {
     if (!user) return;
@@ -253,9 +295,21 @@ export default function CashManagementPage() {
                   Opening Amount: {formatUGX(todaySession.openingAmount)}
                 </p>
                 {todaySession.expectedAmount !== undefined && (
-                  <p className="mt-1 text-sm text-slate-600">
-                    Expected Cash: {formatUGX(todaySession.expectedAmount)}
-                  </p>
+                  <div className="mt-2 space-y-1 text-sm text-slate-700">
+                    <p className="font-medium text-slate-800">
+                      Expected in drawer (Cash): {formatUGX(todaySession.expectedAmount)}
+                    </p>
+                    <p>Expected MTN MoMo: {formatUGX(todayExpected.mtnFromOrders)}</p>
+                    <p>Expected Airtel Pay: {formatUGX(todayExpected.airtelFromOrders)}</p>
+                    {(todayExpected.allExpensesToday > 0 || todayExpected.supplierPaymentsToday > 0) && (
+                      <p className="mt-1 border-t border-slate-200 pt-1 text-slate-600">
+                        Deductions today: expenses {formatUGX(todayExpected.allExpensesToday)}
+                        {todayExpected.supplierPaymentsToday > 0 && (
+                          <>, supplier payments {formatUGX(todayExpected.supplierPaymentsToday)}</>
+                        )}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -493,6 +547,16 @@ export default function CashManagementPage() {
             )}
           </div>
         </section>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 dark:border-[#1f2937] dark:bg-[#111827]/50">
+        <Link
+          to="/reports/daily"
+          className="flex items-center gap-2 text-sm font-medium text-tufts-blue hover:underline"
+        >
+          <BarChart3 className="h-4 w-4 shrink-0" />
+          View full cash flow breakdown → Reports
+        </Link>
       </div>
     </div>
   );

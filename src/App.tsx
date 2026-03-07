@@ -1,8 +1,9 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { LayoutDashboard, ShoppingCart, BarChart3, Bike } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, BarChart3, Bike, Sun, Moon } from 'lucide-react';
 import '@/index.css';
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
@@ -29,6 +30,7 @@ const BOTTOM_NAV_ITEMS = [
 
 function Header() {
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -49,14 +51,24 @@ function Header() {
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
           {user && (
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="btn-secondary text-xs sm:text-sm"
-            >
-              <span className="hidden sm:inline">Sign out</span>
-              <span className="sm:hidden">Out</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="flex items-center justify-center rounded-xl border border-slate-300 bg-white p-2.5 text-slate-600 transition hover:bg-slate-50 hover:border-slate-400 dark:border-[#1f2937] dark:bg-[#1f2937] dark:text-[#9ca3af] dark:hover:bg-[#374151] dark:hover:border-[#374151] touch-target sm:p-2"
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="btn-secondary text-xs sm:text-sm"
+              >
+                <span className="hidden sm:inline">Sign out</span>
+                <span className="sm:hidden">Out</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -233,9 +245,11 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppLayout />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppLayout />
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

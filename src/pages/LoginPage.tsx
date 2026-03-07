@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const { signIn, signUp, loading, error, clearError } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/';
@@ -25,6 +28,14 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-3 py-8 sm:px-4 sm:py-12">
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="fixed right-3 top-3 z-10 flex items-center justify-center rounded-xl border border-slate-300 bg-white p-2.5 text-slate-600 transition hover:bg-slate-50 hover:border-slate-400 dark:border-[#1f2937] dark:bg-[#1f2937] dark:text-[#9ca3af] dark:hover:bg-[#374151] dark:hover:border-[#374151] sm:right-6 sm:top-6"
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+      </button>
       <div className="w-full max-w-[400px]">
         <div className="card p-6 shadow-soft sm:p-8">
           <div className="mb-3 flex justify-center sm:mb-4">
