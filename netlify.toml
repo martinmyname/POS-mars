@@ -10,3 +10,9 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# CSP: allow unsafe-eval required by RxDB and other deps (see index.html meta tag as fallback)
+[[headers]]
+  for = "/*"
+  [headers.values]
+  Content-Security-Policy = "script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; default-src 'self'; base-uri 'self'; object-src 'none';"

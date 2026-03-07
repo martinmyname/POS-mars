@@ -103,15 +103,15 @@ To test if sync is working:
 
 ## 10. Reset Local Database (Last Resort)
 
-If nothing works, you can reset the local database:
+If nothing works, you can reset the local database (or use **Settings → Data → Clear local data & reload** in the app):
 
 1. Open browser DevTools (F12)
-2. Go to Application → Storage → IndexedDB
-3. Delete the `mars_pos` database
+2. Go to Application → Storage → IndexedDB (or Local Storage if you use `VITE_RXDB_STORAGE=localstorage`)
+3. Delete the `mars_pos`-related databases / keys
 4. Refresh the page
 5. Sign in again
 
-**Warning:** This will delete all local data. Make sure important data is synced first.
+**Warning:** This will delete all local data on that device. Only do this after important data is already on Supabase (check from another device or Supabase Dashboard). If you had **RC_PULL** or other sync errors, see the “RC_PULL” section above – fix the error and let sync push first, then clear if you still need a full reset.
 
 ## Common Issues
 
@@ -151,3 +151,20 @@ If nothing works, you can reset the local database:
 - Verify environment variables are set in Vercel
 - Check Vercel build logs for errors
 - Ensure Supabase URL/key are correct (not localhost)
+
+### RxDB Error RC_PULL (how to avoid losing data on the device)
+
+**RC_PULL** means the **pull** from Supabase failed (the device could not fetch the latest data from the server). Your **local data on that device is not deleted** – it stays in the device’s database. The app keeps retrying the pull automatically.
+
+**Do not clear local data on that device** until you’re sure you won’t lose anything. Clearing (e.g. Settings → Clear local data, or deleting IndexedDB) removes all local data; any **unsynced** orders or changes that haven’t been pushed to Supabase yet would be lost.
+
+**What to do:**
+
+1. **Keep using the device normally** – Local data is still there. New orders and edits are still saved locally and will be pushed when sync recovers.
+2. **Fix the pull error** so sync can recover:
+   - **Network:** Ensure the device has a stable internet connection and can reach Supabase (try opening your Supabase project URL in the browser).
+   - **Retry sync:** In the app header, if you see “Sync Issues”, click the **refresh icon (⟳)** to trigger a full resync (pull + push). Wait a minute and check if the indicator turns green.
+   - **Auth:** Ensure you’re still signed in. If the session expired, sign in again and let replication start.
+   - **Supabase / RLS:** Check Supabase Dashboard → Logs for errors. If you see permission errors, fix RLS policies (see step 2 in this guide). Ensure all tables exist and match `supabase-schema.sql`.
+3. **Get local-only data to the server:** Once the device is online and the error is fixed (or after a retry), replication will push any pending local changes to Supabase. So the goal is to **fix the cause of RC_PULL and let sync run** – then push will run too and your data will be on the server.
+4. **Only clear local data as a last resort** – e.g. if the device is stuck and you’ve already confirmed (from another device or Supabase Dashboard) that all important data is on Supabase. Then: Settings → Data → “Clear local data & reload”. After that, the app will re-sync from Supabase. If you clear before push has run, any data that existed only on that device can be lost.
