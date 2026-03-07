@@ -1,10 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
-import { useSyncStatus } from '@/hooks/useSyncStatus';
+import { useProducts, useOrders, useExpenses } from '@/hooks/useData';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
-import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC } from '@/lib/appTimezone';
 import { format, parseISO } from 'date-fns';
 import {
@@ -28,92 +26,52 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const db = useRxDB();
-  const { isSyncing, isInitialSync } = useSyncStatus();
-  const dayTick = useDayBoundaryTick();
-  const [productCount, setProductCount] = useState(0);
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [ordersToday, setOrdersToday] = useState(0);
-  const [revenueToday, setRevenueToday] = useState(0);
-  const [expensesToday, setExpensesToday] = useState(0);
-  const [scheduledDueToday, setScheduledDueToday] = useState<Array<{ id: string; orderNumber?: number; total: number; scheduledFor: string }>>([]);
-  const [scheduledUpcoming, setScheduledUpcoming] = useState<Array<{ id: string; orderNumber?: number; total: number; scheduledFor: string }>>([]);
+  const { data: productsList, loading: productsLoading } = useProducts({ realtime: true });
+  const { data: ordersList } = useOrders({ realtime: true });
+  const { data: expensesList } = useExpenses({ realtime: true });
+  useDayBoundaryTick(); // keep day boundary for any future use
   const reminderNotifiedRef = useRef(false);
 
-  useEffect(() => {
-    if (!db) return;
+  const todayStr = getTodayInAppTz();
+  const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+  const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
-    // Recompute "today" range in Uganda/EAT when dayTick changes
-    const todayStr = getTodayInAppTz();
-    const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
-    const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
-
-    const subProducts = db.products.find().$.subscribe((docs) => {
-      const list = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
-      setProductCount(list.length);
-      setLowStockCount(list.filter((p) => p.stock <= p.minStockLevel).length);
-    });
-
-    const subOrders = db.orders.find().$.subscribe((docs) => {
-      const active = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
-      const todayOrders = active.filter(
-        (d) => d.createdAt >= today && d.createdAt < tomorrow
-      );
-      setOrdersToday(todayOrders.length);
-      setRevenueToday(todayOrders.reduce((s, o) => s + o.total, 0));
-      const scheduled = active.filter((d) => (d as { scheduledFor?: string }).scheduledFor);
-      const dueToday = scheduled.filter((d) => (d as { scheduledFor: string }).scheduledFor === todayStr);
-      const upcoming = scheduled
-        .filter((d) => (d as { scheduledFor: string }).scheduledFor > todayStr)
-        .sort((a, b) => (a as { scheduledFor: string }).scheduledFor.localeCompare((b as { scheduledFor: string }).scheduledFor))
-        .slice(0, 5);
-      setScheduledDueToday(dueToday.map((d) => ({
-        id: d.id,
-        orderNumber: (d as { orderNumber?: number }).orderNumber,
-        total: d.total,
-        scheduledFor: (d as { scheduledFor: string }).scheduledFor,
-      })));
-      setScheduledUpcoming(upcoming.map((d) => ({
-        id: d.id,
-        orderNumber: (d as { orderNumber?: number }).orderNumber,
-        total: d.total,
-        scheduledFor: (d as { scheduledFor: string }).scheduledFor,
-      })));
-    });
-
-    const subExpenses = db.expenses.find().$.subscribe((docs) => {
-      const todayExp = docs.filter(
-        (d) => {
-          if ((d as { _deleted?: boolean })._deleted) return false;
-          const expenseDate = d.date.slice(0, 10);
-          return expenseDate === todayStr;
-        }
-      );
-      setExpensesToday(todayExp.reduce((s, e) => s + e.amount, 0));
-    });
-
-    return () => {
-      subProducts.unsubscribe();
-      subOrders.unsubscribe();
-      subExpenses.unsubscribe();
+  const { productCount, lowStockCount, ordersToday, revenueToday, expensesToday, scheduledDueToday, scheduledUpcoming } = useMemo(() => {
+    const productCount = productsList.length;
+    const lowStockCount = productsList.filter((p) => p.stock <= p.minStockLevel).length;
+    const todayOrders = ordersList.filter((o) => o.createdAt >= today && o.createdAt < tomorrow);
+    const ordersToday = todayOrders.length;
+    const revenueToday = todayOrders.reduce((s, o) => s + o.total, 0);
+    const todayExp = expensesList.filter((e) => e.date.slice(0, 10) === todayStr);
+    const expensesToday = todayExp.reduce((s, e) => s + e.amount, 0);
+    const scheduled = ordersList.filter((o) => o.scheduledFor);
+    const dueToday = scheduled.filter((o) => o.scheduledFor === todayStr);
+    const upcoming = scheduled
+      .filter((o) => (o.scheduledFor ?? '') > todayStr)
+      .sort((a, b) => (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? ''))
+      .slice(0, 5);
+    const scheduledDueToday = dueToday.map((d) => ({
+      id: d.id,
+      orderNumber: d.orderNumber,
+      total: d.total,
+      scheduledFor: d.scheduledFor ?? '',
+    }));
+    const scheduledUpcoming = upcoming.map((d) => ({
+      id: d.id,
+      orderNumber: d.orderNumber,
+      total: d.total,
+      scheduledFor: d.scheduledFor ?? '',
+    }));
+    return {
+      productCount,
+      lowStockCount,
+      ordersToday,
+      revenueToday,
+      expensesToday,
+      scheduledDueToday,
+      scheduledUpcoming,
     };
-  }, [db, dayTick]);
-
-  // Pull all critical tables (orders, deliveries, products) when Dashboard is visible so metrics and reports stay accurate
-  useEffect(() => {
-    if (!db) return;
-    const syncCritical = () => triggerImmediateSyncCritical();
-    syncCritical(); // initial pull when dashboard mounts
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') syncCritical();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    const interval = setInterval(syncCritical, 30000); // every 30s while dashboard is open
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      clearInterval(interval);
-    };
-  }, [db]);
+  }, [productsList, ordersList, expensesList, today, tomorrow, todayStr]);
 
   // One-time browser notification when there are orders due today
   useEffect(() => {
@@ -149,32 +107,12 @@ export default function DashboardPage() {
     { to: '/settings', label: 'Settings', icon: Settings },
   ];
 
-  if (!db) {
+  if (productsLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-tufts-blue border-t-transparent"></div>
-          <p className="text-slate-600">Loading database...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isSyncing && !isInitialSync) {
-    return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black sm:text-3xl">
-            Dashboard
-          </h1>
-          <p className="mt-1 text-slate-500">Overview of your store today</p>
-        </div>
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-tufts-blue border-t-transparent"></div>
-            <p className="text-slate-600">Syncing data from server...</p>
-            <p className="mt-1 text-sm text-slate-400">This may take a few seconds</p>
-          </div>
+          <p className="text-slate-600">Loading...</p>
         </div>
       </div>
     );
@@ -187,8 +125,7 @@ export default function DashboardPage() {
         <p className="page-subtitle">Overview of your store today</p>
       </div>
 
-      {db && (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <div className="card p-4 sm:p-5">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="rounded-lg bg-slate-100 p-2">
@@ -287,7 +224,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      )}
 
       <div>
         <h2 className="mb-3 sm:mb-4 font-heading text-base font-semibold text-smoky-black sm:text-lg">Quick actions</h2>

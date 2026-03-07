@@ -2,7 +2,6 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { SyncStatus } from '@/components/SyncStatus';
 import { LayoutDashboard, ShoppingCart, BarChart3, Bike } from 'lucide-react';
 import '@/index.css';
 
@@ -49,7 +48,6 @@ function Header() {
           <span className="text-lg sm:hidden">MKE POS</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
-          <SyncStatus />
           {user && (
             <button
               type="button"

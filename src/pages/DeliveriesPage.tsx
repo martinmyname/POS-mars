@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useDeliveries, useOrders, useProducts, deliveriesApi, ordersApi, productsApi } from '@/hooks/useData';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC } from '@/lib/appTimezone';
-import { triggerImmediateSync } from '@/lib/rxdb';
 import { format } from 'date-fns';
 import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive, RefreshCw } from 'lucide-react';
 import type { Delivery as DeliveryType, DeliveryStatus, DeliveryPaymentStatus, Order, Product } from '@/types';
@@ -24,11 +23,76 @@ const PAYMENT_STATUS_LABELS: Record<DeliveryPaymentStatus, string> = {
 };
 
 export default function DeliveriesPage() {
-  const db = useRxDB();
   const { user } = useAuth();
-  const [deliveries, setDeliveries] = useState<DeliveryType[]>([]);
-  const [orders, setOrders] = useState<Map<string, Order>>(new Map());
-  const [products, setProducts] = useState<Map<string, Product>>(new Map());
+  const { data: deliveriesList, loading } = useDeliveries({ realtime: true });
+  const { data: ordersList } = useOrders({ realtime: true });
+  const { data: productsList } = useProducts({ realtime: true });
+  const deliveries = useMemo(() => {
+    const list = deliveriesList
+      .filter((d) => d.orderId)
+      .map((d) => ({
+        id: d.id,
+        orderId: d.orderId,
+        customerName: d.customerName,
+        customerPhone: d.customerPhone,
+        address: d.address,
+        amountToCollect: d.amountToCollect,
+        paymentStatus: d.paymentStatus as DeliveryPaymentStatus,
+        deliveryStatus: d.deliveryStatus as DeliveryStatus,
+        riderName: d.riderName,
+        motorcycleId: d.motorcycleId,
+        paymentReceivedAt: d.paymentReceivedAt,
+        paymentReceivedAmount: d.paymentReceivedAmount,
+        paymentReceivedBy: d.paymentReceivedBy,
+        notes: d.notes,
+        createdAt: d.createdAt,
+        deliveredAt: d.deliveredAt,
+      }))
+      .sort((a, b) => {
+        const statusPriority: Record<DeliveryStatus, number> = {
+          pending: 1,
+          in_transit: 2,
+          dispatched: 3,
+          delivered: 4,
+          cancelled: 5,
+        };
+        const aPriority = statusPriority[a.deliveryStatus] || 6;
+        const bPriority = statusPriority[b.deliveryStatus] || 6;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        return b.createdAt > a.createdAt ? 1 : -1;
+      });
+    return list;
+  }, [deliveriesList]);
+  const orders = useMemo(() => {
+    const orderMap = new Map<string, Order>();
+    ordersList.forEach((d) => {
+      orderMap.set(d.id, d as unknown as Order);
+    });
+    return orderMap;
+  }, [ordersList]);
+  const products = useMemo(() => {
+    const productMap = new Map<string, Product>();
+    productsList.forEach((d) => {
+      productMap.set(d.id, {
+        id: d.id,
+        sku: d.sku,
+        name: d.name,
+        category: d.category,
+        retailPrice: d.retailPrice,
+        wholesalePrice: d.wholesalePrice,
+        costPrice: d.costPrice,
+        stock: d.stock,
+        minStockLevel: d.minStockLevel,
+        reorderLevel: d.reorderLevel,
+        maxStockLevel: d.maxStockLevel,
+        imageUrl: d.imageUrl,
+        barcode: d.barcode,
+        supplierId: d.supplierId,
+      });
+    });
+    return productMap;
+  }, [productsList]);
+
   const [filterStatus, setFilterStatus] = useState<DeliveryStatus | 'all'>('all');
   const [filterPayment, setFilterPayment] = useState<DeliveryPaymentStatus | 'all'>('all');
   const [quickFilter, setQuickFilter] = useState<'attention' | 'unpaid' | 'in_transit' | 'completed' | 'cancelled' | 'all'>('attention');
@@ -41,123 +105,6 @@ export default function DeliveriesPage() {
   const [paymentAmount, setPaymentAmount] = useState<Record<string, string>>({});
   const [paymentReceivedBy, setPaymentReceivedBy] = useState<Record<string, string>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // When Deliveries page is open, periodically pull latest from server so all users see
-  // the same state (e.g. when one user records delivery cash received, others see it within ~15s).
-  useEffect(() => {
-    if (!db) return;
-    const interval = setInterval(() => {
-      triggerImmediateSync('deliveries');
-    }, 15_000);
-    return () => clearInterval(interval);
-  }, [db]);
-
-  useEffect(() => {
-    if (!db) return;
-    
-    // Load deliveries (only those with orderId)
-    const subDeliveries = db.deliveries.find().$.subscribe((docs) => {
-      const list = docs
-        .filter((d) => !(d as { _deleted?: boolean })._deleted && d.orderId)
-        .map((d) => ({
-          id: d.id,
-          orderId: d.orderId,
-          customerName: d.customerName,
-          customerPhone: d.customerPhone,
-          address: d.address,
-          amountToCollect: d.amountToCollect,
-          paymentStatus: d.paymentStatus as DeliveryPaymentStatus,
-          deliveryStatus: d.deliveryStatus as DeliveryStatus,
-          riderName: (d as { riderName?: string }).riderName,
-          motorcycleId: (d as { motorcycleId?: string }).motorcycleId,
-          paymentReceivedAt: (d as { paymentReceivedAt?: string }).paymentReceivedAt,
-          paymentReceivedAmount: (d as { paymentReceivedAmount?: number }).paymentReceivedAmount,
-          paymentReceivedBy: (d as { paymentReceivedBy?: string }).paymentReceivedBy,
-          notes: d.notes,
-          createdAt: d.createdAt,
-          deliveredAt: d.deliveredAt,
-        }))
-        .sort((a, b) => {
-          // Sort by: pending/in_transit first, then by date
-          const statusPriority: Record<DeliveryStatus, number> = {
-            pending: 1,
-            in_transit: 2,
-            dispatched: 3,
-            delivered: 4,
-            cancelled: 5,
-          };
-          const aPriority = statusPriority[a.deliveryStatus] || 6;
-          const bPriority = statusPriority[b.deliveryStatus] || 6;
-          if (aPriority !== bPriority) return aPriority - bPriority;
-          return b.createdAt > a.createdAt ? 1 : -1;
-        });
-      setDeliveries(list);
-    });
-    
-    // Load orders for display
-    const subOrders = db.orders.find().$.subscribe((docs) => {
-      const orderMap = new Map<string, Order>();
-      docs
-        .filter((d) => !(d as { _deleted?: boolean })._deleted)
-        .forEach((d) => {
-          orderMap.set(d.id, {
-            id: d.id,
-            orderNumber: (d as { orderNumber?: number }).orderNumber,
-            channel: d.channel,
-            type: d.type,
-            status: d.status,
-            createdAt: d.createdAt,
-            scheduledFor: (d as { scheduledFor?: string }).scheduledFor,
-            items: d.items,
-            total: d.total,
-            grossProfit: d.grossProfit,
-            paymentMethod: d.paymentMethod,
-            paymentSplits: d.paymentSplits,
-            customer: d.customer,
-            customerId: d.customerId,
-            depositAmount: d.depositAmount,
-            numberOfDeposits: d.numberOfDeposits,
-            notes: d.notes,
-            promotionId: d.promotionId,
-            orderType: d.orderType,
-            linkedOrderId: d.linkedOrderId,
-          });
-        });
-      setOrders(orderMap);
-    });
-
-    // Load products for item names
-    const subProducts = db.products.find().$.subscribe((docs) => {
-      const productMap = new Map<string, Product>();
-      docs
-        .filter((d) => !(d as { _deleted?: boolean })._deleted)
-        .forEach((d) => {
-          productMap.set(d.id, {
-            id: d.id,
-            sku: d.sku,
-            name: d.name,
-            category: d.category,
-            retailPrice: d.retailPrice,
-            wholesalePrice: d.wholesalePrice,
-            costPrice: d.costPrice,
-            stock: d.stock,
-            minStockLevel: d.minStockLevel,
-            reorderLevel: d.reorderLevel,
-            maxStockLevel: d.maxStockLevel,
-            imageUrl: d.imageUrl,
-            barcode: d.barcode,
-            supplierId: d.supplierId,
-          });
-        });
-      setProducts(productMap);
-    });
-    
-    return () => {
-      subDeliveries.unsubscribe();
-      subOrders.unsubscribe();
-      subProducts.unsubscribe();
-    };
-  }, [db]);
 
   const todayStart = getStartOfDayAppTzAsUTC(getTodayInAppTz()).getTime();
   const isCompleted = (d: DeliveryType) =>
@@ -215,28 +162,18 @@ export default function DeliveriesPage() {
     });
 
   const handleUpdateRider = async (id: string) => {
-    if (!db) return;
-    const doc = await db.deliveries.findOne(id).exec();
+    const doc = await deliveriesApi.getById(id);
     if (!doc) return;
-    
     const newRiderName = riderName[id]?.trim() || '';
     const newMotorcycleId = motorcycleId[id]?.trim() || '';
-    
-    const updates: Record<string, unknown> = {
+    const updates: { riderName?: string; motorcycleId?: string; deliveryStatus?: string } = {
       riderName: newRiderName || undefined,
       motorcycleId: newMotorcycleId || undefined,
-      _modified: new Date().toISOString(), // Ensure sync detects the change
     };
-    
-    // Auto-update status to "in_transit" when rider is assigned and status is still "pending"
     if (newRiderName && doc.deliveryStatus === 'pending') {
       updates.deliveryStatus = 'in_transit';
     }
-    
-    await doc.patch(updates);
-    
-    // Trigger immediate sync so all active users see the rider assignment instantly
-    triggerImmediateSync('deliveries');
+    await deliveriesApi.update(id, updates);
     
     // Clear form
     setRiderName((prev) => {
@@ -255,11 +192,10 @@ export default function DeliveriesPage() {
   };
 
   const recordPayment = async (id: string, amountOverride?: number) => {
-    if (!db) return;
-    const doc = await db.deliveries.findOne(id).exec();
+    const doc = await deliveriesApi.getById(id);
     if (!doc) return;
     
-    const currentAmount = (doc as { paymentReceivedAmount?: number }).paymentReceivedAmount ?? 0;
+    const currentAmount = doc.paymentReceivedAmount ?? 0;
     const totalToCollect = doc.amountToCollect;
     const remaining = totalToCollect - currentAmount;
     
@@ -307,11 +243,8 @@ export default function DeliveriesPage() {
       updates.deliveredAt = new Date().toISOString();
     }
     
-    await doc.patch(updates);
-    
-    // Trigger immediate sync so all active users see payment updates instantly
-    triggerImmediateSync('deliveries');
-    
+    await deliveriesApi.update(id, updates);
+
     // Clear form
     setPaymentAmount((prev) => {
       const next = { ...prev };
@@ -335,45 +268,33 @@ export default function DeliveriesPage() {
   };
 
   const updateDeliveryStatus = async (id: string, status: DeliveryStatus) => {
-    if (!db) return;
-    const doc = await db.deliveries.findOne(id).exec();
+    const doc = await deliveriesApi.getById(id);
     if (!doc) return;
     if (status === 'cancelled') {
       const orderId = doc.orderId;
       if (orderId) {
-        const orderDoc = await db.orders.findOne(orderId).exec();
+        const orderDoc = await ordersApi.getById(orderId);
         if (orderDoc && orderDoc.items?.length) {
-          for (const item of orderDoc.items) {
-            const productDoc = await db.products.findOne(item.productId).exec();
+          for (const item of orderDoc.items as { productId: string; qty: number }[]) {
+            const productDoc = await productsApi.getById(item.productId);
             if (productDoc) {
-              // Ensure proper number conversion: handle null, undefined, string, or number
               const currentStock = productDoc.stock != null ? Number(productDoc.stock) : 0;
-              if (!isNaN(currentStock)) {
+              if (!Number.isNaN(currentStock)) {
                 const newStock = currentStock + item.qty;
-                await productDoc.patch({ stock: Math.max(0, Math.round(newStock)) });
+                await productsApi.update(item.productId, { stock: Math.max(0, Math.round(newStock)) });
               }
             }
           }
-          await orderDoc.patch({ status: 'cancelled' });
+          await ordersApi.update(orderId, { status: 'cancelled' });
         }
       }
-      // Also sync products since stock was returned
-      triggerImmediateSync('products');
     }
-    const patch: Record<string, unknown> = { 
-      deliveryStatus: status,
-      _modified: new Date().toISOString(), // Ensure sync detects the change
-    };
+    const patch: { deliveryStatus: string; deliveredAt?: string } = { deliveryStatus: status };
     if (status === 'delivered' && doc.deliveryStatus !== 'delivered') {
       patch.deliveredAt = new Date().toISOString();
     }
-    await doc.patch(patch);
-    
-    // Trigger immediate sync so all active users see status changes instantly
-    triggerImmediateSync('deliveries');
+    await deliveriesApi.update(id, patch);
     if (status === 'cancelled') {
-      // Also sync orders since cancellation updates order status
-      triggerImmediateSync('orders');
       setMessage('Delivery cancelled. Stock has been returned and order marked cancelled.');
       setTimeout(() => setMessage(null), 5000);
     }
@@ -381,11 +302,10 @@ export default function DeliveriesPage() {
 
   const refreshDeliveriesFromServer = () => {
     setIsRefreshing(true);
-    triggerImmediateSync('deliveries');
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
-  if (!db) {
+  if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
         Loading…
@@ -756,10 +676,12 @@ export default function DeliveriesPage() {
                               )}
                             </div>
                             <div className="mb-3">
-                              <label className="mb-1 block text-xs font-medium text-slate-600">
+                              <label htmlFor={`delivery-received-by-${d.id}`} className="mb-1 block text-xs font-medium text-slate-600">
                                 Received by
                               </label>
                               <input
+                                id={`delivery-received-by-${d.id}`}
+                                name="payment_received_by"
                                 type="text"
                                 placeholder={user?.user_metadata?.full_name || user?.email || 'Staff name'}
                                 value={paymentReceivedBy[d.id] || user?.user_metadata?.full_name || user?.email || ''}

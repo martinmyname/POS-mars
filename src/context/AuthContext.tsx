@@ -4,7 +4,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { initRxDB, destroyRxDB } from '@/lib/rxdb';
 
 interface AuthState {
   session: Session | null;
@@ -43,16 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     }
     if (data.session) {
-      setState((s) => ({ ...s, session: data.session, user: data.user, error: null }));
-      try {
-        // Initialize DB and wait a bit for initial sync to start
-        await initRxDB();
-        // Give replication a moment to start pulling data
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setState((s) => ({ ...s, loading: false }));
-      } catch (_e) {
-        setState((s) => ({ ...s, loading: false }));
-      }
+      setState((s) => ({ ...s, session: data.session, user: data.user, error: null, loading: false }));
     }
   }, [clearError]);
 
@@ -66,11 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Supabase may require email confirmation; session can be null until confirmed
     if (data.session) {
       setState((s) => ({ ...s, session: data.session, user: data.user, error: null }));
-      try {
-        await initRxDB();
-      } catch (_e) {
-        /* init error surfaced in SyncStatus if sync fails */
-      }
     } else {
       setState((s) => ({
         ...s,
@@ -81,7 +66,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearError]);
 
   const signOut = useCallback(async () => {
-    await destroyRxDB();
     await supabase.auth.signOut();
   }, []);
 
@@ -89,21 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const init = async () => {
-      // Start DB init immediately in parallel with auth (so it's ready sooner)
-      const dbPromise = initRxDB().catch(() => {
-        /* init error surfaced in SyncStatus if sync fails */
-      });
-
       try {
         const {
           data: { session },
           error,
         } = await supabase.auth.getSession();
         if (!mounted) return;
-        if (session) {
-          await dbPromise;
-          if (!mounted) return;
-        }
         setState((s) => ({
           ...s,
           session: session ?? null,
@@ -129,18 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       if (session) {
-        // Wait for DB init so we don't show protected route with null db (stuck "Initializing database")
-        initRxDB()
-          .then(() => {
-            if (mounted) {
-              setState((s) => ({ ...s, session, user: session.user, loading: false }));
-            }
-          })
-          .catch(() => {
-            if (mounted) {
-              setState((s) => ({ ...s, session, user: session.user, loading: false }));
-            }
-          });
+        setState((s) => ({ ...s, session, user: session.user, loading: false }));
       } else {
         setState((s) => ({ ...s, session: null, user: null, loading: false }));
       }

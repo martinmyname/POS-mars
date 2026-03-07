@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useOrders, useExpenses, useProducts, useCustomers } from '@/hooks/useData';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
 import {
@@ -13,7 +13,6 @@ import {
   getYearRangeInAppTz,
 } from '@/lib/appTimezone';
 import { EXPENSE_PURPOSE_OPTIONS } from '@/lib/expenseConstants';
-import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, AlertTriangle, Receipt, Printer, FileText, ChevronRight } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 
@@ -34,56 +33,23 @@ interface PaymentMethodBreakdown {
 }
 
 export default function ReportsPage() {
-  const db = useRxDB();
-  const dayTick = useDayBoundaryTick();
+  const { data: ordersList, loading } = useOrders({ realtime: true });
+  const { data: expensesList } = useExpenses({ realtime: true });
+  const { data: productsList } = useProducts({ realtime: true });
+  const { data: customersList } = useCustomers({ realtime: true });
+  useDayBoundaryTick();
   const { '*': splat } = useParams();
   const period: Period = splat === 'weekly' ? 'weekly' : splat === 'monthly' ? 'monthly' : splat === 'yearly' ? 'yearly' : 'daily';
 
-  const [ordersToday, setOrdersToday] = useState<number>(0);
-  const [revenueToday, setRevenueToday] = useState<number>(0);
-  const [profitToday, setProfitToday] = useState<number>(0);
-  const [expensesToday, setExpensesToday] = useState<number>(0);
-  const [ordersPeriod, setOrdersPeriod] = useState<number>(0);
-  const [revenuePeriod, setRevenuePeriod] = useState<number>(0);
-  const [profitPeriod, setProfitPeriod] = useState<number>(0);
-  const [expensesPeriod, setExpensesPeriod] = useState<number>(0);
-  const [allOrders, setAllOrders] = useState<any[]>([]);
-  const [allExpenses, setAllExpenses] = useState<any[]>([]);
-  const [allProducts, setAllProducts] = useState<any[]>([]);
-  const [, setAllCustomers] = useState<any[]>([]);
-  const [previousPeriodOrders, setPreviousPeriodOrders] = useState<number>(0);
-  const [previousPeriodRevenue, setPreviousPeriodRevenue] = useState<number>(0);
-  const [previousPeriodProfit, setPreviousPeriodProfit] = useState<number>(0);
-  const [previousPeriodExpenses, setPreviousPeriodExpenses] = useState<number>(0);
+  const todayStr = getTodayInAppTz();
+  const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+  const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
-  // Pull all critical tables (orders, deliveries, products) when Reports is visible so shareholder reports are accurate
-  useEffect(() => {
-    if (!db) return;
-    const syncCritical = () => triggerImmediateSyncCritical();
-    syncCritical(); // initial pull when reports mount
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') syncCritical();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    const interval = setInterval(syncCritical, 30000); // every 30s while reports are open
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      clearInterval(interval);
-    };
-  }, [db]);
-
-  useEffect(() => {
-    if (!db) return;
-
-    const todayStr = getTodayInAppTz();
-    const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
-    const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
-
+  const reportData = useMemo(() => {
     let start: string;
     let end: string;
     let prevStart: string;
     let prevEnd: string;
-
     if (period === 'daily') {
       start = today;
       end = tomorrow;
@@ -94,10 +60,7 @@ export default function ReportsPage() {
       const thisWeek = getWeekRangeInAppTz(todayStr);
       start = thisWeek.start;
       end = thisWeek.end;
-      const mondayStr = new Date(thisWeek.start).toLocaleDateString('en-CA', {
-        timeZone: 'Africa/Kampala',
-      });
-      const lastMondayStr = addDaysToDateStr(mondayStr, -7);
+      const lastMondayStr = addDaysToDateStr(new Date(thisWeek.start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }), -7);
       const prevWeek = getWeekRangeInAppTz(lastMondayStr);
       prevStart = prevWeek.start;
       prevEnd = start;
@@ -106,10 +69,7 @@ export default function ReportsPage() {
       start = thisMonth.start;
       end = thisMonth.end;
       const [y, m] = todayStr.split('-').map(Number);
-      const lastMonthStr =
-        m === 1
-          ? `${y - 1}-12-01`
-          : `${y}-${String(m - 1).padStart(2, '0')}-01`;
+      const lastMonthStr = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, '0')}-01`;
       const prevMonth = getMonthRangeInAppTz(lastMonthStr);
       prevStart = prevMonth.start;
       prevEnd = start;
@@ -123,85 +83,53 @@ export default function ReportsPage() {
       prevStart = prevYear.start;
       prevEnd = start;
     }
-
-    const subOrders = db.orders.find().$.subscribe((docs) => {
-      const list = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
-      const todayList = list.filter((o) => o.createdAt >= today && o.createdAt < tomorrow);
-      const periodList = list.filter((o) => o.createdAt >= start && o.createdAt < end);
-      const prevPeriodList = list.filter((o) => o.createdAt >= prevStart && o.createdAt < prevEnd);
-
-      setOrdersToday(todayList.length);
-      setRevenueToday(todayList.reduce((s, o) => s + (Number(o.total) || 0), 0));
-      setProfitToday(todayList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0));
-
-      setOrdersPeriod(periodList.length);
-      setRevenuePeriod(periodList.reduce((s, o) => s + (Number(o.total) || 0), 0));
-      setProfitPeriod(periodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0));
-
-      setPreviousPeriodOrders(prevPeriodList.length);
-      setPreviousPeriodRevenue(prevPeriodList.reduce((s, o) => s + (Number(o.total) || 0), 0));
-      setPreviousPeriodProfit(prevPeriodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0));
-
-      setAllOrders(list);
-    });
-
-    // Calendar date bounds in Uganda for expense filtering (expense.date is YYYY-MM-DD)
-    const periodStartDateStr =
-      period === 'daily'
-        ? todayStr
-        : period === 'weekly'
-          ? new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' })
-          : period === 'monthly'
-            ? todayStr.slice(0, 7) + '-01'
-            : todayStr.slice(0, 4) + '-01-01';
-    const periodEndDateStr =
-      period === 'daily'
-        ? todayStr
-        : period === 'weekly'
-          ? addDaysToDateStr(new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }), 6)
-          : period === 'monthly'
-            ? (() => {
-                const [y, m] = todayStr.split('-').map(Number);
-                const lastD = new Date(Date.UTC(y, m, 0)).getUTCDate();
-                return `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
-              })()
-            : todayStr.slice(0, 4) + '-12-31';
+    const periodStartDateStr = period === 'daily' ? todayStr : period === 'weekly' ? new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }) : period === 'monthly' ? todayStr.slice(0, 7) + '-01' : todayStr.slice(0, 4) + '-01-01';
+    const periodEndDateStr = period === 'daily' ? todayStr : period === 'weekly' ? addDaysToDateStr(new Date(start).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' }), 6) : period === 'monthly' ? (() => { const [yr, mo] = todayStr.split('-').map(Number); const lastD = new Date(Date.UTC(yr, mo, 0)).getUTCDate(); return `${yr}-${String(mo).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`; })() : todayStr.slice(0, 4) + '-12-31';
     const prevStartDateStr = new Date(prevStart).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' });
     const prevEndDateStr = new Date(prevEnd).toLocaleDateString('en-CA', { timeZone: 'Africa/Kampala' });
 
-    const subExpenses = db.expenses.find().$.subscribe((docs) => {
-      const list = docs.filter((d) => !(d as { _deleted?: boolean })._deleted);
-      const todayList = list.filter((e) => e.date.slice(0, 10) === todayStr);
-      const periodList = list.filter((e) => {
-        const d = e.date.slice(0, 10);
-        return d >= periodStartDateStr && d <= periodEndDateStr;
-      });
-      const prevPeriodList = list.filter((e) => {
-        const d = e.date.slice(0, 10);
-        return d >= prevStartDateStr && d < prevEndDateStr;
-      });
+    const list = ordersList;
+    const todayList = list.filter((o) => o.createdAt >= today && o.createdAt < tomorrow);
+    const periodList = list.filter((o) => o.createdAt >= start && o.createdAt < end);
+    const prevPeriodList = list.filter((o) => o.createdAt >= prevStart && o.createdAt < prevEnd);
+    const ordersToday = todayList.length;
+    const revenueToday = todayList.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const profitToday = todayList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
+    const ordersPeriod = periodList.length;
+    const revenuePeriod = periodList.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const profitPeriod = periodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
+    const previousPeriodOrders = prevPeriodList.length;
+    const previousPeriodRevenue = prevPeriodList.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const previousPeriodProfit = prevPeriodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
 
-      setExpensesToday(todayList.reduce((s, e) => s + (Number(e.amount) || 0), 0));
-      setExpensesPeriod(periodList.reduce((s, e) => s + (Number(e.amount) || 0), 0));
-      setPreviousPeriodExpenses(prevPeriodList.reduce((s, e) => s + (Number(e.amount) || 0), 0));
-      setAllExpenses(list);
-    });
+    const expList = expensesList;
+    const todayExpList = expList.filter((e) => e.date.slice(0, 10) === todayStr);
+    const periodExpList = expList.filter((e) => { const d = e.date.slice(0, 10); return d >= periodStartDateStr && d <= periodEndDateStr; });
+    const prevPeriodExpList = expList.filter((e) => { const d = e.date.slice(0, 10); return d >= prevStartDateStr && d < prevEndDateStr; });
+    const expensesToday = todayExpList.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const expensesPeriod = periodExpList.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const previousPeriodExpenses = prevPeriodExpList.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
-    const subProducts = db.products.find().$.subscribe((docs) => {
-      setAllProducts(docs.filter((d) => !(d as { _deleted?: boolean })._deleted));
-    });
-
-    const subCustomers = db.customers.find().$.subscribe((docs) => {
-      setAllCustomers(docs.filter((d) => !(d as { _deleted?: boolean })._deleted));
-    });
-
-    return () => {
-      subOrders.unsubscribe();
-      subExpenses.unsubscribe();
-      subProducts.unsubscribe();
-      subCustomers.unsubscribe();
+    return {
+      ordersToday,
+      revenueToday,
+      profitToday,
+      expensesToday,
+      ordersPeriod,
+      revenuePeriod,
+      profitPeriod,
+      expensesPeriod,
+      previousPeriodOrders,
+      previousPeriodRevenue,
+      previousPeriodProfit,
+      previousPeriodExpenses,
+      allOrders: list,
+      allExpenses: expList,
+      allProducts: productsList,
     };
-  }, [db, period, dayTick]);
+  }, [ordersList, expensesList, productsList, customersList, period, todayStr, today, tomorrow]);
+
+  const { ordersToday, revenueToday, profitToday, expensesToday, ordersPeriod, revenuePeriod, profitPeriod, expensesPeriod, previousPeriodOrders, previousPeriodRevenue, previousPeriodProfit, previousPeriodExpenses, allOrders, allExpenses, allProducts } = reportData;
 
   // Calculate period-specific metrics (same Uganda/EAT ranges as in the effect)
   const periodMetrics = useMemo(() => {
@@ -328,7 +256,7 @@ export default function ReportsPage() {
     periodOrders.forEach((order) => {
       const splits = order.paymentSplits && order.paymentSplits.length > 0 ? order.paymentSplits : null;
       if (splits) {
-        splits.forEach((split: { method: string; amount: number }) => {
+        (splits as { method: string; amount: number }[]).forEach((split) => {
           const method = split.method || 'cash';
           const amount = Number(split.amount) || 0;
           const existing = paymentMap.get(method) || { method, count: 0, amount: 0 };
@@ -650,7 +578,7 @@ export default function ReportsPage() {
     };
   }, [allOrders, allExpenses, allProducts, period, revenuePeriod, expensesPeriod, profitPeriod, ordersPeriod, previousPeriodRevenue, previousPeriodProfit, previousPeriodOrders, previousPeriodExpenses]);
 
-  if (!db) {
+  if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
         Loading database…
@@ -677,7 +605,6 @@ export default function ReportsPage() {
           : 'Last year';
 
   // Report period date range and generated time for stakeholders
-  const todayStr = getTodayInAppTz();
   const formatDate = (d: Date) => d.toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: 'numeric', month: 'short', year: 'numeric' });
   let periodRangeLabel = formatDate(getStartOfDayAppTzAsUTC(todayStr));
   if (period === 'weekly') {

@@ -37,7 +37,10 @@ export default function LoginPage() {
             {isSignUp ? 'Register for Mars Kitchen Essentials' : 'Welcome back'}
           </p>
           <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4 sm:mt-6">
+            <label htmlFor="login-email" className="sr-only">Email</label>
             <input
+              id="login-email"
+              name="email"
               type="email"
               placeholder="Email"
               value={email}
@@ -46,7 +49,10 @@ export default function LoginPage() {
               className="input-base"
               autoComplete="email"
             />
+            <label htmlFor="login-password" className="sr-only">Password</label>
             <input
+              id="login-password"
+              name="password"
               type="password"
               placeholder="Password"
               value={password}

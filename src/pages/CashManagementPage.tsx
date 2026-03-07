@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useCashSessions, useOrders, useExpenses, cashSessionsApi, generateId } from '@/hooks/useData';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
@@ -23,11 +23,35 @@ interface CashSession {
 }
 
 export default function CashManagementPage() {
-  const db = useRxDB();
-  const dayTick = useDayBoundaryTick();
+  const { data: sessionsList, loading } = useCashSessions({ realtime: true });
+  const { data: ordersList } = useOrders({ realtime: true });
+  const { data: expensesList } = useExpenses({ realtime: true });
+  useDayBoundaryTick();
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<CashSession[]>([]);
-  const [todaySession, setTodaySession] = useState<CashSession | null>(null);
+  const sessions = useMemo(
+    () =>
+      [...sessionsList]
+        .map((d) => ({
+          id: d.id,
+          date: d.date,
+          openingAmount: d.openingAmount,
+          closingAmount: d.closingAmount,
+          expectedAmount: d.expectedAmount,
+          difference: d.difference,
+          openedAt: d.openedAt,
+          closedAt: d.closedAt,
+          openedBy: d.openedBy,
+          closedBy: d.closedBy,
+          notes: d.notes,
+        }))
+        .sort((a, b) => (b.date > a.date ? 1 : -1)),
+    [sessionsList]
+  );
+  const todayStr = getTodayInAppTz();
+  const todaySession = useMemo(
+    () => sessions.find((s) => s.date === todayStr && !s.closedAt) ?? null,
+    [sessions, todayStr]
+  );
   const [openingAmount, setOpeningAmount] = useState('');
   const [closingAmount, setClosingAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -37,107 +61,27 @@ export default function CashManagementPage() {
   const [closeAmountForPast, setCloseAmountForPast] = useState('');
   const [closeNotesForPast, setCloseNotesForPast] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [inventoryExpensesTick, setInventoryExpensesTick] = useState(0);
   const [openingAmountError, setOpeningAmountError] = useState<string | null>(null);
   const [closingAmountError, setClosingAmountError] = useState<string | null>(null);
   const [closeAmountForPastError, setCloseAmountForPastError] = useState<string | null>(null);
 
+  // Recalculate expected cash when session, orders, or expenses change
   useEffect(() => {
-    if (!db) return;
-    const sub = db.cash_sessions.find().$.subscribe((docs) => {
-      const list = docs
-        .filter((d) => !(d as { _deleted?: boolean })._deleted)
-        .map((d) => ({
-          id: d.id,
-          date: d.date,
-          openingAmount: d.openingAmount,
-          closingAmount: (d as { closingAmount?: number }).closingAmount,
-          expectedAmount: (d as { expectedAmount?: number }).expectedAmount,
-          difference: (d as { difference?: number }).difference,
-          openedAt: d.openedAt,
-          closedAt: (d as { closedAt?: string }).closedAt,
-          openedBy: d.openedBy,
-          closedBy: (d as { closedBy?: string }).closedBy,
-          notes: (d as { notes?: string }).notes,
-        }))
-        .sort((a, b) => (b.date > a.date ? 1 : -1));
-      setSessions(list);
-      
-      // Find today's session (Uganda/EAT)
-      const today = getTodayInAppTz();
-      const todaySess = list.find((s) => s.date === today && !s.closedAt);
-      setTodaySession(todaySess || null);
-    });
-    return () => sub.unsubscribe();
-  }, [db, dayTick]);
-
-  // Re-run expected cash when today's inventory expenses change (re-subscribe when date changes)
-  useEffect(() => {
-    if (!db) return;
-    const todayStr = getTodayInAppTz();
-    const sub = db.expenses
-      .find({
-        selector: {
-          date: todayStr,
-          purpose: 'Inventory purchase',
-          _deleted: { $ne: true },
-        },
-      })
-      .$.subscribe(() => setInventoryExpensesTick((t) => t + 1));
-    return () => sub.unsubscribe();
-  }, [db, dayTick]);
-
-  // Calculate expected cash from orders and inventory purchases (cash)
-  useEffect(() => {
-    if (!db || !todaySession) return;
-
-    const calculateExpectedCash = async () => {
-      const todayStr = getTodayInAppTz();
-      const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
-      const tomorrowIso = getEndOfDayAppTzAsUTC(todayStr).toISOString();
-
-      // Get all cash orders today
-      const orders = await db.orders
-        .find({
-          selector: {
-            createdAt: { $gte: today, $lt: tomorrowIso },
-            paymentMethod: 'cash',
-            _deleted: { $ne: true },
-          },
-        })
-        .exec();
-
-      const cashReceived = orders.reduce((sum, o) => sum + o.total, 0);
-
-      // Get restock expenses (Stock purpose) and legacy inventory purchases paid by cash today (deduct from expected)
-      const inventoryExpenses = await db.expenses
-        .find({
-          selector: {
-            date: todayStr,
-            $or: [
-              { purpose: 'Inventory purchase' },
-              { purpose: 'Stock' },
-            ],
-            _deleted: { $ne: true },
-          },
-        })
-        .exec();
-      const cashOutForInventory = inventoryExpenses.reduce((sum, e) => sum + e.amount, 0);
-
-      const expected = todaySession.openingAmount + cashReceived - cashOutForInventory;
-
-      // Update expected amount
-      const doc = await db.cash_sessions.findOne(todaySession.id).exec();
-      if (doc && doc.expectedAmount !== expected) {
-        await doc.patch({ expectedAmount: expected });
-      }
-    };
-
-    calculateExpectedCash();
-  }, [db, todaySession, inventoryExpensesTick, dayTick]);
+    if (!todaySession) return;
+    const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+    const tomorrowIso = getEndOfDayAppTzAsUTC(todayStr).toISOString();
+    const cashOrders = ordersList.filter((o) => o.createdAt >= today && o.createdAt < tomorrowIso && o.paymentMethod === 'cash');
+    const cashReceived = cashOrders.reduce((sum, o) => sum + o.total, 0);
+    const inventoryExpenses = expensesList.filter((e) => e.date.slice(0, 10) === todayStr && (e.purpose === 'Inventory purchase' || e.purpose === 'Stock'));
+    const cashOutForInventory = inventoryExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const expected = todaySession.openingAmount + cashReceived - cashOutForInventory;
+    if (todaySession.expectedAmount !== expected) {
+      cashSessionsApi.update(todaySession.id, { expectedAmount: expected }).catch(() => {});
+    }
+  }, [todaySession, ordersList, expensesList, todayStr]);
 
   const openCash = async () => {
-    if (!db || !user) return;
+    if (!user) return;
     if (openingAmountError) {
       setMessage('Please fix validation errors before opening cash drawer.');
       return;
@@ -153,9 +97,7 @@ export default function CashManagementPage() {
       setMessage('Select a date');
       return;
     }
-    const existing = await db.cash_sessions
-      .findOne({ selector: { date: dateToUse, _deleted: { $ne: true } } })
-      .exec();
+    const existing = await cashSessionsApi.getByDate(dateToUse);
     if (existing && !existing.closedAt) {
       setMessage(dateToUse === today ? 'Cash drawer already opened for today' : `A session for ${dateToUse} is already open`);
       return;
@@ -165,12 +107,11 @@ export default function CashManagementPage() {
       return;
     }
     try {
-      const id = `cash_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const openedAt = openForPastDate && dateToUse
         ? new Date(dateToUse + 'T08:00:00').toISOString()
         : new Date().toISOString();
-      await db.cash_sessions.insert({
-        id,
+      await cashSessionsApi.insert({
+        id: `cash_${generateId()}`,
         date: dateToUse,
         openingAmount: amount,
         openedAt,
@@ -188,7 +129,7 @@ export default function CashManagementPage() {
   };
 
   const closePastSession = async () => {
-    if (!db || !user || !sessionToClose) return;
+    if (!user || !sessionToClose) return;
     if (closeAmountForPastError) {
       setMessage('Please fix validation errors before closing session.');
       return;
@@ -201,14 +142,12 @@ export default function CashManagementPage() {
     const expected = sessionToClose.expectedAmount ?? sessionToClose.openingAmount;
     const difference = amount - expected;
     try {
-      const doc = await db.cash_sessions.findOne(sessionToClose.id).exec();
-      if (!doc) return;
-      await doc.patch({
+      await cashSessionsApi.update(sessionToClose.id, {
         closingAmount: amount,
         expectedAmount: expected,
         difference,
         closedAt: new Date().toISOString(),
-        closedBy: user?.user_metadata?.full_name || user?.email || 'Staff',
+        closedBy: (user?.user_metadata as { full_name?: string })?.full_name || user?.email || 'Staff',
         notes: closeNotesForPast.trim() || undefined,
       });
       setSessionToClose(null);
@@ -222,7 +161,7 @@ export default function CashManagementPage() {
   };
 
   const closeCash = async () => {
-    if (!db || !user || !todaySession) return;
+    if (!user || !todaySession) return;
     if (closingAmountError) {
       setMessage('Please fix validation errors before closing cash drawer.');
       return;
@@ -237,15 +176,12 @@ export default function CashManagementPage() {
     const difference = amount - expected;
     
     try {
-      const doc = await db.cash_sessions.findOne(todaySession.id).exec();
-      if (!doc) return;
-      
-      await doc.patch({
+      await cashSessionsApi.update(todaySession.id, {
         closingAmount: amount,
         expectedAmount: expected,
         difference,
         closedAt: new Date().toISOString(),
-        closedBy: user?.user_metadata?.full_name || user?.email || 'Staff',
+        closedBy: (user?.user_metadata as { full_name?: string })?.full_name || user?.email || 'Staff',
         notes: notes.trim() || undefined,
       });
       
@@ -258,7 +194,7 @@ export default function CashManagementPage() {
     }
   };
 
-  if (!db) {
+  if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
         Loading…
@@ -325,10 +261,12 @@ export default function CashManagementPage() {
 
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label htmlFor="cash-closing-amount" className="mb-1 block text-sm font-medium text-slate-700">
                     Closing Amount (UGX) *
                   </label>
                   <input
+                    id="cash-closing-amount"
+                    name="closing_amount"
                     type="text"
                     placeholder={todaySession.expectedAmount ? formatUGX(todaySession.expectedAmount) : 'Enter amount'}
                     value={closingAmount}
@@ -353,8 +291,10 @@ export default function CashManagementPage() {
                   {closingAmountError && <p className="mt-1 text-xs text-red-600">{closingAmountError}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</label>
+                  <label htmlFor="cash-close-notes" className="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</label>
                   <textarea
+                    id="cash-close-notes"
+                    name="close_notes"
                     placeholder="Any notes about discrepancies..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -371,10 +311,12 @@ export default function CashManagementPage() {
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label htmlFor="cash-opening-amount" className="mb-1 block text-sm font-medium text-slate-700">
                   Opening Amount (UGX) *
                 </label>
                 <input
+                  id="cash-opening-amount"
+                  name="opening_amount"
                   type="text"
                   placeholder="Enter opening cash amount"
                   value={openingAmount}
@@ -414,8 +356,10 @@ export default function CashManagementPage() {
               </div>
               {openForPastDate && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Session date</label>
+                  <label htmlFor="cash-session-date" className="mb-1 block text-sm font-medium text-slate-700">Session date</label>
                   <input
+                    id="cash-session-date"
+                    name="session_date"
                     type="date"
                     value={sessionDate}
                     onChange={(e) => setSessionDate(e.target.value)}

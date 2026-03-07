@@ -1,26 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useExpenses, expensesApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { format } from 'date-fns';
 import { EXPENSE_PURPOSE_OPTIONS } from '@/lib/expenseConstants';
 
-interface ExpenseDoc {
-  id: string;
-  date: string;
-  itemBought: string;
-  purpose: string;
-  amount: number;
-  paidBy: string;
-  receiptAttached: boolean;
-  paidByWho: string;
-  notes?: string;
-}
-
 export default function ExpensesPage() {
-  const db = useRxDB();
-  const [expenses, setExpenses] = useState<ExpenseDoc[]>([]);
+  const { data: expensesList, loading } = useExpenses({ realtime: true });
+  const expenses = useMemo(
+    () => [...expensesList].sort((a, b) => (b.date > a.date ? 1 : -1)),
+    [expensesList]
+  );
   const [itemBought, setItemBought] = useState('');
   const [purpose, setPurpose] = useState('');
   const [amount, setAmount] = useState('');
@@ -32,32 +23,8 @@ export default function ExpensesPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.expenses.find().$.subscribe((docs) => {
-      setExpenses(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .sort((a, b) => (b.date > a.date ? 1 : -1))
-          .map((d) => ({
-              id: d.id,
-              date: d.date,
-              itemBought: d.itemBought,
-              purpose: d.purpose,
-              amount: d.amount,
-              paidBy: d.paidBy,
-              receiptAttached: d.receiptAttached,
-              paidByWho: d.paidByWho,
-              notes: d.notes,
-            }))
-        );
-      });
-    return () => sub.unsubscribe();
-  }, [db]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db) return;
     const num = parseFloat(amount);
     if (Number.isNaN(num) || num <= 0) {
       setMessage('Enter a valid amount.');
@@ -66,9 +33,8 @@ export default function ExpensesPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const id = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      await db.expenses.insert({
-        id,
+      await expensesApi.insert({
+        id: `exp_${generateId()}`,
         date,
         itemBought: itemBought.trim() || 'Misc',
         purpose: purpose.trim() || 'other',
@@ -94,10 +60,10 @@ export default function ExpensesPage() {
     }
   };
 
-  if (!db) {
+  if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
-        Loading database…
+        Loading…
       </div>
     );
   }
@@ -114,14 +80,15 @@ export default function ExpensesPage() {
           <h2 className="mb-4 font-heading text-lg font-semibold text-smoky-black">Add expense</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Date</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-base w-full" />
+              <label htmlFor="expense-date" className="mb-1 block text-sm font-medium text-slate-700">Date</label>
+              <input id="expense-date" name="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-base w-full" />
               <p className="mt-0.5 text-xs text-slate-500">Use a past date to record historical expenses (e.g. January)</p>
             </div>
-            <input type="text" placeholder="Item bought" value={itemBought} onChange={(e) => setItemBought(e.target.value)} className="input-base" />
+            <label htmlFor="expense-item" className="sr-only">Item bought</label>
+            <input id="expense-item" name="item_bought" type="text" placeholder="Item bought" value={itemBought} onChange={(e) => setItemBought(e.target.value)} className="input-base" />
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Purpose</label>
-              <select value={purpose} onChange={(e) => setPurpose(e.target.value)} className="input-base w-full">
+              <label htmlFor="expense-purpose" className="mb-1 block text-sm font-medium text-slate-700">Purpose</label>
+              <select id="expense-purpose" name="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className="input-base w-full">
                 <option value="">Select purpose</option>
                 {EXPENSE_PURPOSE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -131,7 +98,10 @@ export default function ExpensesPage() {
               </select>
             </div>
             <div>
+              <label htmlFor="expense-amount" className="mb-1 block text-sm font-medium text-slate-700">Amount (UGX)</label>
               <input
+                id="expense-amount"
+                name="amount"
                 type="number"
                 placeholder="Amount (UGX)"
                 value={amount}
@@ -157,9 +127,12 @@ export default function ExpensesPage() {
               />
               {amountError && <p className="mt-1 text-xs text-red-600">{amountError}</p>}
             </div>
-            <input type="text" placeholder="Paid by (e.g. Cash, Mobile Money)" value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="input-base" />
-            <input type="text" placeholder="Paid by who" value={paidByWho} onChange={(e) => setPaidByWho(e.target.value)} className="input-base" />
-            <input type="text" placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="input-base" />
+            <label htmlFor="expense-paid-by" className="sr-only">Paid by</label>
+            <input id="expense-paid-by" name="paid_by" type="text" placeholder="Paid by (e.g. Cash, Mobile Money)" value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="input-base" />
+            <label htmlFor="expense-paid-by-who" className="sr-only">Paid by who</label>
+            <input id="expense-paid-by-who" name="paid_by_who" type="text" placeholder="Paid by who" value={paidByWho} onChange={(e) => setPaidByWho(e.target.value)} className="input-base" />
+            <label htmlFor="expense-notes" className="sr-only">Notes</label>
+            <input id="expense-notes" name="notes" type="text" placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="input-base" />
             <button type="submit" disabled={saving || !!amountError} className="btn-primary disabled:opacity-50">
               {saving ? 'Saving…' : 'Add expense'}
             </button>

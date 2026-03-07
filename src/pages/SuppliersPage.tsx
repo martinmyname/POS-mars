@@ -1,19 +1,9 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useSuppliers, useSupplierLedger, suppliersApi, supplierLedgerApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { Truck, PlusCircle, MinusCircle, Calendar, ChevronDown, ChevronRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-
-type SupplierDoc = {
-  id: string;
-  name: string;
-  contact?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  notes?: string;
-};
 
 type LedgerEntry = {
   id: string;
@@ -30,9 +20,17 @@ function todayISO(): string {
 }
 
 export default function SuppliersPage() {
-  const db = useRxDB();
-  const [suppliers, setSuppliers] = useState<SupplierDoc[]>([]);
-  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const { data: suppliersList, loading } = useSuppliers({ realtime: true });
+  const { data: ledgerList } = useSupplierLedger({ realtime: true });
+  type SupplierRow = { id: string; name: string; contact?: string; phone?: string; email?: string; address?: string; notes?: string };
+  const suppliers = useMemo<SupplierRow[]>(
+    () => suppliersList.map((d) => ({ id: d.id, name: d.name, contact: d.contact, phone: d.phone, email: d.email, address: d.address, notes: d.notes })),
+    [suppliersList]
+  );
+  const ledger = useMemo(
+    () => ledgerList.map((d) => ({ id: d.id, supplierId: d.supplierId, type: d.type as 'credit' | 'payment', amount: d.amount, date: d.date, dueDate: d.dueDate, note: d.note })),
+    [ledgerList]
+  );
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [phone, setPhone] = useState('');
@@ -41,52 +39,13 @@ export default function SuppliersPage() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Record credit / payment form (per supplier)
   const [activeForm, setActiveForm] = useState<{ supplierId: string; type: 'credit' | 'payment' } | null>(null);
   const [ledgerAmount, setLedgerAmount] = useState('');
   const [ledgerDate, setLedgerDate] = useState(todayISO());
-  const [ledgerDueDate, setLedgerDueDate] = useState(''); // empty = anytime
+  const [ledgerDueDate, setLedgerDueDate] = useState('');
   const [ledgerNote, setLedgerNote] = useState('');
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
   const [ledgerAmountError, setLedgerAmountError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!db) return;
-    const subS = db.suppliers.find().$.subscribe((docs) => {
-      setSuppliers(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .map((d) => ({
-            id: d.id,
-            name: d.name,
-            contact: d.contact,
-            phone: d.phone,
-            email: d.email,
-            address: d.address,
-            notes: d.notes,
-          }))
-      );
-    });
-    const subL = db.supplier_ledger.find().$.subscribe((docs) => {
-      setLedger(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .map((d) => ({
-            id: d.id,
-            supplierId: d.supplierId,
-            type: d.type as 'credit' | 'payment',
-            amount: d.amount,
-            date: d.date,
-            dueDate: d.dueDate,
-            note: d.note,
-          }))
-      );
-    });
-    return () => {
-      subS.unsubscribe();
-      subL.unsubscribe();
-    };
-  }, [db]);
 
   const balances = useMemo(() => {
     const map: Record<string, number> = {};
@@ -116,12 +75,11 @@ export default function SuppliersPage() {
 
   const handleSubmitSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !name.trim()) return;
+    if (!name.trim()) return;
     setSaving(true);
     try {
-      const id = `sup_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      await db.suppliers.insert({
-        id,
+      await suppliersApi.insert({
+        id: `sup_${generateId()}`,
         name: name.trim(),
         contact: contact.trim() || undefined,
         phone: phone.trim() || undefined,
@@ -142,14 +100,13 @@ export default function SuppliersPage() {
 
   const handleRecordLedger = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !activeForm || !ledgerAmount.trim()) return;
+    if (!activeForm || !ledgerAmount.trim()) return;
     const amount = parseFloat(ledgerAmount.replace(/,/g, ''));
-    if (isNaN(amount) || amount <= 0) return;
+    if (Number.isNaN(amount) || amount <= 0) return;
     setSaving(true);
     try {
-      const id = `ledger_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      await db.supplier_ledger.insert({
-        id,
+      await supplierLedgerApi.insert({
+        id: `ledger_${generateId()}`,
         supplierId: activeForm.supplierId,
         type: activeForm.type,
         amount,
@@ -178,7 +135,7 @@ export default function SuppliersPage() {
     setLedgerAmountError(null);
   };
 
-  if (!db) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
+  if (loading) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
 
   return (
     <div className="space-y-6">
@@ -197,7 +154,10 @@ export default function SuppliersPage() {
         <section className="card p-4">
           <h2 className="mb-3 font-heading text-lg font-semibold">Add supplier</h2>
           <form onSubmit={handleSubmitSupplier} className="space-y-3">
+            <label htmlFor="supplier-name" className="sr-only">Supplier name</label>
             <input
+              id="supplier-name"
+              name="supplier_name"
               type="text"
               placeholder="Supplier name *"
               value={name}
@@ -205,11 +165,16 @@ export default function SuppliersPage() {
               required
               className="input"
             />
-            <input type="text" placeholder="Contact person" value={contact} onChange={(e) => setContact(e.target.value)} className="input" />
-            <input type="tel" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" />
-            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" />
-            <textarea placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="input" />
-            <textarea placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="input" />
+            <label htmlFor="supplier-contact" className="sr-only">Contact person</label>
+            <input id="supplier-contact" name="contact" type="text" placeholder="Contact person" value={contact} onChange={(e) => setContact(e.target.value)} className="input" />
+            <label htmlFor="supplier-phone" className="sr-only">Phone</label>
+            <input id="supplier-phone" name="phone" type="tel" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" />
+            <label htmlFor="supplier-email" className="sr-only">Email</label>
+            <input id="supplier-email" name="email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" />
+            <label htmlFor="supplier-address" className="sr-only">Address</label>
+            <textarea id="supplier-address" name="address" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="input" />
+            <label htmlFor="supplier-notes" className="sr-only">Notes</label>
+            <textarea id="supplier-notes" name="notes" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="input" />
             <button type="submit" disabled={saving} className="btn-primary w-full">Add supplier</button>
           </form>
         </section>
@@ -278,7 +243,10 @@ export default function SuppliersPage() {
                           </h3>
                           <div className="grid gap-2 sm:grid-cols-2">
                             <div>
+                              <label htmlFor="ledger-amount" className="sr-only">Amount (UGX)</label>
                               <input
+                                id="ledger-amount"
+                                name="amount"
                                 type="text"
                                 placeholder="Amount (UGX)"
                                 value={ledgerAmount}
@@ -303,16 +271,23 @@ export default function SuppliersPage() {
                               />
                               {ledgerAmountError && <p className="mt-1 text-xs text-red-600">{ledgerAmountError}</p>}
                             </div>
-                            <input
-                              type="date"
-                              value={ledgerDate}
-                              onChange={(e) => setLedgerDate(e.target.value)}
-                              className="input"
-                            />
+                            <div>
+                              <label htmlFor="ledger-date" className="sr-only">Date</label>
+                              <input
+                                id="ledger-date"
+                                name="date"
+                                type="date"
+                                value={ledgerDate}
+                                onChange={(e) => setLedgerDate(e.target.value)}
+                                className="input"
+                              />
+                            </div>
                             {activeForm.type === 'credit' && (
                               <div className="sm:col-span-2">
-                                <label className="mb-1 block text-xs text-slate-500">Pay by date (leave empty for anytime)</label>
+                                <label htmlFor="ledger-pay-by-date" className="mb-1 block text-xs text-slate-500">Pay by date (leave empty for anytime)</label>
                                 <input
+                                  id="ledger-pay-by-date"
+                                  name="pay_by_date"
                                   type="date"
                                   value={ledgerDueDate}
                                   onChange={(e) => setLedgerDueDate(e.target.value)}
@@ -320,7 +295,10 @@ export default function SuppliersPage() {
                                 />
                               </div>
                             )}
+                            <label htmlFor="ledger-note" className="sr-only">Note</label>
                             <input
+                              id="ledger-note"
+                              name="note"
                               type="text"
                               placeholder="Note"
                               value={ledgerNote}

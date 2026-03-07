@@ -1,35 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useCustomers, customersApi, generateId } from '@/hooks/useData';
 
 export default function CustomersPage() {
-  const db = useRxDB();
-  const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone: string; address?: string }>>([]);
+  const { data: customers, loading } = useCustomers({ realtime: true });
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.customers.find().$.subscribe((docs) => {
-      setCustomers(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .map((d) => ({ id: d.id, name: d.name, phone: d.phone, address: (d as { address?: string }).address }))
-      );
-    });
-    return () => sub.unsubscribe();
-  }, [db]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !name.trim() || !phone.trim()) return;
+    if (!name.trim() || !phone.trim()) return;
     setSaving(true);
     try {
-      const id = `cust_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      await db.customers.insert({
-        id,
+      await customersApi.insert({
+        id: `cust_${generateId()}`,
         name: name.trim(),
         phone: phone.trim(),
         address: address.trim() || undefined,
@@ -43,7 +29,7 @@ export default function CustomersPage() {
     }
   };
 
-  if (!db) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
+  if (loading) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
 
   return (
     <div className="space-y-6">
@@ -55,9 +41,12 @@ export default function CustomersPage() {
         <section className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="mb-3 font-heading text-lg font-semibold">Add customer</h2>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <input type="text" placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
-            <input type="tel" placeholder="Phone *" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
-            <textarea placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="w-full rounded border border-slate-300 px-3 py-2" />
+            <label htmlFor="customer-name" className="sr-only">Name</label>
+            <input id="customer-name" name="name" type="text" placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
+            <label htmlFor="customer-phone" className="sr-only">Phone</label>
+            <input id="customer-phone" name="phone" type="tel" placeholder="Phone *" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
+            <label htmlFor="customer-address" className="sr-only">Address</label>
+            <textarea id="customer-address" name="address" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="w-full rounded border border-slate-300 px-3 py-2" />
             <button type="submit" disabled={saving} className="w-full rounded-lg bg-tufts-blue py-2 font-medium text-white disabled:opacity-50">Add customer</button>
           </form>
         </section>

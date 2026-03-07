@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useProducts, useSuppliers, productsApi, expensesApi, supplierLedgerApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz } from '@/lib/appTimezone';
-import { triggerImmediateSync } from '@/lib/rxdb';
 import { AlertTriangle, Package, Pencil, Search, X } from 'lucide-react';
 
 interface ProductDoc {
@@ -20,15 +19,27 @@ interface ProductDoc {
   supplierId?: string;
 }
 
-interface SupplierDoc {
-  id: string;
-  name: string;
-}
-
 export default function InventoryPage() {
-  const db = useRxDB();
-  const [products, setProducts] = useState<ProductDoc[]>([]);
-  const [suppliers, setSuppliers] = useState<SupplierDoc[]>([]);
+  const { data: productsList, loading: productsLoading } = useProducts({ realtime: true });
+  const { data: suppliersList } = useSuppliers({ realtime: true });
+  const products = useMemo(
+    () =>
+      productsList.map((d) => ({
+        id: d.id,
+        sku: d.sku,
+        name: d.name,
+        category: d.category,
+        barcode: d.barcode,
+        retailPrice: d.retailPrice,
+        wholesalePrice: d.wholesalePrice,
+        costPrice: d.costPrice,
+        stock: d.stock,
+        minStockLevel: d.minStockLevel,
+        supplierId: d.supplierId,
+      })),
+    [productsList]
+  );
+  const suppliers = useMemo(() => suppliersList.map((d) => ({ id: d.id, name: d.name })), [suppliersList]);
   const [sku, setSku] = useState('');
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
@@ -57,8 +68,6 @@ export default function InventoryPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editSkuError, setEditSkuError] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState('');
-  
-  // Validation errors for immediate feedback
   const [retailPriceError, setRetailPriceError] = useState<string | null>(null);
   const [costPriceError, setCostPriceError] = useState<string | null>(null);
   const [stockError, setStockError] = useState<string | null>(null);
@@ -68,51 +77,6 @@ export default function InventoryPage() {
   const [editCostPriceError, setEditCostPriceError] = useState<string | null>(null);
   const [editStockError, setEditStockError] = useState<string | null>(null);
   const [editMinStockLevelError, setEditMinStockLevelError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.products.find().$.subscribe((docs) => {
-      setProducts(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .map((d) => ({
-            id: d.id,
-            sku: d.sku,
-            name: d.name,
-            category: d.category,
-            barcode: (d as { barcode?: string }).barcode,
-            retailPrice: d.retailPrice,
-            wholesalePrice: d.wholesalePrice,
-            costPrice: d.costPrice,
-            stock: d.stock,
-            minStockLevel: d.minStockLevel,
-            supplierId: (d as { supplierId?: string }).supplierId,
-          }))
-      );
-    });
-    return () => sub.unsubscribe();
-  }, [db]);
-
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.suppliers.find().$.subscribe((docs) => {
-      setSuppliers(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .map((d) => ({ id: d.id, name: d.name }))
-      );
-    });
-    return () => sub.unsubscribe();
-  }, [db]);
-
-  // When Inventory page is open, periodically pull latest products so stock stays in sync across users.
-  useEffect(() => {
-    if (!db) return;
-    const interval = setInterval(() => {
-      triggerImmediateSync('products');
-    }, 15_000);
-    return () => clearInterval(interval);
-  }, [db]);
 
   const valuationCost = products.reduce((s, p) => s + p.stock * p.costPrice, 0);
   const valuationRetail = products.reduce((s, p) => s + p.stock * p.retailPrice, 0);
@@ -137,14 +101,14 @@ export default function InventoryPage() {
 
   // Real-time SKU validation
   useEffect(() => {
-    if (!db || !sku.trim()) {
+    if (!sku.trim()) {
       setSkuError(null);
       return;
     }
     const checkSku = async () => {
       try {
-        const existing = await db.products.findOne({ selector: { sku: sku.trim() } }).exec();
-        if (existing && !(existing as { _deleted?: boolean })._deleted) {
+        const existing = await productsApi.getBySku(sku.trim());
+        if (existing) {
           setSkuError(`SKU "${sku.trim()}" already exists`);
         } else {
           setSkuError(null);
@@ -153,19 +117,18 @@ export default function InventoryPage() {
         setSkuError(null);
       }
     };
-    const timeoutId = setTimeout(checkSku, 500); // Debounce
+    const timeoutId = setTimeout(checkSku, 500);
     return () => clearTimeout(timeoutId);
-  }, [sku, db, products]);
+  }, [sku]);
 
-  // Edit SKU validation (duplicate only if another product has this SKU)
   useEffect(() => {
-    if (!db || !editingProductId || !editSku.trim()) {
+    if (!editingProductId || !editSku.trim()) {
       setEditSkuError(null);
       return;
     }
     const check = async () => {
-      const existing = await db.products.findOne({ selector: { sku: editSku.trim() } }).exec();
-      if (existing && existing.id !== editingProductId && !(existing as { _deleted?: boolean })._deleted) {
+      const existing = await productsApi.getBySku(editSku.trim());
+      if (existing && existing.id !== editingProductId) {
         setEditSkuError(`SKU "${editSku.trim()}" already used by another product`);
       } else {
         setEditSkuError(null);
@@ -173,7 +136,7 @@ export default function InventoryPage() {
     };
     const t = setTimeout(check, 500);
     return () => clearTimeout(t);
-  }, [editSku, editingProductId, db]);
+  }, [editSku, editingProductId]);
 
   const openEdit = (p: ProductDoc) => {
     setEditingProductId(p.id);
@@ -239,7 +202,7 @@ export default function InventoryPage() {
   };
 
   const saveEdit = async () => {
-    if (!db || !editingProductId) return;
+    if (!editingProductId) return;
     if (editSkuError || editRetailPriceError || editCostPriceError || editStockError || editMinStockLevelError) {
       setMessage('Please fix validation errors before saving.');
       return;
@@ -260,9 +223,9 @@ export default function InventoryPage() {
     setEditSaving(true);
     setMessage(null);
     try {
-      const doc = await db.products.findOne(editingProductId).exec();
+      const doc = await productsApi.getById(editingProductId);
       if (!doc) return;
-      await doc.patch({
+      await productsApi.update(editingProductId, {
         name: editName.trim(),
         sku: editSku.trim() || doc.sku,
         category: editCategory.trim() || 'General',
@@ -273,7 +236,6 @@ export default function InventoryPage() {
         minStockLevel: Number.isNaN(minSt) ? 0 : Math.max(0, minSt),
         barcode: editBarcode.trim() || undefined,
       });
-      triggerImmediateSync('products');
       setMessage('Product updated.');
       setTimeout(() => setMessage(null), 3000);
       cancelEdit();
@@ -286,7 +248,6 @@ export default function InventoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db) return;
     const rp = parseFloat(retailPrice);
     const cp = parseFloat(costPrice);
     const st = parseInt(stock, 10);
@@ -306,16 +267,16 @@ export default function InventoryPage() {
 
       // Check for duplicate SKU
       if (finalSku) {
-        const existingBySku = await db.products.findOne({ selector: { sku: finalSku } }).exec();
-        if (existingBySku && !(existingBySku as { _deleted?: boolean })._deleted) {
+        const existingBySku = await productsApi.getBySku(finalSku);
+        if (existingBySku) {
           setMessage(`SKU "${finalSku}" already exists. Please use a different SKU.`);
           setSaving(false);
           return;
         }
       }
 
-      const id = `prod_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      await db.products.insert({
+      const id = `prod_${generateId()}`;
+      await productsApi.insert({
         id,
         sku: finalSku,
         name: name.trim(),
@@ -336,7 +297,6 @@ export default function InventoryPage() {
       setMinStockLevel('0');
       setSupplierId('');
       setMessage('Product added.');
-      triggerImmediateSync('products');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to add product');
     } finally {
@@ -345,13 +305,12 @@ export default function InventoryPage() {
   };
 
   const addStock = async (productId: string) => {
-    if (!db) return;
     const qty = parseInt(String(addStockQty).trim(), 10);
     if (Number.isNaN(qty) || qty <= 0) {
       setMessage('Enter a quantity (e.g. 1 or more).');
       return;
     }
-    const doc = await db.products.findOne(productId).exec();
+    const doc = await productsApi.getById(productId);
     if (!doc) return;
     const supplierIdForCredit = (addStockSupplierId || doc.supplierId || '').trim();
     if (addStockPayment === 'credit' && !supplierIdForCredit) {
@@ -360,20 +319,18 @@ export default function InventoryPage() {
     }
     const costTotal = doc.costPrice * qty;
     const productName = doc.name;
-    // Ensure proper number conversion: handle null, undefined, string, or number
     const currentStock = doc.stock != null ? Number(doc.stock) : 0;
-    if (isNaN(currentStock)) {
+    if (Number.isNaN(currentStock)) {
       setMessage('Invalid stock value. Please refresh and try again.');
       return;
     }
     const newStock = currentStock + qty;
-    await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
+    await productsApi.update(productId, { stock: Math.max(0, Math.round(newStock)) });
 
     const today = getTodayInAppTz();
     if (addStockPayment === 'cash') {
-      const expenseId = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      await db.expenses.insert({
-        id: expenseId,
+      await expensesApi.insert({
+        id: `exp_${generateId()}`,
         date: today,
         itemBought: productName,
         purpose: 'Inventory purchase',
@@ -383,9 +340,8 @@ export default function InventoryPage() {
         paidByWho: 'POS',
       });
     } else {
-      const ledgerId = `ledger_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      await db.supplier_ledger.insert({
-        id: ledgerId,
+      await supplierLedgerApi.insert({
+        id: `ledger_${generateId()}`,
         supplierId: supplierIdForCredit,
         type: 'credit',
         amount: costTotal,
@@ -394,7 +350,6 @@ export default function InventoryPage() {
       });
     }
 
-    triggerImmediateSync('products');
     setAddStockFor(null);
     setAddStockQty('');
     setAddStockPayment('cash');
@@ -403,17 +358,13 @@ export default function InventoryPage() {
   };
 
   const setProductSupplier = async (productId: string, newSupplierId: string) => {
-    if (!db) return;
-    const doc = await db.products.findOne(productId).exec();
-    if (!doc) return;
-    await doc.patch({ supplierId: newSupplierId || undefined });
-    triggerImmediateSync('products');
+    await productsApi.update(productId, { supplierId: newSupplierId || undefined });
   };
 
-  if (!db) {
+  if (productsLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
-        Loading database…
+        Loading…
       </div>
     );
   }

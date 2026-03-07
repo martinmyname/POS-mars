@@ -1,11 +1,10 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useProducts, usePromotions, productsApi, ordersApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
 import { getSettings } from '@/lib/settings';
 import { getTodayInAppTz } from '@/lib/appTimezone';
-import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { Bike } from 'lucide-react';
 import type { OrderItem, PaymentMethod, PaymentSplit, OrderChannel } from '@/types';
 
@@ -19,18 +18,6 @@ interface CartLine {
   originalPrice: number;
 }
 
-type ProductRow = {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  barcode?: string;
-  retailPrice: number;
-  costPrice: number;
-  stock: number;
-  minStockLevel?: number;
-};
-
 const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; image: string; code?: string }[] = [
   { value: 'cash', label: 'Cash', image: '/cash-icon.svg' },
   { value: 'mtn_momo', label: 'MTN MoMo', image: '/mtn-logo.svg', code: '474072' },
@@ -38,9 +25,30 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; image: string; cod
 ];
 
 export default function POSPage() {
-  const db = useRxDB();
+  const { data: productsList, loading: productsLoading } = useProducts({ realtime: true });
+  const { data: promotionsList } = usePromotions({ realtime: true });
+  const products = useMemo(
+    () =>
+      productsList.map((d) => ({
+        id: d.id,
+        name: d.name,
+        sku: d.sku ?? '',
+        category: d.category ?? '',
+        barcode: d.barcode,
+        retailPrice: d.retailPrice,
+        costPrice: d.costPrice,
+        stock: d.stock,
+        minStockLevel: d.minStockLevel ?? 0,
+      })),
+    [productsList]
+  );
+  const promotions = useMemo(() => {
+    const now = getTodayInAppTz();
+    return promotionsList
+      .filter((p) => p.active && p.startDate <= now && (p.endDate ?? '') >= now)
+      .map((p) => ({ id: p.id, name: p.name, type: p.type, value: p.value, minPurchase: p.minPurchase }));
+  }, [promotionsList]);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
-  const [products, setProducts] = useState<ProductRow[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [useSplitPayment, setUseSplitPayment] = useState(false);
@@ -54,7 +62,6 @@ export default function POSPage() {
   const [lastDeliveryCreated, setLastDeliveryCreated] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quickSearch, setQuickSearch] = useState('');
-  const [promotions, setPromotions] = useState<Array<{ id: string; name: string; type: string; value: number; minPurchase?: number }>>([]);
   const [selectedPromoId, setSelectedPromoId] = useState<string | null>(null);
   const [sendForDelivery, setSendForDelivery] = useState(false);
   const [deliveryCustomerName, setDeliveryCustomerName] = useState('');
@@ -76,41 +83,6 @@ export default function POSPage() {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
-
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.products.find().$.subscribe((docs) => {
-      setProducts(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted)
-          .map((d) => ({
-            id: d.id,
-            name: d.name,
-            sku: d.sku ?? '',
-            category: d.category ?? '',
-            barcode: (d as { barcode?: string }).barcode,
-            retailPrice: d.retailPrice,
-            costPrice: d.costPrice,
-            stock: d.stock,
-            minStockLevel: d.minStockLevel,
-          }))
-      );
-    });
-    return () => sub.unsubscribe();
-  }, [db]);
-
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.promotions.find().$.subscribe((docs) => {
-      const now = getTodayInAppTz();
-      setPromotions(
-        docs
-          .filter((d) => !(d as { _deleted?: boolean })._deleted && d.active && d.startDate <= now && d.endDate >= now)
-          .map((d) => ({ id: d.id, name: d.name, type: d.type, value: d.value, minPurchase: d.minPurchase }))
-      );
-    });
-    return () => sub.unsubscribe();
-  }, [db]);
 
   const filteredProducts = useMemo(() => {
     if (!quickSearch.trim()) return products;
@@ -234,7 +206,7 @@ export default function POSPage() {
   };
 
   const placeOrder = async () => {
-    if (!db || cart.length === 0) return;
+    if (cart.length === 0) return;
     if (isDeposit && useSplitPayment) {
       setMessage('Deposit orders cannot use split payments.');
       return;
@@ -276,9 +248,9 @@ export default function POSPage() {
             return new Date(y, m - 1, d, hr, min, 0, 0).toISOString();
           })()
         : new Date().toISOString();
-      const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      const allOrders = await db.orders.find().exec();
-      const maxNum = allOrders.reduce((m, o) => Math.max(m, (o as { orderNumber?: number }).orderNumber ?? 0), 0);
+      const orderId = `ord_${generateId()}`;
+      const allOrders = await ordersApi.getAll();
+      const maxNum = allOrders.reduce((m, o) => Math.max(m, o.orderNumber ?? 0), 0);
       const orderNumber = maxNum >= 1000 ? maxNum + 1 : 1000;
       const scheduledFor = scheduleForLater && scheduledForDate ? scheduledForDate : undefined;
       const items: OrderItem[] = cart.map((l) => {
@@ -298,7 +270,7 @@ export default function POSPage() {
       // Handle deposit/layaway
       if (isDeposit) {
         const depositAmt = parseFloat(depositAmount.replace(/,/g, ''));
-        const layawayId = `lay_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const layawayId = `lay_${generateId()}`;
         const layawayItems = cart.map((l) => ({
           productId: l.productId,
           name: l.name,
@@ -307,7 +279,7 @@ export default function POSPage() {
           totalPrice: l.sellingPrice * l.qty,
         }));
         
-        await db.layaways.insert({
+        await layawaysApi.insert({
           id: layawayId,
           orderId,
           customerName: depositCustomerName.trim(),
@@ -337,10 +309,7 @@ export default function POSPage() {
           numberOfDeposits: 1,
           ...(selectedPromoId && { promotionId: selectedPromoId }),
         };
-        await db.orders.insert(orderPayload);
-        
-        // Trigger immediate sync so all active users see new orders and layaways instantly
-        triggerImmediateSyncCritical();
+        await ordersApi.insert(orderPayload);
 
         // Don't reduce stock for layaways - items are held, not sold yet
         setMessage(`Deposit of ${formatUGX(depositAmt)} recorded. Remaining: ${formatUGX(subtotal - depositAmt)}. Items held.`);
@@ -362,23 +331,19 @@ export default function POSPage() {
           ...(selectedPromoId && { promotionId: selectedPromoId }),
         };
 
-        await db.orders.insert(orderPayload);
+        await ordersApi.insert(orderPayload);
 
         // Reduce stock for regular orders
         for (const line of cart) {
-          const doc = await db.products.findOne(line.productId).exec();
+          const doc = await productsApi.getById(line.productId);
           if (doc) {
-            // Ensure proper number conversion: handle null, undefined, string, or number
             const currentStock = doc.stock != null ? Number(doc.stock) : 0;
-            if (!isNaN(currentStock)) {
+            if (!Number.isNaN(currentStock)) {
               const newStock = currentStock - line.qty;
-              await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
+              await productsApi.update(line.productId, { stock: Math.max(0, Math.round(newStock)) });
             }
           }
         }
-        
-        // Trigger immediate sync so all active users see new orders, stock changes, and deliveries instantly
-        triggerImmediateSyncCritical();
 
         const selectedPaymentOption = PAYMENT_OPTIONS.find((o) => o.value === paymentMethod);
         const paymentLabel = useSplitPayment
@@ -394,21 +359,19 @@ export default function POSPage() {
         const customerName = sendForDelivery ? deliveryCustomerName.trim() : (isDeposit ? depositCustomerName.trim() : '');
         const customerPhone = sendForDelivery ? deliveryPhone.trim() : (isDeposit ? depositCustomerPhone.trim() : '');
         // Resolve item names for receipt (always show product name, never raw ID)
-        const receiptItems = await Promise.all(
-          cart.map(async (l) => {
-            const displayName =
-              (l.name && l.name.trim()) ||
-              (await db.products.findOne(l.productId).exec())?.name ||
-              l.productId;
-            return {
-              name: displayName,
-              qty: l.qty,
-              unitPrice: l.sellingPrice,
-              originalPrice: l.originalPrice > l.sellingPrice ? l.originalPrice : undefined,
-              lineTotal: l.sellingPrice * l.qty,
-            };
-          })
-        );
+        const receiptItems = cart.map((l) => {
+          const displayName =
+            (l.name && l.name.trim()) ||
+            products.find((p) => p.id === l.productId)?.name ||
+            l.productId;
+          return {
+            name: displayName,
+            qty: l.qty,
+            unitPrice: l.sellingPrice,
+            originalPrice: l.originalPrice > l.sellingPrice ? l.originalPrice : undefined,
+            lineTotal: l.sellingPrice * l.qty,
+          };
+        });
         setLastReceipt({
           orderId,
           orderNumber,
@@ -427,9 +390,8 @@ export default function POSPage() {
         setLastOrderId(orderId);
 
         if (sendForDelivery && deliveryCustomerName.trim() && deliveryPhone.trim() && deliveryAddress.trim()) {
-          // Always use the order total (subtotal) as the amount to collect
-          const deliveryId = `del_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-          await db.deliveries.insert({
+          const deliveryId = `del_${generateId()}`;
+          await deliveriesApi.insert({
             id: deliveryId,
             orderId,
             customerName: deliveryCustomerName.trim(),
@@ -456,16 +418,16 @@ export default function POSPage() {
         const cName = sendForDelivery ? deliveryCustomerName.trim() : depositCustomerName.trim();
         const cPhone = sendForDelivery ? deliveryPhone.trim() : depositCustomerPhone.trim();
         const cAddress = sendForDelivery ? deliveryAddress.trim() : undefined;
-        const existingDoc = await db.customers.findOne({ selector: { phone: cPhone } }).exec();
+        const existingDoc = await customersApi.getByPhone(cPhone);
         const nowIso = new Date().toISOString();
-        if (existingDoc && !(existingDoc as { _deleted?: boolean })._deleted) {
-          await existingDoc.patch({
+        if (existingDoc) {
+          await customersApi.update(existingDoc.id, {
             name: cName,
             ...(cAddress !== undefined && cAddress !== '' && { address: cAddress }),
           });
         } else {
-          await db.customers.insert({
-            id: `cust_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          await customersApi.insert({
+            id: `cust_${generateId()}`,
             name: cName,
             phone: cPhone,
             address: cAddress || undefined,
@@ -500,7 +462,7 @@ export default function POSPage() {
     }
   };
 
-  if (!db) {
+  if (productsLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
         Loading database…
@@ -521,9 +483,11 @@ export default function POSPage() {
         <section className="card p-3 sm:p-4">
           <h2 className="mb-2 sm:mb-3 font-heading text-base font-semibold text-smoky-black sm:text-lg">Products</h2>
           <form onSubmit={handleBarcodeSubmit} className="mb-3">
-            <label className="sr-only">Scan barcode or enter SKU</label>
+            <label htmlFor="pos-barcode-sku" className="sr-only">Scan barcode or enter SKU</label>
             <div className="flex gap-2">
               <input
+                id="pos-barcode-sku"
+                name="barcode_or_sku"
                 ref={barcodeInputRef}
                 type="text"
                 placeholder="Scan barcode or type SKU → Enter"
@@ -538,12 +502,16 @@ export default function POSPage() {
               </button>
             </div>
           </form>
+          <label htmlFor="pos-quick-search" className="sr-only">Quick search products</label>
           <input
+            id="pos-quick-search"
+            name="quick_search"
             type="text"
             placeholder="🔍 Quick search: SKU, name, category"
             value={quickSearch}
             onChange={(e) => setQuickSearch(e.target.value)}
             className="input-base mb-3 w-full py-2.5 text-sm"
+            autoComplete="off"
           />
           <div className="max-h-[40vh] space-y-1.5 overflow-y-auto rounded-xl border border-slate-200/80 bg-slate-50/50 p-2 sm:max-h-[50vh]">
             {filteredProducts.length === 0 ? (
@@ -899,8 +867,10 @@ export default function POSPage() {
                 {/* Schedule for later - date picker */}
                 {scheduleForLater && (
                   <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                    <label className="mb-1 block text-xs font-medium text-slate-600">Scheduled for (reminder on this day)</label>
+                    <label htmlFor="pos-scheduled-date" className="mb-1 block text-xs font-medium text-slate-600">Scheduled for (reminder on this day)</label>
                     <input
+                      id="pos-scheduled-date"
+                      name="scheduled_for"
                       type="date"
                       value={scheduledForDate}
                       min={getTodayInAppTz()}
@@ -932,15 +902,19 @@ export default function POSPage() {
                 </div>
                 {backdateOrder && (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                    <label className="mb-1 block text-xs font-medium text-slate-600">Order date & time</label>
+                    <label htmlFor="pos-order-date" className="mb-1 block text-xs font-medium text-slate-600">Order date & time</label>
                     <div className="flex flex-wrap gap-2">
                       <input
+                        id="pos-order-date"
+                        name="order_date"
                         type="date"
                         value={orderDate}
                         onChange={(e) => setOrderDate(e.target.value)}
                         className="input-base flex-1 min-w-[140px] py-2 text-sm"
                       />
                       <input
+                        id="pos-order-time"
+                        name="order_time"
                         type="time"
                         value={orderTime}
                         onChange={(e) => setOrderTime(e.target.value)}
@@ -954,21 +928,30 @@ export default function POSPage() {
                 {/* Delivery Form - Collapsible */}
                 {sendForDelivery && (
                   <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                    <label htmlFor="pos-delivery-customer" className="sr-only">Customer name</label>
                     <input
+                      id="pos-delivery-customer"
+                      name="delivery_customer_name"
                       type="text"
                       placeholder="Customer name *"
                       value={deliveryCustomerName}
                       onChange={(e) => setDeliveryCustomerName(e.target.value)}
                       className="input-base w-full py-2 text-sm"
                     />
+                    <label htmlFor="pos-delivery-phone" className="sr-only">Phone</label>
                     <input
+                      id="pos-delivery-phone"
+                      name="delivery_phone"
                       type="tel"
                       placeholder="Phone *"
                       value={deliveryPhone}
                       onChange={(e) => setDeliveryPhone(e.target.value)}
                       className="input-base w-full py-2 text-sm"
                     />
+                    <label htmlFor="pos-delivery-address" className="sr-only">Delivery address</label>
                     <textarea
+                      id="pos-delivery-address"
+                      name="delivery_address"
                       placeholder="Delivery address *"
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
@@ -981,15 +964,20 @@ export default function POSPage() {
                       <p className="text-xs text-slate-500 mt-0.5">Automatically set from order total</p>
                     </div>
                     <div className="border-t border-slate-200 pt-3 mt-2 space-y-2">
-                      <label className="block text-xs font-medium text-slate-600">Assign rider (optional)</label>
+                      <label htmlFor="pos-delivery-rider" className="block text-xs font-medium text-slate-600">Assign rider (optional)</label>
                       <input
+                        id="pos-delivery-rider"
+                        name="delivery_rider"
                         type="text"
                         placeholder="Rider name"
                         value={deliveryRiderName}
                         onChange={(e) => setDeliveryRiderName(e.target.value)}
                         className="input-base w-full py-2 text-sm"
                       />
+                      <label htmlFor="pos-delivery-motorcycle" className="sr-only">Motorcycle ID / Plate</label>
                       <input
+                        id="pos-delivery-motorcycle"
+                        name="delivery_motorcycle_id"
                         type="text"
                         placeholder="Motorcycle ID / Plate"
                         value={deliveryMotorcycleId}
@@ -1003,14 +991,20 @@ export default function POSPage() {
                 {/* Deposit Form - Collapsible */}
                 {isDeposit && (
                   <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                    <label htmlFor="pos-deposit-customer" className="sr-only">Customer name</label>
                     <input
+                      id="pos-deposit-customer"
+                      name="deposit_customer_name"
                       type="text"
                       placeholder="Customer name *"
                       value={depositCustomerName}
                       onChange={(e) => setDepositCustomerName(e.target.value)}
                       className="input-base w-full py-2 text-sm"
                     />
+                    <label htmlFor="pos-deposit-phone" className="sr-only">Phone</label>
                     <input
+                      id="pos-deposit-phone"
+                      name="deposit_phone"
                       type="tel"
                       placeholder="Phone *"
                       value={depositCustomerPhone}
@@ -1018,8 +1012,10 @@ export default function POSPage() {
                       className="input-base w-full py-2 text-sm"
                     />
                     <div>
-                      <label className="mb-1 block text-xs text-slate-600">Deposit amount (UGX)</label>
+                      <label htmlFor="pos-deposit-amount" className="mb-1 block text-xs text-slate-600">Deposit amount (UGX)</label>
                       <input
+                        id="pos-deposit-amount"
+                        name="deposit_amount"
                         type="text"
                         placeholder={`Total: ${formatUGX(subtotal)}`}
                         value={depositAmount}

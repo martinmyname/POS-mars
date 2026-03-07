@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useLayaways, layawaysApi, productsApi } from '@/hooks/useData';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
-import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { format } from 'date-fns';
 import { DollarSign, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -15,35 +14,26 @@ interface LayawayItem {
   totalPrice: number;
 }
 
-interface Layaway {
-  id: string;
-  orderId?: string;
-  customerName: string;
-  customerPhone: string;
-  items: LayawayItem[];
-  totalAmount: number;
-  paidAmount: number;
-  remainingAmount: number;
-  status: 'active' | 'completed' | 'cancelled';
-  createdAt: string;
-  completedAt?: string;
-  notes?: string;
-}
-
 export default function LayawaysPage() {
-  const db = useRxDB();
   useAuth();
-  const [layaways, setLayaways] = useState<Layaway[]>([]);
-  const [filterStatus, setFilterStatus] = useState<'active' | 'completed' | 'cancelled' | 'all'>('all');
-  const [selectedLayaway, setSelectedLayaway] = useState<string | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.layaways.find().$.subscribe((docs) => {
-      const list = docs
-        .filter((d) => !(d as { _deleted?: boolean })._deleted)
+  const { data: layawaysList, loading } = useLayaways({ realtime: true });
+  type LayawayRow = {
+    id: string;
+    orderId?: string;
+    customerName: string;
+    customerPhone: string;
+    items: LayawayItem[];
+    totalAmount: number;
+    paidAmount: number;
+    remainingAmount: number;
+    status: 'active' | 'completed' | 'cancelled';
+    createdAt: string;
+    completedAt?: string;
+    notes?: string;
+  };
+  const layaways = useMemo<LayawayRow[]>(
+    () =>
+      [...layawaysList]
         .map((d) => ({
           id: d.id,
           orderId: d.orderId,
@@ -55,19 +45,20 @@ export default function LayawaysPage() {
           remainingAmount: d.remainingAmount,
           status: d.status as 'active' | 'completed' | 'cancelled',
           createdAt: d.createdAt,
-          completedAt: (d as { completedAt?: string }).completedAt,
-          notes: (d as { notes?: string }).notes,
+          completedAt: d.completedAt,
+          notes: d.notes,
         }))
-        .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
-      setLayaways(list);
-    });
-    return () => sub.unsubscribe();
-  }, [db]);
+        .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1)),
+    [layawaysList]
+  );
+  const [filterStatus, setFilterStatus] = useState<'active' | 'completed' | 'cancelled' | 'all'>('all');
+  const [selectedLayaway, setSelectedLayaway] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
 
   const filtered = layaways.filter((l) => filterStatus === 'all' || l.status === filterStatus);
 
   const recordPayment = async (id: string) => {
-    if (!db) return;
     const amountStr = paymentAmount;
     if (!amountStr) {
       setMessage('Enter payment amount');
@@ -79,7 +70,7 @@ export default function LayawaysPage() {
       return;
     }
 
-    const doc = await db.layaways.findOne(id).exec();
+    const doc = await layawaysApi.getById(id);
     if (!doc) return;
 
     const currentPaid = doc.paidAmount;
@@ -92,7 +83,7 @@ export default function LayawaysPage() {
       return;
     }
 
-    const updates: Record<string, unknown> = {
+    const updates: { paidAmount: number; remainingAmount: number; status?: string; completedAt?: string } = {
       paidAmount: newPaid,
       remainingAmount: newRemaining,
     };
@@ -100,25 +91,19 @@ export default function LayawaysPage() {
     if (newRemaining <= 0) {
       updates.status = 'completed';
       updates.completedAt = new Date().toISOString();
-      
-      // Reduce stock when layaway is completed
       for (const item of doc.items as LayawayItem[]) {
-        const productDoc = await db.products.findOne(item.productId).exec();
+        const productDoc = await productsApi.getById(item.productId);
         if (productDoc) {
-          // Ensure proper number conversion: handle null, undefined, string, or number
           const currentStock = productDoc.stock != null ? Number(productDoc.stock) : 0;
-          if (!isNaN(currentStock)) {
+          if (!Number.isNaN(currentStock)) {
             const newStock = currentStock - item.qty;
-            await productDoc.patch({ stock: Math.max(0, Math.round(newStock)) });
+            await productsApi.update(item.productId, { stock: Math.max(0, Math.round(newStock)) });
           }
         }
       }
     }
 
-    await doc.patch(updates);
-    if (newRemaining <= 0) {
-      triggerImmediateSyncCritical();
-    }
+    await layawaysApi.update(id, updates);
     setPaymentAmount('');
     setSelectedLayaway(null);
     setMessage(newRemaining <= 0 ? 'Layaway completed! Items released.' : 'Payment recorded');
@@ -126,15 +111,13 @@ export default function LayawaysPage() {
   };
 
   const cancelLayaway = async (id: string) => {
-    if (!db || !confirm('Cancel this layaway? Items will be released.')) return;
-    const doc = await db.layaways.findOne(id).exec();
-    if (!doc) return;
-    await doc.patch({ status: 'cancelled' });
+    if (!confirm('Cancel this layaway? Items will be released.')) return;
+    await layawaysApi.update(id, { status: 'cancelled' });
     setMessage('Layaway cancelled');
     setTimeout(() => setMessage(null), 3000);
   };
 
-  if (!db) {
+  if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
         Loading…

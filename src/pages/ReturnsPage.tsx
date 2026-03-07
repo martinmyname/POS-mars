@@ -1,8 +1,7 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useRxDB } from '@/hooks/useRxDB';
+import { useOrders, useProducts, ordersApi, productsApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
-import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { format } from 'date-fns';
 import type { OrderItem } from '@/types';
 import { RefreshCw, Wrench } from 'lucide-react';
@@ -25,10 +24,32 @@ interface ProductForExchange {
 type ReturnOutcome = 'exchange' | 'repair';
 
 export default function ReturnsPage() {
-  const db = useRxDB();
-  const [orders, setOrders] = useState<OrderDoc[]>([]);
-  const [products, setProducts] = useState<Map<string, string>>(new Map());
-  const [productsForExchange, setProductsForExchange] = useState<ProductForExchange[]>([]);
+  const { data: ordersList, loading } = useOrders({ realtime: true });
+  const { data: productsList } = useProducts({ realtime: true });
+  const orders = useMemo(
+    () =>
+      ordersList
+        .filter((d) => d.status === 'paid' && d.orderType !== 'return')
+        .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
+        .slice(0, 100)
+        .map((d) => ({ id: d.id, createdAt: d.createdAt, total: d.total, items: d.items as OrderDoc['items'] })),
+    [ordersList]
+  );
+  const { products, productsForExchange } = useMemo(() => {
+    const map = new Map<string, string>();
+    const forExchange: ProductForExchange[] = [];
+    productsList.forEach((d) => {
+      map.set(d.id, d.name);
+      forExchange.push({
+        id: d.id,
+        name: d.name,
+        retailPrice: d.retailPrice,
+        costPrice: d.costPrice,
+        stock: d.stock,
+      });
+    });
+    return { products: map, productsForExchange: forExchange };
+  }, [productsList]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [returnQtys, setReturnQtys] = useState<Record<string, number>>({});
   const [outcomeType, setOutcomeType] = useState<ReturnOutcome>('exchange');
@@ -37,50 +58,6 @@ export default function ReturnsPage() {
   const [repairFee, setRepairFee] = useState('');
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!db) return;
-    const subOrders = db.orders.find().$.subscribe((docs) => {
-      const list = docs
-        .filter((d) => {
-          if ((d as { _deleted?: boolean })._deleted) return false;
-          if (d.status !== 'paid') return false;
-          const ot = (d as { orderType?: string }).orderType;
-          return ot !== 'return';
-        })
-        .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
-        .slice(0, 100)
-        .map((d) => ({
-          id: d.id,
-          createdAt: d.createdAt,
-          total: d.total,
-          items: d.items as OrderDoc['items'],
-        }));
-      setOrders(list);
-    });
-    const subProducts = db.products.find().$.subscribe((docs) => {
-      const map = new Map<string, string>();
-      const forExchange: ProductForExchange[] = [];
-      docs
-        .filter((d) => !(d as { _deleted?: boolean })._deleted)
-        .forEach((d) => {
-          map.set(d.id, d.name);
-          forExchange.push({
-            id: d.id,
-            name: d.name,
-            retailPrice: d.retailPrice,
-            costPrice: d.costPrice,
-            stock: d.stock,
-          });
-        });
-      setProducts(map);
-      setProductsForExchange(forExchange);
-    });
-    return () => {
-      subOrders.unsubscribe();
-      subProducts.unsubscribe();
-    };
-  }, [db]);
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId);
 
@@ -138,7 +115,7 @@ export default function ReturnsPage() {
   const repairFeeNum = parseFloat(repairFee) || 0;
 
   const processReturn = async () => {
-    if (!db || !selectedOrder) return;
+    if (!selectedOrder) return;
     const toReturn = selectedOrder.items.filter((item) => (returnQtys[item.productId] ?? 0) > 0);
     if (toReturn.length === 0) {
       setMessage('Select quantities to return.');
@@ -157,7 +134,7 @@ export default function ReturnsPage() {
     setMessage(null);
     try {
       const now = new Date().toISOString();
-      const returnId = `ret_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const returnId = `ret_${generateId()}`;
       const returnItems: OrderItem[] = toReturn.map((item) => {
         const qty = returnQtys[item.productId] ?? 0;
         return {
@@ -169,8 +146,7 @@ export default function ReturnsPage() {
       });
       const returnTotal = returnItems.reduce((s, i) => s + i.sellingPrice * i.qty, 0);
 
-      // 1) Create return order and restore stock
-      await db.orders.insert({
+      await ordersApi.insert({
         id: returnId,
         channel: 'physical',
         type: 'retail',
@@ -185,20 +161,18 @@ export default function ReturnsPage() {
       });
 
       for (const item of returnItems) {
-        const doc = await db.products.findOne(item.productId).exec();
+        const doc = await productsApi.getById(item.productId);
         if (doc) {
-          // Ensure proper number conversion: handle null, undefined, string, or number
           const currentStock = doc.stock != null ? Number(doc.stock) : 0;
-          if (!isNaN(currentStock)) {
+          if (!Number.isNaN(currentStock)) {
             const newStock = currentStock + item.qty;
-            await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
+            await productsApi.update(item.productId, { stock: Math.max(0, Math.round(newStock)) });
           }
         }
       }
 
-      // 2) Exchange: create new order for replacement items and deduct stock
       if (outcomeType === 'exchange') {
-        const exchangeId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const exchangeId = `ord_${generateId()}`;
         const exchangeOrderItems: OrderItem[] = exchangeCart.map((l) => ({
           productId: l.productId,
           qty: l.qty,
@@ -210,7 +184,7 @@ export default function ReturnsPage() {
           (s, i) => s + (i.sellingPrice - i.costPrice) * i.qty,
           0
         );
-        await db.orders.insert({
+        await ordersApi.insert({
           id: exchangeId,
           channel: 'physical',
           type: 'retail',
@@ -224,28 +198,26 @@ export default function ReturnsPage() {
           linkedOrderId: selectedOrder.id,
         });
         for (const line of exchangeCart) {
-          const doc = await db.products.findOne(line.productId).exec();
+          const doc = await productsApi.getById(line.productId);
           if (doc) {
-            // Ensure proper number conversion: handle null, undefined, string, or number
             const currentStock = doc.stock != null ? Number(doc.stock) : 0;
-            if (!isNaN(currentStock)) {
+            if (!Number.isNaN(currentStock)) {
               const newStock = currentStock - line.qty;
-              await doc.patch({ stock: Math.max(0, Math.round(newStock)) });
+              await productsApi.update(line.productId, { stock: Math.max(0, Math.round(newStock)) });
             }
           }
         }
       }
 
-      // 3) Repair: create small order for repair fee (no stock change)
       if (outcomeType === 'repair' && repairFeeNum > 0) {
-        const repairOrderId = `rep_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const repairOrderId = `rep_${generateId()}`;
         const repairFeeItem: OrderItem = {
           productId: 'repair_fee',
           qty: 1,
           sellingPrice: repairFeeNum,
           costPrice: 0,
         };
-        await db.orders.insert({
+        await ordersApi.insert({
           id: repairOrderId,
           channel: 'physical',
           type: 'retail',
@@ -260,9 +232,6 @@ export default function ReturnsPage() {
           notes: 'Repair fee (return)',
         });
       }
-      
-      // Trigger immediate sync so all active users see return orders and stock changes instantly
-      triggerImmediateSyncCritical();
 
       setSelectedOrderId(null);
       setReturnQtys({});
@@ -280,7 +249,7 @@ export default function ReturnsPage() {
     }
   };
 
-  if (!db) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
+  if (loading) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
 
   return (
     <div className="space-y-6">
@@ -415,8 +384,10 @@ export default function ReturnsPage() {
 
               {outcomeType === 'repair' && (
                 <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <label className="block font-medium">Repair fee (UGX)</label>
+                  <label htmlFor="return-repair-fee" className="block font-medium">Repair fee (UGX)</label>
                   <input
+                    id="return-repair-fee"
+                    name="repair_fee"
                     type="number"
                     min={0}
                     step={1}
