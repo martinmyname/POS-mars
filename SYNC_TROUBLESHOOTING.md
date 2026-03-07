@@ -165,6 +165,12 @@ The app allows `unsafe-eval` in CSP (in `index.html`, `vercel.json`, `netlify.to
 
 **Do not clear local data on that device** until you’re sure you won’t lose anything. Clearing (e.g. Settings → Clear local data, or deleting IndexedDB) removes all local data; any **unsynced** orders or changes that haven’t been pushed to Supabase yet would be lost.
 
+**“TypeError: Failed to fetch” (or similar in RC_PULL parameters):** This means the browser could not complete the HTTP request to Supabase. Common causes:
+- **Network:** Device offline, unstable Wi‑Fi, VPN/firewall blocking, or DNS issues. Check you can open `https://<your-project>.supabase.co` in the browser.
+- **Auth:** Session expired or invalid – the request may be rejected before a proper HTTP response. Sign out and sign in again, then use the sync retry (⟳).
+- **CORS / origin:** If the app is served from an origin Supabase doesn’t allow, the request can fail as “Failed to fetch”. In Supabase Dashboard → Authentication → URL Configuration, add your app URL to “Redirect URLs” and ensure the site URL is correct.
+- **Supabase down or unreachable:** Rare; check [Supabase status](https://status.supabase.com/) or try the project URL in a new tab.
+
 **What to do:**
 
 1. **Keep using the device normally** – Local data is still there. New orders and edits are still saved locally and will be pushed when sync recovers.
@@ -175,3 +181,5 @@ The app allows `unsafe-eval` in CSP (in `index.html`, `vercel.json`, `netlify.to
    - **Supabase / RLS:** Check Supabase Dashboard → Logs for errors. If you see permission errors, fix RLS policies (see step 2 in this guide). Ensure all tables exist and match `supabase-schema.sql`.
 3. **Get local-only data to the server:** Once the device is online and the error is fixed (or after a retry), replication will push any pending local changes to Supabase. So the goal is to **fix the cause of RC_PULL and let sync run** – then push will run too and your data will be on the server.
 4. **Only clear local data as a last resort** – e.g. if the device is stuck and you’ve already confirmed (from another device or Supabase Dashboard) that all important data is on Supabase. Then: Settings → Data → “Clear local data & reload”. After that, the app will re-sync from Supabase. If you clear before push has run, any data that existed only on that device can be lost.
+
+**Development:** To see full RxDB error messages (including the exact cause of RC_PULL) in the console, add `VITE_RXDB_DEV_MODE=true` to your `.env` and restart the dev server. This enables the [RxDB dev-mode plugin](https://rxdb.info/dev-mode.html). It is off by default because it can slow the database; use it only when debugging sync.

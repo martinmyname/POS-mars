@@ -7,11 +7,12 @@
  *
  * For best performance and reliability in production, RxDB Premium IndexedDB storage (rxdb-premium) is recommended; the free tier uses Dexie.
  */
-import { createRxDatabase } from 'rxdb/plugins/core';
+import { addRxPlugin, createRxDatabase } from 'rxdb/plugins/core';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { getRxStorageLocalstorage } from 'rxdb/plugins/storage-localstorage';
 import { replicateSupabase } from 'rxdb/plugins/replication-supabase';
 import { supabaseForReplication } from './supabase';
+
 
 const DB_NAME = 'mars_pos';
 
@@ -307,6 +308,12 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
+    // Optional: enable RxDB dev-mode only when debugging sync (add VITE_RXDB_DEV_MODE=true to .env).
+    // Dev-mode adds validation and increases build size, so we don't enable it by default to keep the DB fast.
+    if (import.meta.env.DEV && import.meta.env.VITE_RXDB_DEV_MODE === 'true') {
+      const { RxDBDevModePlugin } = await import('rxdb/plugins/dev-mode');
+      addRxPlugin(RxDBDevModePlugin);
+    }
     const storage = getRxStorage();
     const db = await createRxDatabase<MarsCollections>({
     name: DB_NAME,
@@ -396,12 +403,17 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
 
         rep.error$.subscribe((err) => {
           try {
+            const message = err?.message || String(err);
             const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
             errors[name] = {
-              message: err?.message || String(err),
+              message,
               timestamp: new Date().toISOString(),
             };
             localStorage.setItem('rxdb_sync_errors', JSON.stringify(errors));
+            if (import.meta.env.DEV) {
+              const params = (err as { parameters?: { errors?: unknown; direction?: string } })?.parameters;
+              console.warn(`[RxDB replication] ${name} (${params?.direction ?? 'pull/push'}):`, message, params?.errors ?? '');
+            }
           } catch (_) {}
         });
         rep.received$.subscribe(() => {
