@@ -152,6 +152,13 @@ If nothing works, you can reset the local database (or use **Settings → Data �
 - Check Vercel build logs for errors
 - Ensure Supabase URL/key are correct (not localhost)
 
+### CSP blocks eval / "script-src blocked"
+The app allows `unsafe-eval` in CSP (in `index.html`, `vercel.json`, `netlify.toml`) because RxDB and other deps use `eval`/`new Function()`. If you still see "script-src blocked" or "CSP prevents the evaluation of arbitrary strings":
+- **Redeploy** so the latest `index.html` and headers are live.
+- **Clear site data / service worker**: Application → Storage → Clear site data (or unregister the service worker and hard reload). A cached old page can send a stricter CSP.
+- **Host Security Headers**: If your host (Vercel, Netlify, etc.) sets a CSP in the dashboard (e.g. "Security Headers"), that can override our headers. Add `'unsafe-eval'` to `script-src` there, or disable the host’s CSP so only our policy (from `vercel.json`/`netlify.toml` and `index.html`) applies.
+- **Local dev**: `index.html` meta tag applies when running `npm run dev`; no need for vercel/netlify headers locally.
+
 ### RxDB Error RC_PULL (how to avoid losing data on the device)
 
 **RC_PULL** means the **pull** from Supabase failed (the device could not fetch the latest data from the server). Your **local data on that device is not deleted** – it stays in the device’s database. The app keeps retrying the pull automatically.

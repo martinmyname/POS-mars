@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- CSP first so it applies before any other policy; unsafe-eval required by RxDB/deps -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; default-src 'self'; base-uri 'self'; object-src 'none';" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#100C08" />
-    <!-- Allow eval/new Function required by RxDB and other deps; tighten if you remove those deps. -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; default-src 'self'; base-uri 'self'; object-src 'none';" />
     <meta name="description" content="Mars Kitchen Essentials – Offline-first POS, orders & expense management" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Mars Kitchen Essentials POS</title>
