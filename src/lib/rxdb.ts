@@ -1,12 +1,28 @@
 /**
  * RxDB database initialization – offline-first local DB with Supabase replication.
+ *
+ * Storage backend is chosen by VITE_RXDB_STORAGE (default: dexie):
+ * - dexie: IndexedDB via Dexie.js (free, good for production; can have quirks on some browsers).
+ * - localstorage: Browser localStorage (free, no Dexie/IndexedDB; ~5MB limit – use only for small datasets or to test if Dexie was causing sync issues).
+ *
+ * For best performance and reliability in production, RxDB Premium IndexedDB storage (rxdb-premium) is recommended; the free tier uses Dexie.
  */
 import { createRxDatabase } from 'rxdb/plugins/core';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
+import { getRxStorageLocalstorage } from 'rxdb/plugins/storage-localstorage';
 import { replicateSupabase } from 'rxdb/plugins/replication-supabase';
-import { supabase } from './supabase';
+import { supabaseForReplication } from './supabase';
 
 const DB_NAME = 'mars_pos';
+
+const STORAGE_BACKEND = (import.meta.env.VITE_RXDB_STORAGE ?? 'dexie').toLowerCase();
+
+function getRxStorage() {
+  if (STORAGE_BACKEND === 'localstorage') {
+    return getRxStorageLocalstorage();
+  }
+  return getRxStorageDexie();
+}
 
 const productSchema = {
   version: 0,
@@ -291,7 +307,7 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    const storage = getRxStorageDexie();
+    const storage = getRxStorage();
     const db = await createRxDatabase<MarsCollections>({
     name: DB_NAME,
     storage,
@@ -317,7 +333,7 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
 
   const url = supabaseUrl ?? import.meta.env.VITE_SUPABASE_URL;
   const key = supabaseKey ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
-  if (url && key && supabase) {
+  if (url && key && supabaseForReplication) {
     try {
       const tables = [
         { name: 'products', collection: db.products },
@@ -342,7 +358,7 @@ export async function initRxDB(supabaseUrl?: string, supabaseKey?: string): Prom
         
         const rep = replicateSupabase({
           collection,
-          client: supabase,
+          client: supabaseForReplication,
           tableName: name,
           replicationIdentifier: `${DB_NAME}-${name}`,
           live: true,
@@ -501,6 +517,8 @@ export async function destroyRxDB(): Promise<void> {
 
 /** Dexie storage uses one IndexedDB per collection: rxdb-dexie-{dbName}--{schemaVersion}--{collectionName} */
 const DEXIE_DB_PREFIX = 'rxdb-dexie-' + DB_NAME + '--';
+/** LocalStorage storage uses keys like RxDB-ls-doc-{dbName}--... */
+const LS_PREFIX = 'RxDB-ls-';
 const COLLECTION_NAMES = [
   'products', 'orders', 'expenses', 'stock_adjustments', 'report_notes',
   'promotions', 'customers', 'deliveries', 'suppliers', 'supplier_ledger',
@@ -511,17 +529,34 @@ const COLLECTION_NAMES = [
  * Clear all local RxDB data and reload the app so it re-syncs from Supabase.
  * Run this after clearing Supabase (e.g. supabase-clear-all-data.sql) to test with real data.
  * Requires window (browser only).
+ * Clears either IndexedDB (Dexie) or localStorage depending on VITE_RXDB_STORAGE.
  */
 export async function clearAllLocalDataAndReload(): Promise<void> {
   await destroyRxDB();
-  if (typeof indexedDB === 'undefined') return;
-  const schemaVersion = 0;
-  for (const name of COLLECTION_NAMES) {
-    const idbName = DEXIE_DB_PREFIX + schemaVersion + '--' + name;
+  if (typeof window === 'undefined') return;
+
+  if (STORAGE_BACKEND === 'localstorage') {
     try {
-      indexedDB.deleteDatabase(idbName);
+      const ls = window.localStorage;
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < ls.length; i++) {
+        const key = ls.key(i);
+        if (key && key.startsWith(LS_PREFIX) && key.includes(DB_NAME)) keysToRemove.push(key);
+      }
+      keysToRemove.forEach((k) => ls.removeItem(k));
     } catch (_) {}
+  } else {
+    if (typeof indexedDB !== 'undefined') {
+      const schemaVersion = 0;
+      for (const name of COLLECTION_NAMES) {
+        const idbName = DEXIE_DB_PREFIX + schemaVersion + '--' + name;
+        try {
+          indexedDB.deleteDatabase(idbName);
+        } catch (_) {}
+      }
+    }
   }
+
   await new Promise((r) => setTimeout(r, 200));
-  if (typeof window !== 'undefined') window.location.reload();
+  window.location.reload();
 }

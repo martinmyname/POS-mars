@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
-import { triggerReSync } from '@/lib/rxdb';
+import { triggerReSync, triggerImmediateSyncCritical } from '@/lib/rxdb';
 
 export function SyncStatus() {
   const [online, setOnline] = useState(
@@ -17,6 +17,7 @@ export function SyncStatus() {
       if (wasOffline.current) {
         wasOffline.current = false;
         triggerReSync();
+        triggerImmediateSyncCritical();
       }
     };
     const onOffline = () => {
@@ -26,6 +27,7 @@ export function SyncStatus() {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible' && navigator.onLine) {
         triggerReSync();
+        triggerImmediateSyncCritical();
       }
     };
     window.addEventListener('online', onOnline);
@@ -54,6 +56,7 @@ export function SyncStatus() {
         const errors = JSON.parse(localStorage.getItem('rxdb_sync_errors') || '{}');
         if (navigator.onLine && Object.keys(errors).length > 0) {
           triggerReSync();
+          triggerImmediateSyncCritical();
         }
       } catch (_) {}
     }, 20000);
@@ -73,6 +76,7 @@ export function SyncStatus() {
   const handleRetrySync = () => {
     setIsRetrying(true);
     triggerReSync();
+    triggerImmediateSyncCritical();
     // Sync errors are cleared in rxdb when received$ fires (successful sync)
     // Init error requires full reload to re-init DB
     if (initError) {
@@ -86,7 +90,10 @@ export function SyncStatus() {
 
   const handleClearSyncIssues = () => {
     setIsRetrying(true);
+    // Force full resync of all replications, then immediately trigger critical tables (orders, deliveries, products)
+    // so orders of the day and stock appear on other devices as soon as possible.
     triggerReSync();
+    triggerImmediateSyncCritical();
     // Do NOT clear localStorage/state here: errors are cleared in rxdb when received$ fires (successful sync).
     // If we clear here and sync fails again, error$ writes back and the badge reappears ("issues come back").
     setTimeout(() => setIsRetrying(false), 8000);

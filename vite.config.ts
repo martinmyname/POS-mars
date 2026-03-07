@@ -27,18 +27,8 @@ export default defineConfig(({ command }) => ({
       workbox: {
         // In dev, dev-dist has no built assets (only SW files), so skip precache glob to avoid the warning
         globPatterns: command === 'build' ? ['**/*.{js,css,html,ico,png,svg,woff2}'] : [],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              networkTimeoutSeconds: 10,
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+        // Do not cache Supabase API: replication needs live data. Let requests go straight to the network.
+        runtimeCaching: [],
       },
       devOptions: { enabled: true },
     }),

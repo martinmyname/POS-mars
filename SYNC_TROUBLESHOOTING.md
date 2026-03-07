@@ -1,6 +1,13 @@
 # Sync Troubleshooting Guide
 
-If items aren't syncing to Supabase or other devices, follow these steps:
+If items aren't syncing to Supabase or other devices, follow these steps.
+
+## 0. RxDB storage backend (if sync is flaky or slow)
+
+The app uses **RxDB** for local storage. By default it uses the **free Dexie (IndexedDB)** backend. In some environments (e.g. certain browsers, private mode, or heavy replication) this can contribute to sync issues.
+
+- **Try LocalStorage backend (free):** Set `VITE_RXDB_STORAGE=localstorage` in your env (e.g. `.env` or host env vars). Rebuild and test. LocalStorage avoids Dexie/IndexedDB entirely, so if sync becomes reliable, Dexie may have been involved. **Limitation:** browser localStorage is ~5MB; use only for small/medium datasets. For large data, stay on Dexie or use premium.
+- **Production / best reliability (paid):** [RxDB Premium](https://rxdb.info/premium/) includes an **IndexedDB RxStorage** that is faster, uses a WAL-like mode, and avoids some Dexie/IndexedDB quirks. Consider it if you need the most reliable sync and performance.
 
 ## 1. Verify Supabase Tables Exist
 
@@ -68,7 +75,7 @@ The sync status indicator in the header shows:
 - 🔴 **Sync Error** - Database initialization failed
 - 🟠 **Offline** - No internet connection
 
-Click the refresh icon to clear errors and retry.
+Click the **refresh icon** (⟳) next to "Sync Issues" to retry. This triggers a full resync of all tables and an immediate pull/push of **orders**, **deliveries**, and **products**, so orders of the day and stock should update on all devices. If errors persist, check the steps below and the browser console.
 
 ## 7. Verify Authentication
 
@@ -127,6 +134,12 @@ If nothing works, you can reset the local database:
 - Your Supabase schema is outdated
 - Run the updated `supabase-schema.sql` file
 - Or manually add missing columns
+
+### Orders of the day not syncing to other devices
+- **Enable Realtime for `orders`:** In Supabase Dashboard → Database → Replication, ensure `orders` is in the publication (or run the Realtime section of `supabase-schema.sql`). Without this, other devices only get new orders when they pull (e.g. when you open the Dashboard or click the sync retry button).
+- **Use the Sync retry button:** In the header, if you see "Sync Issues", click the refresh icon (⟳). This forces an immediate resync of orders, deliveries, and products so other devices can pull the latest.
+- **Dashboard auto-refresh:** The Dashboard pulls orders from the server when you open it, when you switch back to the tab, and every 30 seconds while the Dashboard is open. So "orders today" and revenue should update on each device without leaving the page.
+- **RLS and schema:** Ensure RLS allows authenticated users to SELECT/INSERT/UPDATE on `orders` and that the `orders` table has `_modified` (and the trigger from `supabase-schema.sql`) so replication sees updates.
 
 ### Items sync but don't appear on other devices
 - **Deliveries / payment received:** The Deliveries page automatically syncs with the server every 15 seconds when open, so when one user marks delivery cash as received, other users will see it within about 15 seconds. Use the **Refresh** button to pull the latest immediately.

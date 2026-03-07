@@ -11,7 +11,7 @@ Mars Kitchen Essentials POS is a production-ready Progressive Web App (PWA) for 
 | Aspect | Details |
 |--------|--------|
 | **Type** | Offline-first PWA (React + TypeScript) |
-| **Local DB** | RxDB 16 (Dexie/IndexedDB) |
+| **Local DB** | RxDB 16 (Dexie/IndexedDB by default; optional `VITE_RXDB_STORAGE=localstorage`) |
 | **Backend / Auth** | Supabase (PostgreSQL, Auth, Realtime) |
 | **Deploy** | Static build; host on Vercel, Netlify, or any static host |
 
@@ -41,7 +41,7 @@ Mars Kitchen Essentials POS is a production-ready Progressive Web App (PWA) for 
 |-------|------------|
 | **Frontend** | React 18, TypeScript, Vite 5 |
 | **UI** | Tailwind CSS, Radix (Slot), Lucide icons, Recharts (reports) |
-| **Local DB** | RxDB 16, Dexie (IndexedDB), RxJS |
+| **Local DB** | RxDB 16, Dexie (IndexedDB) or LocalStorage (see `VITE_RXDB_STORAGE`), RxJS |
 | **Sync** | RxDB Supabase replication (pull/push, live) |
 | **Backend / Auth** | Supabase (PostgreSQL, Auth, Realtime) |
 | **PWA** | vite-plugin-pwa (Workbox, manifest, service worker) |
@@ -88,6 +88,7 @@ Edit `.env`:
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
+# Optional: VITE_RXDB_STORAGE=localstorage to use localStorage instead of Dexie (see SYNC_TROUBLESHOOTING.md)
 ```
 
 Get these from **Supabase Dashboard → Project Settings → API** (Project URL and anon/public key). **Do not** commit `.env`; it is in `.gitignore`.

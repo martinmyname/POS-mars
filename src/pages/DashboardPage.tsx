@@ -4,6 +4,7 @@ import { useRxDB } from '@/hooks/useRxDB';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { formatUGX } from '@/lib/formatUGX';
+import { triggerImmediateSyncCritical } from '@/lib/rxdb';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC } from '@/lib/appTimezone';
 import { format, parseISO } from 'date-fns';
 import {
@@ -97,6 +98,22 @@ export default function DashboardPage() {
       subExpenses.unsubscribe();
     };
   }, [db, dayTick]);
+
+  // Pull all critical tables (orders, deliveries, products) when Dashboard is visible so metrics and reports stay accurate
+  useEffect(() => {
+    if (!db) return;
+    const syncCritical = () => triggerImmediateSyncCritical();
+    syncCritical(); // initial pull when dashboard mounts
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncCritical();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = setInterval(syncCritical, 30000); // every 30s while dashboard is open
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
+    };
+  }, [db]);
 
   // One-time browser notification when there are orders due today
   useEffect(() => {

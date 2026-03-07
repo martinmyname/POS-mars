@@ -13,8 +13,9 @@ import {
   getYearRangeInAppTz,
 } from '@/lib/appTimezone';
 import { EXPENSE_PURPOSE_OPTIONS } from '@/lib/expenseConstants';
-import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { triggerImmediateSyncCritical } from '@/lib/rxdb';
+import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, AlertTriangle, Receipt, Printer, FileText, ChevronRight } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -54,6 +55,22 @@ export default function ReportsPage() {
   const [previousPeriodRevenue, setPreviousPeriodRevenue] = useState<number>(0);
   const [previousPeriodProfit, setPreviousPeriodProfit] = useState<number>(0);
   const [previousPeriodExpenses, setPreviousPeriodExpenses] = useState<number>(0);
+
+  // Pull all critical tables (orders, deliveries, products) when Reports is visible so shareholder reports are accurate
+  useEffect(() => {
+    if (!db) return;
+    const syncCritical = () => triggerImmediateSyncCritical();
+    syncCritical(); // initial pull when reports mount
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncCritical();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = setInterval(syncCritical, 30000); // every 30s while reports are open
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
+    };
+  }, [db]);
 
   useEffect(() => {
     if (!db) return;
@@ -422,8 +439,15 @@ export default function ReportsPage() {
         ? ((netProfit - prevNetProfit) / Math.abs(prevNetProfit)) * 100
         : netProfit !== 0 ? 100 : 0;
 
-    // Time series data for trends (Uganda/EAT)
-    const timeSeriesData: Array<{ date: string; revenue: number; profit: number; expenses: number; orders: number }> = [];
+    // Time series data for trends (Uganda/EAT) — include margin % for gross profit analytics
+    const timeSeriesData: Array<{
+      date: string;
+      revenue: number;
+      profit: number;
+      expenses: number;
+      orders: number;
+      marginPct: number;
+    }> = [];
     const formatDayLabel = (dayStr: string) =>
       new Date(getStartOfDayAppTzAsUTC(dayStr).getTime()).toLocaleDateString('en-GB', {
         timeZone: 'Africa/Kampala',
@@ -432,7 +456,7 @@ export default function ReportsPage() {
       });
 
     if (period === 'daily') {
-      for (let i = 6; i >= 0; i--) {
+      for (let i = 13; i >= 0; i--) {
         const dayStr = addDaysToDateStr(todayStr, -i);
         const dayStart = getStartOfDayAppTzAsUTC(dayStr).toISOString();
         const dayEnd = getEndOfDayAppTzAsUTC(dayStr).toISOString();
@@ -444,19 +468,22 @@ export default function ReportsPage() {
             return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
           })
           .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const dayRevenue = dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+        const dayProfit = dayOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
         timeSeriesData.push({
           date: formatDayLabel(dayStr),
-          revenue: dayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
-          profit: dayOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          revenue: dayRevenue,
+          profit: dayProfit,
           expenses: dayOperatingExpenses,
           orders: dayOrders.length,
+          marginPct: dayRevenue > 0 ? (dayProfit / dayRevenue) * 100 : 0,
         });
       }
     } else if (period === 'weekly') {
       const mondayStr = new Date(getWeekRangeInAppTz(todayStr).start).toLocaleDateString('en-CA', {
         timeZone: 'Africa/Kampala',
       });
-      for (let i = 7; i >= 0; i--) {
+      for (let i = 11; i >= 0; i--) {
         const weekMondayStr = addDaysToDateStr(mondayStr, -7 * i);
         const weekRange = getWeekRangeInAppTz(weekMondayStr);
         const weekOrders = allOrders.filter(
@@ -473,12 +500,15 @@ export default function ReportsPage() {
             return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
           })
           .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const weekRevenue = weekOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+        const weekProfit = weekOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
         timeSeriesData.push({
           date: formatDayLabel(weekMondayStr),
-          revenue: weekOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
-          profit: weekOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          revenue: weekRevenue,
+          profit: weekProfit,
           expenses: weekOperatingExpenses,
           orders: weekOrders.length,
+          marginPct: weekRevenue > 0 ? (weekProfit / weekRevenue) * 100 : 0,
         });
       }
     } else if (period === 'monthly') {
@@ -503,21 +533,24 @@ export default function ReportsPage() {
             return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
           })
           .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const monthRevenue = monthOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+        const monthProfit = monthOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
         timeSeriesData.push({
           date: new Date(getStartOfDayAppTzAsUTC(monthFirstStr).getTime()).toLocaleDateString('en-GB', {
             timeZone: 'Africa/Kampala',
             month: 'short',
             year: 'numeric',
           }),
-          revenue: monthOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
-          profit: monthOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          revenue: monthRevenue,
+          profit: monthProfit,
           expenses: monthOperatingExpenses,
           orders: monthOrders.length,
+          marginPct: monthRevenue > 0 ? (monthProfit / monthRevenue) * 100 : 0,
         });
       }
     } else {
       const [y] = todayStr.split('-').map(Number);
-      for (let i = 4; i >= 0; i--) {
+      for (let i = 5; i >= 0; i--) {
         const yearStr = `${y - i}-01-01`;
         const yearRange = getYearRangeInAppTz(yearStr);
         const yearOrders = allOrders.filter(
@@ -534,17 +567,62 @@ export default function ReportsPage() {
             return purpose !== INVENTORY_PURCHASE_PURPOSE && purpose !== RESTOCK_PURPOSE;
           })
           .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const yearRevenue = yearOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+        const yearProfit = yearOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
         timeSeriesData.push({
           date: String(y - i),
-          revenue: yearOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
-          profit: yearOrders.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0),
+          revenue: yearRevenue,
+          profit: yearProfit,
           expenses: yearOperatingExpenses,
           orders: yearOrders.length,
+          marginPct: yearRevenue > 0 ? (yearProfit / yearRevenue) * 100 : 0,
         });
       }
     }
 
+    // Gross profit past analytics: same buckets as time series with labels for table
+    const grossProfitHistory = timeSeriesData.map((row) => ({
+      periodLabel: row.date,
+      revenue: row.revenue,
+      grossProfit: row.profit,
+      marginPct: row.marginPct,
+      orders: row.orders,
+    })).reverse();
+
+    // Hourly breakdown for daily view (today only, app timezone)
+    type HourlyBucket = { hour: number; hourLabel: string; revenue: number; profit: number; orders: number };
+    const hourlyBreakdown: HourlyBucket[] = [];
+    if (period === 'daily') {
+      const dayStart = getStartOfDayAppTzAsUTC(todayStr).toISOString();
+      const dayEnd = getEndOfDayAppTzAsUTC(todayStr).toISOString();
+      const todayOrders = allOrders.filter((o) => o.createdAt >= dayStart && o.createdAt < dayEnd);
+      const getHourAppTz = (iso: string) => {
+        const h = new Date(iso).toLocaleString('en-GB', { timeZone: 'Africa/Kampala', hour: '2-digit', hour12: false });
+        return parseInt(h, 10) || 0;
+      };
+      for (let h = 0; h < 24; h++) {
+        hourlyBreakdown.push({
+          hour: h,
+          hourLabel: `${String(h).padStart(2, '0')}:00`,
+          revenue: 0,
+          profit: 0,
+          orders: 0,
+        });
+      }
+      todayOrders.forEach((o) => {
+        const hour = getHourAppTz(o.createdAt);
+        if (hour >= 0 && hour < 24) {
+          const b = hourlyBreakdown[hour];
+          b.revenue += Number(o.total) || 0;
+          b.profit += Number(o.grossProfit) || 0;
+          b.orders += 1;
+        }
+      });
+    }
+
     return {
+      grossProfit: Number(profitPeriod) || 0,
+      previousPeriodGrossProfit: Number(previousPeriodProfit) || 0,
       grossIncome,
       expenses,
       restockExpenses,
@@ -567,6 +645,8 @@ export default function ReportsPage() {
       expenseGrowth,
       netProfitGrowth,
       timeSeriesData,
+      grossProfitHistory,
+      hourlyBreakdown,
     };
   }, [allOrders, allExpenses, allProducts, period, revenuePeriod, expensesPeriod, profitPeriod, ordersPeriod, previousPeriodRevenue, previousPeriodProfit, previousPeriodOrders, previousPeriodExpenses]);
 
@@ -596,16 +676,45 @@ export default function ReportsPage() {
           ? 'Last month'
           : 'Last year';
 
+  // Report period date range and generated time for stakeholders
+  const todayStr = getTodayInAppTz();
+  const formatDate = (d: Date) => d.toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: 'numeric', month: 'short', year: 'numeric' });
+  let periodRangeLabel = formatDate(getStartOfDayAppTzAsUTC(todayStr));
+  if (period === 'weekly') {
+    const w = getWeekRangeInAppTz(todayStr);
+    const endDate = new Date(new Date(w.end).getTime() - 1);
+    periodRangeLabel = `${formatDate(new Date(w.start))} – ${formatDate(endDate)}`;
+  } else if (period === 'monthly') {
+    const [y, m] = todayStr.split('-').map(Number);
+    const lastD = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    periodRangeLabel = `1 ${new Date(2000, m - 1, 1).toLocaleDateString('en-GB', { month: 'short' })} – ${lastD} ${new Date(2000, m - 1, 1).toLocaleDateString('en-GB', { month: 'short' })} ${y}`;
+  } else if (period === 'yearly') {
+    const [y] = todayStr.split('-').map(Number);
+    periodRangeLabel = `1 Jan – 31 Dec ${y}`;
+  }
+  const generatedAt = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' });
+
   return (
-    <div className="space-y-6">
+    <div className="report-page space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black">Reports</h1>
-        <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
-          ← Dashboard
-        </Link>
+        <div className="flex flex-wrap items-center gap-2 no-print">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="btn-secondary inline-flex items-center gap-2 text-sm"
+            aria-label="Print or save as PDF"
+          >
+            <Printer className="h-4 w-4" />
+            Print / Save as PDF
+          </button>
+          <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
+            ← Dashboard
+          </Link>
+        </div>
       </div>
 
-      <nav className="flex gap-2">
+      <nav className="flex gap-2 no-print" aria-label="Report period">
         <Link
           to="/reports/daily"
           className={`rounded-xl px-4 py-2.5 font-medium transition ${
@@ -689,7 +798,7 @@ export default function ReportsPage() {
             <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {previousPeriodOrders}</p>
           </div>
           <div>
-            <p className="text-sm text-slate-600">Gross Income</p>
+            <p className="text-sm text-slate-600">Revenue</p>
             <div className="flex items-baseline gap-2">
               <p className="text-xl font-bold text-emerald-700">{formatUGX(periodMetrics.grossIncome)}</p>
               {periodMetrics.revenueGrowth !== 0 && (
@@ -708,6 +817,27 @@ export default function ReportsPage() {
               )}
             </div>
             <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {formatUGX(previousPeriodRevenue)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-600">Gross Profit</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl font-bold text-emerald-700">{formatUGX(periodMetrics.grossProfit)}</p>
+              {periodMetrics.profitGrowth !== 0 && (
+                <span
+                  className={`flex items-center gap-1 text-xs ${
+                    periodMetrics.profitGrowth > 0 ? 'text-emerald-600' : 'text-red-600'
+                  }`}
+                >
+                  {periodMetrics.profitGrowth > 0 ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  {Math.abs(periodMetrics.profitGrowth).toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">vs {prevPeriodLabel}: {formatUGX(periodMetrics.previousPeriodGrossProfit)} · Margin: {periodMetrics.profitMargin.toFixed(1)}%</p>
           </div>
           <div>
             <p className="text-sm text-slate-600">Operating Expenses</p>
@@ -760,6 +890,80 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
+
+      {/* Sales by Hour (daily view only) */}
+      {period === 'daily' && periodMetrics.hourlyBreakdown.length > 0 && (
+        <div className="card p-5">
+          <h3 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
+            <BarChart3 className="h-5 w-5 text-tufts-blue" />
+            Sales by Hour (Today)
+          </h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={periodMetrics.hourlyBreakdown} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="hourLabel" stroke="#64748b" fontSize={11} />
+              <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => formatUGX(v)} />
+              <Tooltip
+                formatter={(value: number) => formatUGX(value)}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                labelFormatter={(label) => `Hour ${label}`}
+              />
+              <Bar dataKey="revenue" fill="#10b981" name="Revenue" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="profit" fill="#3b82f6" name="Gross Profit" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            {periodMetrics.hourlyBreakdown.filter((h) => h.orders > 0).length > 0 ? (
+              periodMetrics.hourlyBreakdown
+                .filter((h) => h.orders > 0)
+                .map((h) => (
+                  <div key={h.hour} className="rounded-lg bg-slate-50 p-2">
+                    <span className="font-medium text-slate-700">{h.hourLabel}</span>
+                    <span className="ml-1 text-slate-500">· {h.orders} orders</span>
+                    <div className="mt-0.5 text-emerald-700">{formatUGX(h.revenue)}</div>
+                    <div className="text-tufts-blue">{formatUGX(h.profit)} profit</div>
+                  </div>
+                ))
+            ) : (
+              <p className="text-slate-500">No sales yet today.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Gross Profit Past Analytics */}
+      {periodMetrics.grossProfitHistory.length > 0 && (
+        <div className="card p-5">
+          <h3 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
+            <TrendingUp className="h-5 w-5 text-tufts-blue" />
+            Gross Profit Past Analytics
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="px-3 py-2 text-left text-slate-600">Period</th>
+                  <th className="px-3 py-2 text-right text-slate-600">Orders</th>
+                  <th className="px-3 py-2 text-right text-slate-600">Revenue</th>
+                  <th className="px-3 py-2 text-right text-slate-600">Gross Profit</th>
+                  <th className="px-3 py-2 text-right text-slate-600">Margin %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodMetrics.grossProfitHistory.map((row, idx) => (
+                  <tr key={idx} className="border-b border-slate-100">
+                    <td className="px-3 py-2 font-medium">{row.periodLabel}</td>
+                    <td className="px-3 py-2 text-right">{row.orders}</td>
+                    <td className="px-3 py-2 text-right text-slate-700">{formatUGX(row.revenue)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatUGX(row.grossProfit)}</td>
+                    <td className="px-3 py-2 text-right text-slate-600">{row.marginPct.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Low stock summary */}
       {(periodMetrics.lowStockCount > 0 || period === 'daily') && (
@@ -975,8 +1179,27 @@ export default function ReportsPage() {
               <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} tickFormatter={(value) => formatUGX(value)} />
               <Tooltip
-                formatter={(value: number) => formatUGX(value)}
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const row = periodMetrics.timeSeriesData.find((d) => d.date === label);
+                  return (
+                    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                      <p className="mb-2 font-medium text-slate-800">{label}</p>
+                      {payload.map((p) => (
+                        <div key={p.dataKey} className="flex justify-between gap-4 text-sm">
+                          <span className="text-slate-600">{p.name}</span>
+                          <span className="font-medium">{formatUGX(Number(p.value))}</span>
+                        </div>
+                      ))}
+                      {row && row.revenue > 0 && (
+                        <div className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                          Gross margin: {row.marginPct.toFixed(1)}%
+                        </div>
+                      )}
+                    </div>
+                  );
+                }}
               />
               <Legend />
               <Area
@@ -1007,6 +1230,98 @@ export default function ReportsPage() {
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* ——— Shareholder section (end of page) ——— */}
+      <div className="border-t border-slate-200 pt-8">
+        <h2 className="mb-4 font-heading text-xl font-bold text-smoky-black">For shareholders &amp; stakeholders</h2>
+
+        {/* Report header */}
+        <div className="card border-tufts-blue/20 bg-slate-50/50 p-5 print:bg-white print:border-slate-200">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-heading text-xl font-bold tracking-tight text-smoky-black">
+                Sales &amp; Performance Report
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                {periodLabel} · {periodRangeLabel}
+              </p>
+              <p className="mt-1 text-xs text-slate-500 print:block">
+                Generated on {generatedAt} (EAT)
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 no-print">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="btn-primary inline-flex items-center gap-2 text-sm"
+                aria-label="Print or save as PDF"
+              >
+                <Printer className="h-4 w-4" />
+                Print / Save as PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Executive summary */}
+        <div className="card border-l-4 border-l-tufts-blue p-5 print:border-l-slate-300 mt-6">
+          <h3 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
+            <FileText className="h-5 w-5 text-tufts-blue" />
+            Executive Summary
+          </h3>
+          <ul className="space-y-2 text-sm text-slate-700">
+            <li>
+              <strong>Revenue</strong> for {periodLabel.toLowerCase()} was <strong className="text-emerald-700">{formatUGX(periodMetrics.grossIncome)}</strong>
+              {periodMetrics.revenueGrowth !== 0 && (
+                <span className={periodMetrics.revenueGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}>
+                  {' '}({periodMetrics.revenueGrowth > 0 ? '+' : ''}{periodMetrics.revenueGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()}).
+                </span>
+              )}
+            </li>
+            <li>
+              <strong>Gross profit</strong> was <strong className="text-emerald-700">{formatUGX(periodMetrics.grossProfit)}</strong>
+              {periodMetrics.profitGrowth !== 0 && (
+                <span className={periodMetrics.profitGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}>
+                  {' '}({periodMetrics.profitGrowth > 0 ? '+' : ''}{periodMetrics.profitGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()})
+                </span>
+              )}
+              , with a <strong>gross margin</strong> of {periodMetrics.profitMargin.toFixed(1)}%.
+            </li>
+            <li>
+              <strong>Net profit</strong> (after operating expenses, excluding stock purchases) was{' '}
+              <strong className={periodMetrics.netProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+                {formatUGX(periodMetrics.netProfit)}
+              </strong>
+              {periodMetrics.netProfitGrowth !== 0 && (
+                <span className={periodMetrics.netProfitGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}>
+                  {' '}({periodMetrics.netProfitGrowth > 0 ? '+' : ''}{periodMetrics.netProfitGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()}).
+                </span>
+              )}
+            </li>
+            <li>
+              {periodMetrics.ordersPeriod} orders in period · Average order value {formatUGX(periodMetrics.avgOrderValue)} · {periodMetrics.uniqueCustomers} unique customers.
+            </li>
+          </ul>
+        </div>
+
+        {/* Understanding this report */}
+        <details className="no-print group card overflow-hidden mt-6">
+          <summary className="flex cursor-pointer list-none items-center gap-2 p-4 font-medium text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tufts-blue">
+            <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
+            Understanding this report
+          </summary>
+          <div className="border-t border-slate-200 px-4 pb-4 pt-2 text-sm text-slate-600">
+            <dl className="grid gap-2 sm:grid-cols-2">
+              <div><dt className="font-medium text-slate-700">Revenue</dt><dd>Total sales (before any deductions).</dd></div>
+              <div><dt className="font-medium text-slate-700">Gross profit</dt><dd>Revenue minus cost of goods sold (what we paid for products).</dd></div>
+              <div><dt className="font-medium text-slate-700">Gross margin</dt><dd>Gross profit as a % of revenue.</dd></div>
+              <div><dt className="font-medium text-slate-700">Operating expenses</dt><dd>Day-to-day costs (rent, utilities, salaries, etc.), excluding stock purchases.</dd></div>
+              <div><dt className="font-medium text-slate-700">Restock / Stock</dt><dd>Money spent on buying inventory; shown separately and not deducted from profit here.</dd></div>
+              <div><dt className="font-medium text-slate-700">Net profit</dt><dd>Gross profit minus operating expenses.</dd></div>
+            </dl>
+          </div>
+        </details>
+      </div>
     </div>
   );
 }
