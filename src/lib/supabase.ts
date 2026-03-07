@@ -44,16 +44,27 @@ export const supabaseForReplication = new Proxy(supabase, {
   get(target, prop, receiver) {
     if (prop === 'from') {
       return (tableName: string) => {
-        const table = target.from(tableName) as ReturnType<typeof target.from> & {
-          insert: (v: unknown) => Promise<{ data: unknown; error: { code?: string; message?: string } | null }>;
-        };
+        const table = target.from(tableName);
         const origInsert = table.insert.bind(table);
-        (table as { insert: typeof origInsert }).insert = async (values: unknown) => {
-          const result = await origInsert(values);
-          if (result.error && isConflictError(result.error) && result.error.code !== CONFLICT_CODE) {
-            result.error = { ...result.error, code: CONFLICT_CODE };
+        // Wrap insert so we normalize 409 → 23505 on the final response; return type matches chainable builder
+        (table as { insert: (v: unknown) => unknown }).insert = (values: unknown) => {
+          const builder = origInsert(values) as { then?: (onf: (res: unknown) => unknown, onr?: (err: unknown) => unknown) => unknown };
+          const origThen = builder.then?.bind(builder);
+          if (typeof origThen === 'function') {
+            (builder as { then: (onf: (res: unknown) => unknown, onr?: (err: unknown) => unknown) => unknown }).then = function (onfulfilled: (res: unknown) => unknown, onrejected?: (err: unknown) => unknown) {
+              return origThen(
+                (res: unknown) => {
+                  const r = res as { error?: { code?: string; message?: string } | null };
+                  if (r?.error && isConflictError(r.error) && r.error.code !== CONFLICT_CODE) {
+                    r.error = { ...r.error, code: CONFLICT_CODE };
+                  }
+                  return onfulfilled ? onfulfilled(res) : res;
+                },
+                onrejected
+              ) as unknown;
+            };
           }
-          return result;
+          return builder;
         };
         return table;
       };

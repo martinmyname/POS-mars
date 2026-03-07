@@ -1299,7 +1299,7 @@ export default function ReportsPage() {
               )}
             </li>
             <li>
-              {periodMetrics.ordersPeriod} orders in period · Average order value {formatUGX(periodMetrics.avgOrderValue)} · {periodMetrics.uniqueCustomers} unique customers.
+              {ordersPeriod} orders in period · Average order value {formatUGX(periodMetrics.avgOrderValue)} · {periodMetrics.uniqueCustomers} unique customers.
             </li>
           </ul>
         </div>
