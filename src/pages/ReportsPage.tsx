@@ -235,10 +235,10 @@ export default function ReportsPage() {
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="report-card p-5 h-28 report-skeleton rounded-xl" />
+            <div key={i} className="report-card p-4 sm:p-5 h-28 report-skeleton rounded-xl" />
           ))}
         </div>
-        <div className="report-card p-5 h-48 report-skeleton rounded-xl" />
+        <div className="report-card p-4 sm:p-5 h-48 report-skeleton rounded-xl" />
       </div>
     );
   }
@@ -285,58 +285,60 @@ export default function ReportsPage() {
   );
 
   return (
-    <div className="report-page space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="report-heading text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports</h1>
+    <div className="report-page space-y-4 sm:space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="report-heading text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports</h1>
         <div className="flex flex-wrap items-center gap-2 no-print">
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] px-5 py-2.5 text-sm font-medium text-slate-800 dark:text-[#e5e7eb] hover:border-slate-400 dark:hover:border-[#374151] no-print"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] px-4 py-2.5 sm:px-5 text-sm font-medium text-slate-800 dark:text-[#e5e7eb] hover:border-slate-400 dark:hover:border-[#374151] min-h-[2.75rem] sm:min-h-0 no-print"
             aria-label="Print or save as PDF"
           >
-            <Printer className="h-4 w-4" />
-            Print / Save as PDF
+            <Printer className="h-4 w-4 shrink-0" />
+            <span>Print</span><span className="hidden sm:inline"> / Save as PDF</span>
           </button>
-          <Link to="/" className="inline-flex w-fit rounded-xl border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] px-5 py-2.5 text-sm font-medium text-slate-800 dark:text-[#e5e7eb] hover:border-slate-400 dark:hover:border-[#374151] no-print">
+          <Link to="/" className="inline-flex w-fit items-center rounded-xl border border-slate-200 dark:border-[#1f2937] bg-white dark:bg-[#111827] px-4 py-2.5 sm:px-5 text-sm font-medium text-slate-800 dark:text-[#e5e7eb] hover:border-slate-400 dark:hover:border-[#374151] min-h-[2.75rem] sm:min-h-0 no-print">
             ← Dashboard
           </Link>
         </div>
       </div>
 
-      <nav className="flex gap-2 no-print sticky top-0 z-10 bg-background-grey dark:bg-[#0d1117] py-2 -mx-4 px-4 sm:mx-0 sm:px-0" aria-label="Report period">
-        <Link
-          to="/reports/daily"
-          className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'daily' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
-          }`}
-        >
-          Daily
-        </Link>
-        <Link
-          to="/reports/weekly"
-          className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'weekly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
-          }`}
-        >
-          Weekly
-        </Link>
-        <Link
-          to="/reports/monthly"
-          className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'monthly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
-          }`}
-        >
-          Monthly
-        </Link>
-        <Link
-          to="/reports/yearly"
-          className={`rounded-xl px-4 py-2.5 font-medium transition ${
-            period === 'yearly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
-          }`}
-        >
-          Yearly
-        </Link>
+      <nav className="flex gap-2 no-print sticky top-0 z-10 bg-background-grey dark:bg-[#0d1117] py-2 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto overflow-y-hidden -mb-1 scrollbar-none" aria-label="Report period" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex gap-2 flex-nowrap min-w-0">
+          <Link
+            to="/reports/daily"
+            className={`shrink-0 rounded-xl px-4 py-2.5 font-medium transition min-h-[2.75rem] flex items-center ${
+              period === 'daily' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
+            }`}
+          >
+            Daily
+          </Link>
+          <Link
+            to="/reports/weekly"
+            className={`shrink-0 rounded-xl px-4 py-2.5 font-medium transition min-h-[2.75rem] flex items-center ${
+              period === 'weekly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
+            }`}
+          >
+            Weekly
+          </Link>
+          <Link
+            to="/reports/monthly"
+            className={`shrink-0 rounded-xl px-4 py-2.5 font-medium transition min-h-[2.75rem] flex items-center ${
+              period === 'monthly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
+            }`}
+          >
+            Monthly
+          </Link>
+          <Link
+            to="/reports/yearly"
+            className={`shrink-0 rounded-xl px-4 py-2.5 font-medium transition min-h-[2.75rem] flex items-center ${
+              period === 'yearly' ? 'bg-[#f59e0b] text-[#0d1117]' : 'border border-slate-200 dark:border-[#1f2937] text-slate-500 dark:text-[#9ca3af] hover:border-slate-400 dark:hover:border-[#374151]'
+            }`}
+          >
+            Yearly
+          </Link>
+        </div>
       </nav>
 
       {/* Today's Summary — real-time, % vs same day last week, 7-day sparkline */}
@@ -391,7 +393,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Daily Goals Tracker — targets vs today, progress bars */}
-      <div className="report-card p-5 no-print">
+      <div className="report-card p-4 sm:p-5 no-print">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Daily Goals</h2>
           <button
@@ -440,8 +442,8 @@ export default function ReportsPage() {
 
       {/* Daily Goals settings modal */}
       {goalsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="goals-modal-title">
-          <div className="report-card w-full max-w-md p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="goals-modal-title">
+          <div className="report-card w-full max-w-md p-4 sm:p-6 my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 id="goals-modal-title" className="report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Daily targets</h3>
               <button type="button" onClick={() => setGoalsModalOpen(false)} className="p-1 text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-white" aria-label="Close">
@@ -484,13 +486,13 @@ export default function ReportsPage() {
       )}
 
       {/* Period Overview — all metrics with % change vs previous period */}
-      <div className="report-card p-5">
+      <div className="report-card p-4 sm:p-5">
         <h2 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
-          <BarChart3 className="h-5 w-5 report-accent-blue" />
+          <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
           {periodLabel} Overview
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
+        <div className="grid gap-4 grid-cols-1 min-w-0 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="min-w-0">
             <p className="text-sm report-muted">Orders</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{ordersPeriod}</p>
@@ -498,15 +500,15 @@ export default function ReportsPage() {
             </div>
             <p className="text-xs report-muted">vs {prevPeriodLabel}: {previousPeriodOrders}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm report-muted">Revenue</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-teal">{formatUGX(periodMetrics.grossIncome)}</p>
+              <p className="text-xl font-bold report-accent-teal truncate">{formatUGX(periodMetrics.grossIncome)}</p>
               {periodMetrics.revenueGrowth !== 0 && <ChangeBadge value={periodMetrics.revenueGrowth} />}
             </div>
-            <p className="text-xs report-muted">vs {prevPeriodLabel}: {formatUGX(previousPeriodRevenue)}</p>
+            <p className="text-xs report-muted truncate">vs {prevPeriodLabel}: {formatUGX(previousPeriodRevenue)}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm report-muted">Gross Profit</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className="text-xl font-bold report-accent-teal">{formatUGX(periodMetrics.grossProfit)}</p>
@@ -514,14 +516,14 @@ export default function ReportsPage() {
             </div>
             <p className="text-xs report-muted">vs {prevPeriodLabel}: {formatUGX(periodMetrics.previousPeriodGrossProfit)}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm report-muted">Gross Margin %</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className="text-xl font-bold report-accent-teal">{periodMetrics.profitMargin.toFixed(1)}%</p>
             </div>
             <p className="text-xs report-muted">Gross profit / Revenue × 100</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm report-muted">Operating Expenses</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className="text-xl font-bold report-accent-red">{formatUGX(periodMetrics.operatingExpenses)}</p>
@@ -529,7 +531,7 @@ export default function ReportsPage() {
             </div>
             <p className="text-xs report-muted">excl. Stock &amp; Inventory purchase</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm report-muted">Restock Expenses</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className="text-xl font-bold text-[#f59e0b]">{formatUGX(periodMetrics.restockExpenses)}</p>
@@ -537,7 +539,7 @@ export default function ReportsPage() {
             </div>
             <p className="text-xs report-muted">Stock purchases (not deducted from profit)</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm report-muted">Net Profit</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className={`text-xl font-bold ${periodMetrics.netProfit >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
@@ -547,7 +549,7 @@ export default function ReportsPage() {
             </div>
             <p className="text-xs report-muted">Gross profit − Operating expenses</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm report-muted">Net Margin %</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className={`text-xl font-bold ${periodMetrics.netProfitMargin >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
@@ -561,15 +563,15 @@ export default function ReportsPage() {
 
       {/* Cash Flow Waterfall */}
       {periodMetrics.cashFlowWaterfall.length > 0 && (
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
-            <BarChart3 className="h-5 w-5 report-accent-blue" />
+            <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
             Cash Flow Waterfall ({periodLabel})
           </h3>
           <ul className="space-y-2">
             {periodMetrics.cashFlowWaterfall.map((row, i) => (
-              <li key={i} className="flex items-center justify-between gap-4 py-1.5 border-b border-slate-200 dark:border-[#1f2937] last:border-0">
-                <span className="report-muted text-sm">
+              <li key={i} className="flex items-center justify-between gap-3 py-2 sm:py-1.5 border-b border-slate-200 dark:border-[#1f2937] last:border-0 min-w-0">
+                <span className="report-muted text-sm truncate min-w-0">
                   {row.type === 'inflow' && '+'}
                   {row.type === 'outflow' && '-'}
                   {row.type === 'subtotal' && '='}
@@ -590,12 +592,12 @@ export default function ReportsPage() {
 
       {/* Sales by Hour (daily only) — revenue bars, profit line, table, peak hour highlight */}
       {period === 'daily' && periodMetrics.hourlyBreakdown.length > 0 && (
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
-            <BarChart3 className="h-5 w-5 report-accent-blue" />
+            <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
             Sales by Hour (Today)
           </h3>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={200}>
             <ComposedChart data={periodMetrics.hourlyBreakdown} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
               <XAxis dataKey="hourLabel" stroke={chartAxisStroke} fontSize={11} />
@@ -609,7 +611,7 @@ export default function ReportsPage() {
               <Line type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} name="Gross Profit" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
-          <div className="mt-4 overflow-x-auto">
+          <div className="mt-4 report-table-wrap">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#1f2937]">
@@ -649,10 +651,10 @@ export default function ReportsPage() {
 
       {/* Gross Profit History — vs Previous %, highlight best/worst */}
       {periodMetrics.grossProfitHistory.length > 0 && (
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
-              <TrendingUp className="h-5 w-5 report-accent-blue" />
+              <TrendingUp className="h-5 w-5 report-accent-blue shrink-0" />
               Gross Profit History
             </h3>
             <button
@@ -660,12 +662,12 @@ export default function ReportsPage() {
               onClick={() => exportToCSV('profit_history', ['Period', 'Orders', 'Revenue (UGX)', 'Gross Profit (UGX)', 'Margin %', 'vs Previous'], periodMetrics.grossProfitHistory.map((row: { periodLabel: string; orders: number; revenue: number; grossProfit: number; marginPct: number; vsPreviousPct?: number | null }) => [
                 row.periodLabel, row.orders, row.revenue, row.grossProfit, row.marginPct.toFixed(1), row.vsPreviousPct != null ? `${row.vsPreviousPct >= 0 ? '+' : ''}${row.vsPreviousPct.toFixed(1)}%` : '—',
               ]))}
-              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2.5 py-2 min-h-[2.25rem] sm:min-h-0 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print touch-manipulation"
             >
-              <Download className="h-3.5 w-3.5" /> CSV
+              <Download className="h-3.5 w-3.5 shrink-0" /> CSV
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="report-table-wrap">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#1f2937]">
@@ -714,10 +716,10 @@ export default function ReportsPage() {
       )}
 
       {/* Customer Analytics — New / Returning / At-risk + Top Customers */}
-      <div className="report-card p-5">
+      <div className="report-card p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
-            <Users className="h-5 w-5 report-accent-blue" />
+            <Users className="h-5 w-5 report-accent-blue shrink-0" />
             Customer Analytics ({periodLabel})
           </h3>
           {periodMetrics.topCustomersBySpend.length > 0 && (
@@ -726,29 +728,29 @@ export default function ReportsPage() {
               onClick={() => exportToCSV('top_customers', ['Name', 'Phone', 'Visits', 'Total Spent (UGX)', 'Avg per Visit (UGX)', 'Last Visit'], periodMetrics.topCustomersBySpend.map((c) => [
                 c.name, c.phone, c.visits, c.totalSpent, c.avgPerVisit, new Date(c.lastVisit).toISOString().slice(0, 10),
               ]))}
-              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2 py-1 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print"
+              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2.5 py-2 min-h-[2.25rem] sm:min-h-0 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print touch-manipulation"
             >
-              <Download className="h-3.5 w-3.5" /> CSV
+              <Download className="h-3.5 w-3.5 shrink-0" /> CSV
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-4">
-          <div className="rounded-lg bg-[#1f2937] p-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+          <div className="rounded-lg bg-slate-100 dark:bg-[#1f2937] p-3">
             <p className="text-xs report-muted">New customers</p>
             <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{periodMetrics.newCustomersCount}</p>
           </div>
-          <div className="rounded-lg bg-[#1f2937] p-3">
+          <div className="rounded-lg bg-slate-100 dark:bg-[#1f2937] p-3">
             <p className="text-xs report-muted">Returning</p>
             <p className="text-xl font-bold report-accent-teal">{periodMetrics.returningCustomersCount}</p>
           </div>
-          <div className="rounded-lg bg-[#1f2937] p-3">
+          <div className="rounded-lg bg-slate-100 dark:bg-[#1f2937] p-3">
             <p className="text-xs report-muted">At-risk</p>
             <p className="text-xl font-bold report-accent-red">{periodMetrics.atRiskCount}</p>
             <p className="text-xs report-muted">no order in 30 days</p>
           </div>
         </div>
         {periodMetrics.topCustomersBySpend.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="report-table-wrap">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#1f2937]">
@@ -782,7 +784,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Inventory Health — Health score, Low Stock table, Dead stock, Restock cost */}
-      <div className="report-card p-5">
+      <div className="report-card p-4 sm:p-5">
         <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
           <Package className="h-5 w-5 report-accent-amber" />
           Inventory Health
@@ -806,7 +808,7 @@ export default function ReportsPage() {
           </div>
         </div>
         {periodMetrics.lowStockTable.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="report-table-wrap">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#1f2937]">
@@ -836,7 +838,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Refund & Return Analytics */}
-      <div className="report-card p-5">
+      <div className="report-card p-4 sm:p-5">
         <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
           <Receipt className="h-5 w-5 report-accent-red" />
           Refund & Return Analytics ({periodLabel})
@@ -856,7 +858,7 @@ export default function ReportsPage() {
           </div>
         </div>
         {periodMetrics.topReturnedProducts.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="report-table-wrap">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#1f2937]">
@@ -883,7 +885,7 @@ export default function ReportsPage() {
 
       {/* Key Metrics — 10 KPIs */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Key Metrics</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -932,7 +934,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Payment Methods — donut chart + bar list with share % */}
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
               <CreditCard className="h-4 w-4 report-accent-blue" />
@@ -1018,7 +1020,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Sales by Channel — icon, revenue, orders, % share bar */}
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
               <ShoppingCart className="h-4 w-4 report-accent-blue" />
@@ -1083,7 +1085,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Expenses by purpose — with vs previous period change */}
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
               <Receipt className="h-4 w-4 report-accent-red" />
@@ -1108,7 +1110,7 @@ export default function ReportsPage() {
           {periodMetrics.expensesByPurpose.length === 0 ? (
             <p className="text-sm report-muted">No expenses in this period</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="report-table-wrap">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-[#1f2937]">
@@ -1145,7 +1147,7 @@ export default function ReportsPage() {
 
         {/* Top Selling Products — margin % badge (green/amber/red), returns column */}
       {periodMetrics.topProducts.length > 0 && (
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
               <Package className="h-5 w-5 report-accent-blue" />
@@ -1159,7 +1161,7 @@ export default function ReportsPage() {
               <Download className="h-3.5 w-3.5" /> CSV
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="report-table-wrap">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#1f2937]">
@@ -1197,12 +1199,12 @@ export default function ReportsPage() {
 
       {/* Revenue & Profit Trend Chart — three lines, tooltip with exact values */}
       {periodMetrics.timeSeriesData.length > 0 && (
-        <div className="report-card p-5">
+        <div className="report-card p-4 sm:p-5">
           <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
             <TrendingUp className="h-5 w-5 report-accent-blue" />
             Revenue & Profit Trend
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={periodMetrics.timeSeriesData}>
               <defs>
                 <linearGradient id="reportColorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -1254,7 +1256,7 @@ export default function ReportsPage() {
       )}
 
       {/* Break-even Tracker */}
-      <div className="report-card p-5">
+      <div className="report-card p-4 sm:p-5">
         <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
           <BarChart3 className="h-5 w-5 text-[#f59e0b]" />
           Break-even Tracker

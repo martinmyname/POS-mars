@@ -52,6 +52,14 @@
   .table-wrap {
     @apply -mx-4 overflow-x-auto sm:mx-0;
   }
+  /* Hide scrollbar on period nav (still scrollable) */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* App-wide dark theme */
@@ -156,11 +164,47 @@
   min-height: 100vh;
   background-color: #f1f5f9;
   color: #0f172a;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 .report-page .report-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
+}
+/* Mobile: table scrolls to viewport edge; restore padding inside card */
+.report-page .report-table-wrap {
+  margin-left: -1rem;
+  margin-right: -1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 640px) {
+  .report-page .report-table-wrap {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+.report-page .report-table-wrap table {
+  min-width: 32rem;
+}
+.report-page .report-table-wrap th:first-child,
+.report-page .report-table-wrap td:first-child {
+  padding-left: 1.25rem;
+}
+.report-page .report-table-wrap th:last-child,
+.report-page .report-table-wrap td:last-child {
+  padding-right: 1.25rem;
+}
+@media (min-width: 640px) {
+  .report-page .report-table-wrap th:first-child,
+  .report-page .report-table-wrap td:first-child {
+    padding-left: 0.75rem;
+  }
+  .report-page .report-table-wrap th:last-child,
+  .report-page .report-table-wrap td:last-child {
+    padding-right: 0.75rem;
+  }
 }
 .report-page .report-heading {
   font-family: 'Syne', system-ui, sans-serif;

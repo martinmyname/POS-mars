@@ -4,13 +4,19 @@ import { useOrders, useProducts, ordersApi, productsApi, generateId } from '@/ho
 import { getTodayInAppTz, getMonthRangeInAppTz } from '@/lib/appTimezone';
 import { formatUGX } from '@/lib/formatUGX';
 import { format } from 'date-fns';
+import { subDays } from 'date-fns';
 import type { OrderItem } from '@/types';
-import { RefreshCw, Wrench } from 'lucide-react';
+import { RefreshCw, Search, Wrench } from 'lucide-react';
+
+/** Return policy: orders within this many days can be returned. */
+const RETURN_WINDOW_DAYS = 31;
 
 interface OrderDoc {
   id: string;
+  orderNumber?: number;
   createdAt: string;
   total: number;
+  customer?: { name: string; phone: string };
   items: Array<OrderItem & { productId: string; name?: string }>;
 }
 
@@ -27,15 +33,41 @@ type ReturnOutcome = 'exchange' | 'repair';
 export default function ReturnsPage() {
   const { data: ordersList, loading } = useOrders({ realtime: true });
   const { data: productsList } = useProducts({ realtime: true });
-  const orders = useMemo(
+  const [orderSearch, setOrderSearch] = useState('');
+
+  const returnWindowStart = useMemo(
+    () => subDays(new Date(), RETURN_WINDOW_DAYS).toISOString(),
+    []
+  );
+
+  const ordersInWindow = useMemo(
     () =>
       ordersList
-        .filter((d) => d.status === 'paid' && d.orderType !== 'return')
+        .filter(
+          (d) =>
+            d.status === 'paid' &&
+            d.orderType !== 'return' &&
+            d.createdAt >= returnWindowStart
+        )
         .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
-        .slice(0, 100)
-        .map((d) => ({ id: d.id, createdAt: d.createdAt, total: d.total, items: d.items as OrderDoc['items'] })),
-    [ordersList]
+        .map((d): OrderDoc => {
+          const cust = d.customer;
+          const customer: OrderDoc['customer'] =
+            cust && typeof cust === 'object' && 'name' in cust && 'phone' in cust
+              ? { name: String(cust.name), phone: String(cust.phone) }
+              : undefined;
+          return {
+            id: d.id,
+            orderNumber: d.orderNumber,
+            createdAt: d.createdAt,
+            total: d.total,
+            customer,
+            items: d.items as OrderDoc['items'],
+          };
+        }),
+    [ordersList, returnWindowStart]
   );
+
   const { products, productsForExchange } = useMemo(() => {
     const map = new Map<string, string>();
     const forExchange: ProductForExchange[] = [];
@@ -51,6 +83,24 @@ export default function ReturnsPage() {
     });
     return { products: map, productsForExchange: forExchange };
   }, [productsList]);
+
+  const orders = useMemo(() => {
+    const q = orderSearch.trim().toLowerCase();
+    if (!q) return ordersInWindow;
+    return ordersInWindow.filter((o) => {
+      if (o.id.toLowerCase().includes(q)) return true;
+      if (o.orderNumber != null && String(o.orderNumber).includes(q)) return true;
+      if (o.customer?.name?.toLowerCase().includes(q)) return true;
+      if (o.customer?.phone?.replace(/\s/g, '').includes(q.replace(/\s/g, ''))) return true;
+      const hasMatchingItem = o.items.some((item) => {
+        const name = products.get(item.productId) ?? '';
+        return name.toLowerCase().includes(q);
+      });
+      if (hasMatchingItem) return true;
+      return false;
+    });
+  }, [ordersInWindow, orderSearch, products]);
+
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [returnQtys, setReturnQtys] = useState<Record<string, number>>({});
   const [outcomeType, setOutcomeType] = useState<ReturnOutcome>('exchange');
@@ -60,7 +110,7 @@ export default function ReturnsPage() {
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const selectedOrder = orders.find((o) => o.id === selectedOrderId);
+  const selectedOrder = ordersInWindow.find((o) => o.id === selectedOrderId) ?? null;
 
   // Return rate this month (same formula as Reports: return orders / total orders × 100)
   const { returnRateThisMonth } = useMemo(() => {
@@ -280,9 +330,26 @@ export default function ReturnsPage() {
           See full return analytics → Reports
         </Link>
       </p>
+      <p className="text-sm text-slate-500">
+        Showing orders from the last {RETURN_WINDOW_DAYS} days (return policy). Use search to find by order #, customer name/phone, or product name.
+      </p>
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
           <h2 className="mb-3 font-heading text-lg font-semibold">Select order to return</h2>
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by order #, customer, or product name…"
+              value={orderSearch}
+              onChange={(e) => setOrderSearch(e.target.value)}
+              className="input-base w-full pl-9"
+            />
+          </div>
+          <p className="mb-2 text-xs text-slate-500">
+            {orders.length} order{orders.length !== 1 ? 's' : ''} in window
+            {orderSearch.trim() ? ` matching "${orderSearch.trim()}"` : ''}
+          </p>
           <ul className="max-h-[40vh] space-y-2 overflow-y-auto">
             {orders.map((o) => (
               <li key={o.id}>
@@ -296,13 +363,21 @@ export default function ReturnsPage() {
                   }}
                   className={`w-full rounded-lg border p-3 text-left ${selectedOrderId === o.id ? 'border-tufts-blue bg-blue-50' : 'border-slate-200 bg-white'}`}
                 >
-                  <span className="font-medium">{o.id}</span>
+                  <span className="font-medium">{o.orderNumber != null ? `#${o.orderNumber}` : o.id}</span>
                   <span className="ml-2 text-slate-600">{format(new Date(o.createdAt), 'dd MMM yyyy, HH:mm')}</span>
+                  {o.customer?.name && (
+                    <span className="ml-2 text-slate-500 text-sm">· {o.customer.name}</span>
+                  )}
                   <span className="block text-sm text-slate-600">{formatUGX(o.total)}</span>
                 </button>
               </li>
             ))}
           </ul>
+          {orders.length === 0 && (
+            <p className="py-4 text-center text-sm text-slate-500">
+              {orderSearch.trim() ? 'No orders match your search.' : `No paid orders in the last ${RETURN_WINDOW_DAYS} days.`}
+            </p>
+          )}
         </section>
         <section>
           {selectedOrder ? (

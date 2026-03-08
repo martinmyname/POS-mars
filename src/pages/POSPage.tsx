@@ -1,11 +1,11 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useProducts, usePromotions, productsApi, ordersApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
+import { useProducts, usePromotions, productsApi, ordersApi, expensesApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
 import { getSettings } from '@/lib/settings';
 import { getTodayInAppTz } from '@/lib/appTimezone';
-import { Bike } from 'lucide-react';
+import { Bike, Package } from 'lucide-react';
 import type { OrderItem, PaymentMethod, PaymentSplit, OrderChannel } from '@/types';
 import { CHANNEL_OPTIONS, DEFAULT_ORDER_CHANNEL } from '@/lib/orderConstants';
 
@@ -49,7 +49,6 @@ export default function POSPage() {
       .filter((p) => p.active && p.startDate <= now && (p.endDate ?? '') >= now)
       .map((p) => ({ id: p.id, name: p.name, type: p.type, value: p.value, minPurchase: p.minPurchase }));
   }, [promotionsList]);
-  const barcodeInputRef = useRef<HTMLInputElement>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [useSplitPayment, setUseSplitPayment] = useState(false);
@@ -61,7 +60,6 @@ export default function POSPage() {
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastDeliveryCreated, setLastDeliveryCreated] = useState(false);
-  const [barcodeInput, setBarcodeInput] = useState('');
   const [quickSearch, setQuickSearch] = useState('');
   const [selectedPromoId, setSelectedPromoId] = useState<string | null>(null);
   const [sendForDelivery, setSendForDelivery] = useState(false);
@@ -84,6 +82,11 @@ export default function POSPage() {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
+  const [restockProduct, setRestockProduct] = useState<{ id: string; name: string; costPrice: number; retailPrice: number } | null>(null);
+  const [restockQty, setRestockQty] = useState('');
+  const [restockRecordExpense, setRestockRecordExpense] = useState(true);
+  const [restockAddToCart, setRestockAddToCart] = useState(true);
+  const [restockLoading, setRestockLoading] = useState(false);
 
   const filteredProducts = useMemo(() => {
     if (!quickSearch.trim()) return products;
@@ -92,38 +95,39 @@ export default function POSPage() {
       (p) =>
         p.sku.toLowerCase().includes(q) ||
         p.name.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q) ||
-        (p.barcode && p.barcode.toLowerCase().includes(q))
+        p.category.toLowerCase().includes(q)
     );
   }, [products, quickSearch]);
 
-  const lookupByBarcodeOrSku = (code: string) => {
-    const trimmed = code.trim();
-    if (!trimmed) return null;
-    const byBarcode = products.find((p) => p.barcode && p.barcode === trimmed);
-    if (byBarcode) return byBarcode;
-    const bySku = products.find((p) => p.sku.toLowerCase() === trimmed.toLowerCase());
-    return bySku ?? null;
-  };
-
   const addToCart = (id: string, name: string, price: number, costPrice: number, qty = 1) => {
+    const product = products.find((p) => p.id === id);
+    const available = product ? Math.max(0, product.stock - (cart.find((l) => l.productId === id)?.qty ?? 0)) : 0;
+    const toAdd = Math.min(qty, available);
+    if (toAdd <= 0) {
+      setMessage(product ? 'Not enough stock.' : 'Product not found.');
+      setTimeout(() => setMessage(null), 2000);
+      return;
+    }
     setCart((prev) => {
       const i = prev.findIndex((l) => l.productId === id);
       if (i >= 0) {
         const next = [...prev];
-        next[i] = { ...next[i], qty: next[i].qty + qty };
+        next[i] = { ...next[i], qty: next[i].qty + toAdd };
         return next;
       }
-      return [...prev, { productId: id, name, qty, sellingPrice: price, costPrice, originalPrice: price }];
+      return [...prev, { productId: id, name, qty: toAdd, sellingPrice: price, costPrice, originalPrice: price }];
     });
   };
 
   const updateQty = (productId: string, delta: number) => {
+    const product = products.find((p) => p.id === productId);
+    const maxStock = product?.stock ?? Infinity;
     setCart((prev) => {
       const i = prev.findIndex((l) => l.productId === productId);
       if (i < 0) return prev;
       const next = [...prev];
-      const newQty = next[i].qty + delta;
+      let newQty = next[i].qty + delta;
+      if (delta > 0 && newQty > maxStock) newQty = maxStock;
       if (newQty <= 0) return prev.filter((l) => l.productId !== productId);
       next[i] = { ...next[i], qty: newQty };
       return next;
@@ -163,6 +167,68 @@ export default function POSPage() {
     setEditPriceInput('');
   };
 
+  const openRestock = (p: { id: string; name: string; costPrice: number; retailPrice: number }) => {
+    setRestockProduct(p);
+    setRestockQty('1');
+    setRestockRecordExpense(true);
+    setRestockAddToCart(true);
+  };
+
+  const closeRestock = () => {
+    setRestockProduct(null);
+    setRestockQty('');
+    setRestockLoading(false);
+  };
+
+  const confirmRestock = async () => {
+    if (!restockProduct) return;
+    const qty = parseInt(String(restockQty).trim(), 10);
+    if (Number.isNaN(qty) || qty <= 0) {
+      setMessage('Enter a quantity (1 or more).');
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    setRestockLoading(true);
+    setMessage(null);
+    try {
+      const doc = await productsApi.getById(restockProduct.id);
+      if (!doc) {
+        setMessage('Product not found.');
+        return;
+      }
+      const currentStock = doc.stock != null ? Number(doc.stock) : 0;
+      const newStock = currentStock + qty;
+      await productsApi.update(restockProduct.id, { stock: Math.max(0, Math.round(newStock)) });
+
+      if (restockRecordExpense) {
+        const costTotal = (doc.costPrice ?? restockProduct.costPrice) * qty;
+        const today = getTodayInAppTz();
+        await expensesApi.insert({
+          id: `exp_${generateId()}`,
+          date: today,
+          itemBought: restockProduct.name,
+          purpose: 'Inventory purchase',
+          amount: costTotal,
+          paidBy: 'Cash',
+          receiptAttached: false,
+          paidByWho: 'POS',
+        });
+      }
+
+      if (restockAddToCart) {
+        addToCart(restockProduct.id, restockProduct.name, restockProduct.retailPrice, restockProduct.costPrice, qty);
+      }
+      setMessage(restockAddToCart ? `Stock added. ${qty} added to cart.` : 'Stock added.');
+      setTimeout(() => setMessage(null), 4000);
+      closeRestock();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to add stock');
+      setTimeout(() => setMessage(null), 4000);
+    } finally {
+      setRestockLoading(false);
+    }
+  };
+
   const subtotalBeforePromo = cart.reduce((s, l) => s + l.sellingPrice * l.qty, 0);
   const selectedPromo = selectedPromoId ? promotions.find((p) => p.id === selectedPromoId) : null;
   const promoDiscount =
@@ -193,21 +259,15 @@ export default function POSPage() {
     setPaymentSplits((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleBarcodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const product = lookupByBarcodeOrSku(barcodeInput);
-    if (product && product.stock > 0) {
-      addToCart(product.id, product.name, product.retailPrice, product.costPrice, 1);
-      setBarcodeInput('');
-    } else {
-      setMessage('Product not found or out of stock');
-      setTimeout(() => setMessage(null), 2000);
-    }
-    barcodeInputRef.current?.focus();
-  };
-
   const placeOrder = async () => {
     if (cart.length === 0) return;
+    for (const l of cart) {
+      const p = products.find((x) => x.id === l.productId);
+      if (p && l.qty > p.stock) {
+        setMessage(`Not enough stock for "${l.name}". Available: ${p.stock}.`);
+        return;
+      }
+    }
     if (isDeposit && useSplitPayment) {
       setMessage('Deposit orders cannot use split payments.');
       return;
@@ -483,26 +543,6 @@ export default function POSPage() {
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card p-3 sm:p-4">
           <h2 className="mb-2 sm:mb-3 font-heading text-base font-semibold text-smoky-black sm:text-lg">Products</h2>
-          <form onSubmit={handleBarcodeSubmit} className="mb-3">
-            <label htmlFor="pos-barcode-sku" className="sr-only">Scan barcode or enter SKU</label>
-            <div className="flex gap-2">
-              <input
-                id="pos-barcode-sku"
-                name="barcode_or_sku"
-                ref={barcodeInputRef}
-                type="text"
-                placeholder="Scan barcode or type SKU → Enter"
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                className="input-base flex-1 py-2.5 text-sm font-medium"
-                autoComplete="off"
-                autoFocus
-              />
-              <button type="submit" className="btn-primary shrink-0 px-4 py-2.5 text-sm font-semibold">
-                Add
-              </button>
-            </div>
-          </form>
           <label htmlFor="pos-quick-search" className="sr-only">Quick search products</label>
           <input
             id="pos-quick-search"
@@ -521,28 +561,42 @@ export default function POSPage() {
               </p>
             ) : (
               filteredProducts.map((p) => (
-                <button
+                <div
                   key={p.id}
-                  type="button"
-                  onClick={() => {
-                    addToCart(p.id, p.name, p.retailPrice, p.costPrice);
-                    setQuickSearch('');
-                    barcodeInputRef.current?.focus();
-                  }}
-                  disabled={p.stock <= 0}
-                  className="flex w-full items-center justify-between rounded-lg bg-white px-3 py-3 text-left shadow-sm transition hover:bg-emerald-50 hover:shadow-md disabled:opacity-50 disabled:hover:bg-white"
+                  className="flex w-full items-center justify-between gap-2 rounded-lg bg-white px-3 py-3 shadow-sm"
                 >
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 text-left">
                     <span className="block font-medium text-smoky-black">{p.name}</span>
                     <span className="text-xs text-slate-500">{p.sku}</span>
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center gap-2 text-right">
                     <span className="block font-semibold text-emerald-700">{formatUGX(p.retailPrice)}</span>
                     <span className={`text-xs ${p.minStockLevel != null && p.stock <= p.minStockLevel ? 'text-red-600' : 'text-slate-500'}`}>
                       Stock: {p.stock}
                     </span>
+                    {p.stock <= 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => openRestock({ id: p.id, name: p.name, costPrice: p.costPrice, retailPrice: p.retailPrice })}
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-200"
+                      >
+                        <Package className="h-3.5 w-3.5" />
+                        Restock
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addToCart(p.id, p.name, p.retailPrice, p.costPrice);
+                          setQuickSearch('');
+                        }}
+                        className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700"
+                      >
+                        Add
+                      </button>
+                    )}
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
@@ -556,7 +610,10 @@ export default function POSPage() {
             ) : (
               <>
                 <ul className="space-y-2">
-                  {cart.map((l) => (
+                  {cart.map((l) => {
+                    const productStock = products.find((p) => p.id === l.productId)?.stock ?? 0;
+                    const atMaxStock = l.qty >= productStock;
+                    return (
                     <li key={l.productId} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
                       <div className="flex-1 min-w-0">
                         <span className="block font-medium text-smoky-black">{l.name}</span>
@@ -586,7 +643,8 @@ export default function POSPage() {
                           <button
                             type="button"
                             onClick={() => updateQty(l.productId, 1)}
-                            className="px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                            disabled={atMaxStock}
+                            className="px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             +
                           </button>
@@ -641,7 +699,8 @@ export default function POSPage() {
                         )}
                       </div>
                     </li>
-                  ))}
+                  );
+                  })}
                 </ul>
                 {/* Summary & Quick Actions */}
                 <div className="mt-4 space-y-3 rounded-lg border-2 border-emerald-200 bg-emerald-50/50 p-4">
@@ -1075,7 +1134,7 @@ export default function POSPage() {
             )}
           </div>
           {message && (
-            <p className={`mt-2 text-sm ${message.startsWith('Order') ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`mt-2 text-sm ${message.startsWith('Order') || message.startsWith('Stock added') ? 'text-green-600' : 'text-red-600'}`}>
               {message}
             </p>
           )}
@@ -1113,6 +1172,64 @@ export default function POSPage() {
                 </Link>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {restockProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
+            <h3 className="mb-1 font-heading text-lg font-semibold text-smoky-black">Quick restock</h3>
+            <p className="mb-4 text-sm text-slate-600">{restockProduct.name}</p>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Quantity</label>
+            <input
+              type="number"
+              min="1"
+              value={restockQty}
+              onChange={(e) => setRestockQty(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmRestock();
+                if (e.key === 'Escape') closeRestock();
+              }}
+              className="input-base mb-4 w-full py-2"
+              autoFocus
+            />
+            <label className="mb-2 flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={restockRecordExpense}
+                onChange={(e) => setRestockRecordExpense(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              <span className="text-sm text-slate-700">Record as cash expense (inventory purchase)</span>
+            </label>
+            <label className="mb-4 flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={restockAddToCart}
+                onChange={(e) => setRestockAddToCart(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              <span className="text-sm text-slate-700">Add to cart after restock</span>
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={closeRestock}
+                disabled={restockLoading}
+                className="btn-secondary flex-1 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRestock}
+                disabled={restockLoading}
+                className="btn-primary flex-1 py-2 text-sm"
+              >
+                {restockLoading ? 'Adding…' : 'Add stock'}
+              </button>
+            </div>
           </div>
         </div>
       )}

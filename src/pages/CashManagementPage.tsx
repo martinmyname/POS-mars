@@ -53,6 +53,11 @@ export default function CashManagementPage() {
     () => sessions.find((s) => s.date === todayStr && !s.closedAt) ?? null,
     [sessions, todayStr]
   );
+  // Most recent closed session (by date) — used as default opening when none entered
+  const lastClosedSession = useMemo(
+    () => sessions.find((s) => s.closedAt && s.closingAmount != null) ?? null,
+    [sessions]
+  );
   const [openingAmount, setOpeningAmount] = useState('');
   const [closingAmount, setClosingAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -128,13 +133,19 @@ export default function CashManagementPage() {
       setMessage('Please fix validation errors before opening cash drawer.');
       return;
     }
-    const amount = parseFloat(openingAmount.replace(/,/g, ''));
-    if (Number.isNaN(amount) || amount < 0) {
-      setMessage('Enter a valid opening amount');
-      return;
-    }
     const today = getTodayInAppTz();
     const dateToUse = openForPastDate ? sessionDate : today;
+    // When opening for today with no amount entered, use last closed session's closing amount
+    let amount: number;
+    if (dateToUse === today && !openingAmount.trim() && lastClosedSession?.closingAmount != null) {
+      amount = lastClosedSession.closingAmount;
+    } else {
+      amount = parseFloat(openingAmount.replace(/,/g, ''));
+      if (Number.isNaN(amount) || amount < 0) {
+        setMessage('Enter a valid opening amount');
+        return;
+      }
+    }
     if (!dateToUse) {
       setMessage('Select a date');
       return;
@@ -372,7 +383,7 @@ export default function CashManagementPage() {
                   id="cash-opening-amount"
                   name="opening_amount"
                   type="text"
-                  placeholder="Enter opening cash amount"
+                  placeholder={lastClosedSession?.closingAmount != null ? `Leave blank to use last closed (${formatUGX(lastClosedSession.closingAmount)})` : 'Enter opening cash amount'}
                   value={openingAmount}
                   onChange={(e) => {
                     const val = e.target.value.replace(/,/g, '');

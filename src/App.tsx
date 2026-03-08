@@ -3,8 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useLocation 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAutoOpenCashSession } from '@/hooks/useAutoOpenCashSession';
 import { LayoutDashboard, ShoppingCart, BarChart3, Bike, Sun, Moon } from 'lucide-react';
 import '@/index.css';
+
+function AutoOpenCashSession() {
+  useAutoOpenCashSession();
+  return null;
+}
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
@@ -113,7 +119,12 @@ function AppLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background-grey text-smoky-black">
-      {!isLogin && <Header />}
+      {!isLogin && (
+        <>
+          <Header />
+          <AutoOpenCashSession />
+        </>
+      )}
       <main
         className={`flex-1 px-3 py-4 sm:px-6 sm:py-6 ${!isLogin ? 'pb-24 md:pb-6' : ''}`}
       >
