@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useProducts, usePromotions, productsApi, ordersApi, expensesApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
+import { useProducts, usePromotions, useSuppliers, productsApi, ordersApi, expensesApi, supplierLedgerApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
 import { getSettings } from '@/lib/settings';
@@ -28,6 +28,7 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; image: string; cod
 export default function POSPage() {
   const { data: productsList, loading: productsLoading } = useProducts({ realtime: true });
   const { data: promotionsList } = usePromotions({ realtime: true });
+  const { data: suppliersList } = useSuppliers({ realtime: true });
   const products = useMemo(
     () =>
       productsList.map((d) => ({
@@ -40,9 +41,11 @@ export default function POSPage() {
         costPrice: d.costPrice,
         stock: d.stock,
         minStockLevel: d.minStockLevel ?? 0,
+        supplierId: d.supplierId,
       })),
     [productsList]
   );
+  const suppliers = useMemo(() => suppliersList.map((s) => ({ id: s.id, name: s.name })), [suppliersList]);
   const promotions = useMemo(() => {
     const now = getTodayInAppTz();
     return promotionsList
@@ -82,9 +85,10 @@ export default function POSPage() {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
-  const [restockProduct, setRestockProduct] = useState<{ id: string; name: string; costPrice: number; retailPrice: number } | null>(null);
+  const [restockProduct, setRestockProduct] = useState<{ id: string; name: string; costPrice: number; retailPrice: number; supplierId?: string } | null>(null);
   const [restockQty, setRestockQty] = useState('');
   const [restockRecordExpense, setRestockRecordExpense] = useState(true);
+  const [restockSupplierId, setRestockSupplierId] = useState('');
   const [restockAddToCart, setRestockAddToCart] = useState(true);
   const [restockLoading, setRestockLoading] = useState(false);
 
@@ -167,16 +171,18 @@ export default function POSPage() {
     setEditPriceInput('');
   };
 
-  const openRestock = (p: { id: string; name: string; costPrice: number; retailPrice: number }) => {
+  const openRestock = (p: { id: string; name: string; costPrice: number; retailPrice: number; supplierId?: string }) => {
     setRestockProduct(p);
     setRestockQty('1');
     setRestockRecordExpense(true);
+    setRestockSupplierId(p.supplierId ?? '');
     setRestockAddToCart(true);
   };
 
   const closeRestock = () => {
     setRestockProduct(null);
     setRestockQty('');
+    setRestockSupplierId('');
     setRestockLoading(false);
   };
 
@@ -200,9 +206,9 @@ export default function POSPage() {
       const newStock = currentStock + qty;
       await productsApi.update(restockProduct.id, { stock: Math.max(0, Math.round(newStock)) });
 
+      const costTotal = (doc.costPrice ?? restockProduct.costPrice) * qty;
+      const today = getTodayInAppTz();
       if (restockRecordExpense) {
-        const costTotal = (doc.costPrice ?? restockProduct.costPrice) * qty;
-        const today = getTodayInAppTz();
         await expensesApi.insert({
           id: `exp_${generateId()}`,
           date: today,
@@ -213,12 +219,27 @@ export default function POSPage() {
           receiptAttached: false,
           paidByWho: 'POS',
         });
+      } else {
+        const supplierIdForCredit = (restockSupplierId || doc.supplierId || '').trim();
+        if (!supplierIdForCredit) {
+          setMessage('Select a supplier when adding stock on credit.');
+          setRestockLoading(false);
+          return;
+        }
+        await supplierLedgerApi.insert({
+          id: `ledger_${generateId()}`,
+          supplierId: supplierIdForCredit,
+          type: 'credit',
+          amount: costTotal,
+          date: today,
+          note: `Stock: ${restockProduct.name} (×${qty})`,
+        });
       }
 
       if (restockAddToCart) {
         addToCart(restockProduct.id, restockProduct.name, restockProduct.retailPrice, restockProduct.costPrice, qty);
       }
-      setMessage(restockAddToCart ? `Stock added. ${qty} added to cart.` : 'Stock added.');
+      setMessage(restockAddToCart ? `Stock added. ${qty} added to cart.` : restockRecordExpense ? 'Stock added.' : 'Stock added. Added to supplier credit.');
       setTimeout(() => setMessage(null), 4000);
       closeRestock();
     } catch (err) {
@@ -560,44 +581,52 @@ export default function POSPage() {
                 {products.length === 0 ? 'No products. Add some in Inventory.' : 'No matches. Try another search.'}
               </p>
             ) : (
-              filteredProducts.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg bg-white px-3 py-3 shadow-sm"
-                >
-                  <div className="flex-1 min-w-0 text-left">
-                    <span className="block font-medium text-smoky-black">{p.name}</span>
-                    <span className="text-xs text-slate-500">{p.sku}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-right">
-                    <span className="block font-semibold text-emerald-700">{formatUGX(p.retailPrice)}</span>
-                    <span className={`text-xs ${p.minStockLevel != null && p.stock <= p.minStockLevel ? 'text-red-600' : 'text-slate-500'}`}>
-                      Stock: {p.stock}
-                    </span>
-                    {p.stock <= 0 ? (
+              filteredProducts.map((p) =>
+                p.stock <= 0 ? (
+                  <div
+                    key={p.id}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg bg-white px-3 py-3 shadow-sm"
+                  >
+                    <div className="flex-1 min-w-0 text-left">
+                      <span className="block font-medium text-smoky-black">{p.name}</span>
+                      <span className="text-xs text-slate-500">{p.sku}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-right">
+                      <span className="block font-semibold text-emerald-700">{formatUGX(p.retailPrice)}</span>
+                      <span className="text-xs text-slate-500">Stock: {p.stock}</span>
                       <button
                         type="button"
-                        onClick={() => openRestock({ id: p.id, name: p.name, costPrice: p.costPrice, retailPrice: p.retailPrice })}
+                        onClick={() => openRestock({ id: p.id, name: p.name, costPrice: p.costPrice, retailPrice: p.retailPrice, supplierId: p.supplierId })}
                         className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-200"
                       >
                         <Package className="h-3.5 w-3.5" />
                         Restock
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          addToCart(p.id, p.name, p.retailPrice, p.costPrice);
-                          setQuickSearch('');
-                        }}
-                        className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700"
-                      >
-                        Add
-                      </button>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))
+                ) : (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      addToCart(p.id, p.name, p.retailPrice, p.costPrice);
+                      setQuickSearch('');
+                    }}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg bg-white px-3 py-3 text-left shadow-sm transition hover:bg-emerald-50 hover:shadow-md"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="block font-medium text-smoky-black">{p.name}</span>
+                      <span className="text-xs text-slate-500">{p.sku}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-right">
+                      <span className="block font-semibold text-emerald-700">{formatUGX(p.retailPrice)}</span>
+                      <span className={`text-xs ${p.minStockLevel != null && p.stock <= p.minStockLevel ? 'text-red-600' : 'text-slate-500'}`}>
+                        Stock: {p.stock}
+                      </span>
+                    </div>
+                  </button>
+                )
+              )
             )}
           </div>
         </section>
@@ -1203,6 +1232,23 @@ export default function POSPage() {
               />
               <span className="text-sm text-slate-700">Record as cash expense (inventory purchase)</span>
             </label>
+            {!restockRecordExpense && (
+              <div className="mb-4">
+                <label htmlFor="restock-supplier" className="mb-1 block text-xs font-medium text-slate-600">Supplier (credit)</label>
+                <select
+                  id="restock-supplier"
+                  value={restockSupplierId}
+                  onChange={(e) => setRestockSupplierId(e.target.value)}
+                  className="input-base w-full py-2 text-sm"
+                  title="Select supplier to put credit on"
+                >
+                  <option value="">Select supplier</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <label className="mb-4 flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
@@ -1224,8 +1270,8 @@ export default function POSPage() {
               <button
                 type="button"
                 onClick={confirmRestock}
-                disabled={restockLoading}
-                className="btn-primary flex-1 py-2 text-sm"
+                disabled={restockLoading || (!restockRecordExpense && !restockSupplierId.trim())}
+                className="btn-primary flex-1 py-2 text-sm disabled:opacity-50"
               >
                 {restockLoading ? 'Adding…' : 'Add stock'}
               </button>

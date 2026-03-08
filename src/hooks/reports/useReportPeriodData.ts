@@ -21,6 +21,9 @@ export interface ReportPeriodDataResult {
   revenueToday: number;
   profitToday: number;
   expensesToday: number;
+  ordersYesterday: number;
+  revenueYesterday: number;
+  profitYesterday: number;
   ordersTodayPct: number;
   revenueTodayPct: number;
   profitTodayPct: number;
@@ -53,14 +56,21 @@ export function useReportPeriodData(
   return useMemo(() => {
     const todayStart = getStartOfDayAppTzAsUTC(todayStr).toISOString();
     const todayEnd = getEndOfDayAppTzAsUTC(todayStr).toISOString();
+    const yesterdayStr = addDaysToDateStr(todayStr, -1);
+    const yesterdayStart = getStartOfDayAppTzAsUTC(yesterdayStr).toISOString();
+    const yesterdayEnd = getEndOfDayAppTzAsUTC(yesterdayStr).toISOString();
     const list = (ordersList || []).filter((o) => (o.status ?? '') !== 'cancelled');
     const todayList = list.filter((o) => o.createdAt >= todayStart && o.createdAt < todayEnd);
+    const yesterdayList = list.filter((o) => o.createdAt >= yesterdayStart && o.createdAt < yesterdayEnd);
     const periodList = list.filter((o) => o.createdAt >= current.from && o.createdAt < current.to);
     const prevPeriodList = list.filter((o) => o.createdAt >= previous.from && o.createdAt < previous.to);
 
     const ordersToday = todayList.length;
     const revenueToday = todayList.reduce((s, o) => s + (Number(o.total) || 0), 0);
     const profitToday = todayList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
+    const ordersYesterday = yesterdayList.length;
+    const revenueYesterday = yesterdayList.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const profitYesterday = yesterdayList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
     const ordersPeriod = periodList.length;
     const revenuePeriod = periodList.reduce((s, o) => s + (Number(o.total) || 0), 0);
     const profitPeriod = periodList.reduce((s, o) => s + (Number(o.grossProfit) || 0), 0);
@@ -129,6 +139,9 @@ export function useReportPeriodData(
       ordersToday,
       revenueToday,
       profitToday,
+      ordersYesterday,
+      revenueYesterday,
+      profitYesterday,
       expensesToday: todayOperatingExpenses,
       ordersTodayPct,
       revenueTodayPct,

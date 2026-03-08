@@ -39,3 +39,25 @@ export function setDailyGoals(goals: DailyGoals): void {
     // ignore
   }
 }
+
+/** Yesterday's actuals (revenue, orders, profit) for the previous calendar day in app timezone. */
+export interface YesterdayActuals {
+  revenue: number;
+  orders: number;
+  profit: number;
+}
+
+/**
+ * Effective goals for today: your general (base) goals, but if yesterday did better
+ * than the base goal, use yesterday's actual as the target so you aim to match or beat it.
+ */
+export function getEffectiveDailyGoals(
+  base: DailyGoals,
+  yesterday: YesterdayActuals
+): DailyGoals {
+  return {
+    revenueTarget: Math.max(base.revenueTarget, yesterday.revenue),
+    ordersTarget: Math.max(base.ordersTarget, yesterday.orders),
+    profitTarget: Math.max(base.profitTarget, yesterday.profit),
+  };
+}

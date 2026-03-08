@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, useOrders, useExpenses } from '@/hooks/useData';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
@@ -6,7 +6,7 @@ import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
 import { useCustomerSummary } from '@/hooks/useCustomerSummary';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC, addDaysToDateStr } from '@/lib/appTimezone';
-import { getDailyGoals } from '@/lib/dailyGoalsStorage';
+import { getDailyGoals, getEffectiveDailyGoals } from '@/lib/dailyGoalsStorage';
 import { format, parseISO } from 'date-fns';
 import {
   ShoppingCart,
@@ -35,14 +35,13 @@ export default function DashboardPage() {
   const { data: expensesList } = useExpenses({ realtime: true });
   useDayBoundaryTick(); // keep day boundary for any future use
   const reminderNotifiedRef = useRef(false);
-  const [dailyGoals] = useState(() => getDailyGoals());
 
   const todayStr = getTodayInAppTz();
   const today = getStartOfDayAppTzAsUTC(todayStr).toISOString();
   const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
   const CANCELLED = 'cancelled';
-  const { productCount, lowStockCount, ordersToday, revenueToday, profitToday, expensesToday, scheduledDueToday, scheduledUpcoming, ordersTodayPct, revenueTodayPct, profitTodayPct, sameDayLastWeekLabel } = useMemo(() => {
+  const { productCount, lowStockCount, ordersToday, revenueToday, profitToday, expensesToday, scheduledDueToday, scheduledUpcoming, ordersTodayPct, revenueTodayPct, profitTodayPct, sameDayLastWeekLabel, effectiveGoals } = useMemo(() => {
     const productCount = productsList.length;
     const lowStockCount = productsList.filter((p) => p.stock <= p.minStockLevel).length;
     const todayOrders = ordersList.filter((o) => (o.status ?? '') !== CANCELLED && o.createdAt >= today && o.createdAt < tomorrow);
@@ -50,6 +49,23 @@ export default function DashboardPage() {
     const revenueToday = todayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
     // Gross profit today: same formula as Reports — sum of (sellingPrice − costPrice) × qty per line, with sign for returns
     const profitToday = todayOrders.reduce((sum, order) => {
+      const sign = order.orderType === 'return' ? -1 : 1;
+      const items = (order.items || []) as Array<{ sellingPrice?: number; costPrice?: number; qty?: number }>;
+      const lineProfit = items.reduce((s, item) => {
+        const sell = Number(item.sellingPrice) || 0;
+        const cost = Number(item.costPrice) || 0;
+        const qty = Number(item.qty) || 0;
+        return s + sign * (sell - cost) * qty;
+      }, 0);
+      return sum + lineProfit;
+    }, 0);
+    const yesterdayStr = addDaysToDateStr(todayStr, -1);
+    const yesterdayStart = getStartOfDayAppTzAsUTC(yesterdayStr).toISOString();
+    const yesterdayEnd = getEndOfDayAppTzAsUTC(yesterdayStr).toISOString();
+    const yesterdayOrders = ordersList.filter((o) => (o.status ?? '') !== CANCELLED && o.createdAt >= yesterdayStart && o.createdAt < yesterdayEnd);
+    const ordersYesterday = yesterdayOrders.length;
+    const revenueYesterday = yesterdayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const profitYesterday = yesterdayOrders.reduce((sum, order) => {
       const sign = order.orderType === 'return' ? -1 : 1;
       const items = (order.items || []) as Array<{ sellingPrice?: number; costPrice?: number; qty?: number }>;
       const lineProfit = items.reduce((s, item) => {
@@ -104,6 +120,7 @@ export default function DashboardPage() {
     const revenueTodayPct = pctChange(revenueToday, revenueSameDayLastWeek);
     const profitTodayPct = pctChange(profitToday, profitSameDayLastWeek);
     const sameDayLastWeekLabel = format(parseISO(sameDayLastWeekStr), 'EEE');
+    const effectiveGoals = getEffectiveDailyGoals(getDailyGoals(), { revenue: revenueYesterday, orders: ordersYesterday, profit: profitYesterday });
     return {
       productCount,
       lowStockCount,
@@ -117,6 +134,7 @@ export default function DashboardPage() {
       revenueTodayPct,
       profitTodayPct,
       sameDayLastWeekLabel,
+      effectiveGoals,
     };
   }, [productsList, ordersList, expensesList, today, tomorrow, todayStr]);
 
@@ -392,7 +410,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-      {/* Today's Goals — same source as Reports (getDailyGoals) */}
+      {/* Today's Goals — general goal, or yesterday's actual if higher (see Reports to edit base goals) */}
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-heading text-base font-semibold text-smoky-black sm:text-lg">Today&apos;s Goals</h2>
@@ -406,14 +424,14 @@ export default function DashboardPage() {
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${dailyGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / dailyGoals.revenueTarget) * 100) : 0}%` }}
+                style={{ width: `${effectiveGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100) : 0}%` }}
               />
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              {formatUGX(revenueToday)} / {formatUGX(dailyGoals.revenueTarget)}
-              {dailyGoals.revenueTarget > 0 && (
+              {formatUGX(revenueToday)} / {formatUGX(effectiveGoals.revenueTarget)}
+              {effectiveGoals.revenueTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
-                  ({Math.min(100, (revenueToday / dailyGoals.revenueTarget) * 100).toFixed(0)}%)
+                  ({Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100).toFixed(0)}%)
                 </span>
               )}
             </p>
@@ -423,14 +441,14 @@ export default function DashboardPage() {
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${dailyGoals.ordersTarget > 0 ? Math.min(100, (ordersToday / dailyGoals.ordersTarget) * 100) : 0}%` }}
+                style={{ width: `${effectiveGoals.ordersTarget > 0 ? Math.min(100, (ordersToday / effectiveGoals.ordersTarget) * 100) : 0}%` }}
               />
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              {ordersToday} / {dailyGoals.ordersTarget} orders
-              {dailyGoals.ordersTarget > 0 && (
+              {ordersToday} / {effectiveGoals.ordersTarget} orders
+              {effectiveGoals.ordersTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
-                  ({Math.min(100, (ordersToday / dailyGoals.ordersTarget) * 100).toFixed(0)}%)
+                  ({Math.min(100, (ordersToday / effectiveGoals.ordersTarget) * 100).toFixed(0)}%)
                 </span>
               )}
             </p>
@@ -440,14 +458,14 @@ export default function DashboardPage() {
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${dailyGoals.profitTarget > 0 ? Math.min(100, (profitToday / dailyGoals.profitTarget) * 100) : 0}%` }}
+                style={{ width: `${effectiveGoals.profitTarget > 0 ? Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100) : 0}%` }}
               />
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              {formatUGX(profitToday)} / {formatUGX(dailyGoals.profitTarget)}
-              {dailyGoals.profitTarget > 0 && (
+              {formatUGX(profitToday)} / {formatUGX(effectiveGoals.profitTarget)}
+              {effectiveGoals.profitTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
-                  ({Math.min(100, (profitToday / dailyGoals.profitTarget) * 100).toFixed(0)}%)
+                  ({Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100).toFixed(0)}%)
                 </span>
               )}
             </p>

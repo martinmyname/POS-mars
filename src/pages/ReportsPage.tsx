@@ -20,7 +20,7 @@ import {
   usePeriodMetricsCore,
 } from '@/hooks/reports';
 import { formatUGX } from '@/lib/formatUGX';
-import { getDailyGoals, setDailyGoals, type DailyGoals } from '@/lib/dailyGoalsStorage';
+import { getDailyGoals, setDailyGoals, getEffectiveDailyGoals, type DailyGoals } from '@/lib/dailyGoalsStorage';
 import {
   getTodayInAppTz,
   getStartOfDayAppTzAsUTC,
@@ -77,6 +77,9 @@ export default function ReportsPage() {
     revenueToday,
     profitToday,
     expensesToday,
+    ordersYesterday,
+    revenueYesterday,
+    profitYesterday,
     ordersTodayPct,
     revenueTodayPct,
     profitTodayPct,
@@ -96,6 +99,16 @@ export default function ReportsPage() {
     periodExpList,
     prevPeriodExpList,
   } = reportData;
+
+  const effectiveGoals = useMemo(
+    () =>
+      getEffectiveDailyGoals(dailyGoals, {
+        revenue: revenueYesterday,
+        orders: ordersYesterday,
+        profit: profitYesterday,
+      }),
+    [dailyGoals, revenueYesterday, ordersYesterday, profitYesterday]
+  );
 
   const periodOrders = useMemo(
     () => allOrders.filter((o) => o.createdAt >= current.from && o.createdAt < current.to),
@@ -392,7 +405,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Daily Goals Tracker — targets vs today, progress bars */}
+      {/* Daily Goals Tracker — general target or yesterday's actual if higher */}
       <div className="report-card p-4 sm:p-5 no-print">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Daily Goals</h2>
@@ -406,36 +419,37 @@ export default function ReportsPage() {
             Set targets
           </button>
         </div>
+        <p className="text-xs report-muted mb-3">Target = your set goal, or yesterday&apos;s actual if it was higher.</p>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <p className="text-sm report-muted mb-1">Revenue</p>
             <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-[#1f2937] overflow-hidden">
               <div
                 className="h-full rounded-full bg-[#34d399] transition-all"
-                style={{ width: `${dailyGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / dailyGoals.revenueTarget) * 100) : 0}%` }}
+                style={{ width: `${effectiveGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-xs report-muted mt-1">{formatUGX(revenueToday)} / {formatUGX(dailyGoals.revenueTarget)}</p>
+            <p className="text-xs report-muted mt-1">{formatUGX(revenueToday)} / {formatUGX(effectiveGoals.revenueTarget)}</p>
           </div>
           <div>
             <p className="text-sm report-muted mb-1">Orders</p>
             <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-[#1f2937] overflow-hidden">
               <div
                 className="h-full rounded-full bg-[#34d399] transition-all"
-                style={{ width: `${dailyGoals.ordersTarget > 0 ? Math.min(100, (ordersToday / dailyGoals.ordersTarget) * 100) : 0}%` }}
+                style={{ width: `${effectiveGoals.ordersTarget > 0 ? Math.min(100, (ordersToday / effectiveGoals.ordersTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-xs report-muted mt-1">{ordersToday} / {dailyGoals.ordersTarget}</p>
+            <p className="text-xs report-muted mt-1">{ordersToday} / {effectiveGoals.ordersTarget}</p>
           </div>
           <div>
             <p className="text-sm report-muted mb-1">Profit</p>
             <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-[#1f2937] overflow-hidden">
               <div
                 className="h-full rounded-full bg-[#34d399] transition-all"
-                style={{ width: `${dailyGoals.profitTarget > 0 ? Math.min(100, (profitToday / dailyGoals.profitTarget) * 100) : 0}%` }}
+                style={{ width: `${effectiveGoals.profitTarget > 0 ? Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-xs report-muted mt-1">{formatUGX(profitToday)} / {formatUGX(dailyGoals.profitTarget)}</p>
+            <p className="text-xs report-muted mt-1">{formatUGX(profitToday)} / {formatUGX(effectiveGoals.profitTarget)}</p>
           </div>
         </div>
       </div>
