@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC, addDaysToDateStr } from '@/lib/appTimezone';
 import { getMonthRangeInAppTz } from '@/lib/appTimezone';
+import { FIXED_COST_PURPOSES } from '@/lib/expenseConstants';
 import type { PeriodType } from '@/hooks/usePeriodRange';
 
 interface ExpenseLike {
@@ -14,7 +15,7 @@ interface OrderLike {
   total?: number;
 }
 
-const FIXED_COST_PURPOSES = new Set(['rent', 'labour', 'utility', 'utilities', 'maintenance']);
+const FIXED_COST_SET = new Set(FIXED_COST_PURPOSES.map((p) => p.toLowerCase()));
 
 export interface BreakEvenMetricsResult {
   fixedCosts: number;
@@ -35,7 +36,7 @@ export function useBreakEvenMetrics(
 ): BreakEvenMetricsResult {
   return useMemo(() => {
     const fixedCosts = periodExpList
-      .filter((e) => FIXED_COST_PURPOSES.has((e.purpose || '').trim().toLowerCase()))
+      .filter((e) => FIXED_COST_SET.has((e.purpose || '').trim().toLowerCase()))
       .reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const grossIncome = Number(revenuePeriod) || 0;
     const grossMarginPct = grossIncome > 0 ? (Number(profitPeriod) || 0) / grossIncome : 0;

@@ -5,6 +5,7 @@ import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
 import { useCustomerSummary } from '@/hooks/useCustomerSummary';
 import { formatUGX } from '@/lib/formatUGX';
+import { FIXED_COST_PURPOSES } from '@/lib/expenseConstants';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC, addDaysToDateStr } from '@/lib/appTimezone';
 import { getDailyGoals, getEffectiveDailyGoals } from '@/lib/dailyGoalsStorage';
 import { format, parseISO } from 'date-fns';
@@ -146,10 +147,10 @@ export default function DashboardPage() {
   const { atRiskCount } = useCustomerSummary(ordersForSummary, 'monthly');
 
   const { breakEvenRevenueToday, deadStockCount } = useMemo(() => {
-    const FIXED_COST_PURPOSES = new Set(['rent', 'labour', 'utility', 'utilities', 'maintenance']);
+    const FIXED_COST_SET = new Set(FIXED_COST_PURPOSES.map((p) => p.toLowerCase()));
     const todayExp = expensesList.filter((e) => e.date.slice(0, 10) === todayStr);
     const fixedCostsToday = todayExp
-      .filter((e) => FIXED_COST_PURPOSES.has((e.purpose || '').trim().toLowerCase()))
+      .filter((e) => FIXED_COST_SET.has((e.purpose || '').trim().toLowerCase()))
       .reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const grossMarginPct = revenueToday > 0 ? profitToday / revenueToday : 0;
     const breakEvenRevenueToday = grossMarginPct > 0 ? fixedCostsToday / grossMarginPct : 0;

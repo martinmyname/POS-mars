@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { EXPENSE_PURPOSE_OPTIONS } from '@/lib/expenseConstants';
+import { EXPENSE_PURPOSE_OPTIONS, UNCATEGORIZED_LABEL } from '@/lib/expenseConstants';
 import { isRestockPurpose } from '@/lib/reportHelpers';
 
 interface ExpenseLike {
@@ -47,7 +47,7 @@ export function useExpenseMetrics(
       if (isRestockPurpose(purpose)) return;
       const normalizedPurpose = (EXPENSE_PURPOSE_OPTIONS as readonly string[]).includes(purpose)
         ? purpose
-        : 'other';
+        : UNCATEGORIZED_LABEL;
       const amount = Number(e.amount) || 0;
       const existing =
         expensesByPurposeMap.get(normalizedPurpose) ||
@@ -62,7 +62,7 @@ export function useExpenseMetrics(
       if (isRestockPurpose(purpose)) return;
       const normalizedPurpose = (EXPENSE_PURPOSE_OPTIONS as readonly string[]).includes(purpose)
         ? purpose
-        : 'other';
+        : UNCATEGORIZED_LABEL;
       const amount = Number(e.amount) || 0;
       prevExpensesByPurposeMap.set(
         normalizedPurpose,
