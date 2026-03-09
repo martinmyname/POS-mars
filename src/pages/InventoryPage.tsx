@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, useSuppliers, productsApi, expensesApi, supplierLedgerApi, generateId } from '@/hooks/useData';
+import { stockAdjustmentsApi } from '@/lib/data';
 import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
+import { useRestockData, type RestockItem } from '@/hooks/inventory/useRestockData';
+import { RestockPlannerSection } from '@/components/inventory/RestockPlannerSection';
 import { formatUGX } from '@/lib/formatUGX';
 import { getTodayInAppTz } from '@/lib/appTimezone';
-import { AlertTriangle, Package, Pencil, Search, X } from 'lucide-react';
+import { AlertTriangle, Package, Pencil, Search, X, Star } from 'lucide-react';
 
 interface ProductDoc {
   id: string;
@@ -78,6 +81,9 @@ export default function InventoryPage() {
   const [editCostPriceError, setEditCostPriceError] = useState<string | null>(null);
   const [editStockError, setEditStockError] = useState<string | null>(null);
   const [editMinStockLevelError, setEditMinStockLevelError] = useState<string | null>(null);
+  const [inventoryTab, setInventoryTab] = useState<'all' | 'low' | 'planner'>('all');
+
+  const restockData = useRestockData();
 
   const valuationCost = products.reduce((s, p) => s + p.stock * p.costPrice, 0);
   const valuationRetail = products.reduce((s, p) => s + p.stock * p.retailPrice, 0);
@@ -88,19 +94,24 @@ export default function InventoryPage() {
   );
   const showRetailBelowCostWarning = valuationRetail < valuationCost && products.length > 0;
 
+  const { lowStockTable, totalRestockCost, lowStockCount } = useLowStockMetrics(products);
+
   const filteredProducts = useMemo(() => {
-    if (!productSearch.trim()) return products;
+    let list = products;
+    if (inventoryTab === 'low') {
+      const lowIds = new Set(lowStockTable.map((r) => r.id));
+      list = list.filter((p) => lowIds.has(p.id));
+    }
+    if (!productSearch.trim()) return list;
     const q = productSearch.trim().toLowerCase();
-    return products.filter(
+    return list.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.sku && p.sku.toLowerCase().includes(q)) ||
         (p.category && p.category.toLowerCase().includes(q)) ||
         (p.barcode && p.barcode.toLowerCase().includes(q))
     );
-  }, [products, productSearch]);
-
-  const { lowStockTable, totalRestockCost, lowStockCount } = useLowStockMetrics(products);
+  }, [products, productSearch, inventoryTab, lowStockTable]);
 
   // Real-time SKU validation
   useEffect(() => {
@@ -550,9 +561,81 @@ export default function InventoryPage() {
         </section>
 
         <section className="card overflow-hidden">
-          <h2 className="border-b border-slate-200/80 bg-slate-50/50 px-5 py-4 font-heading text-lg font-semibold text-smoky-black">
-            Products & stock
-          </h2>
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-slate-50/50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
+            <button
+              type="button"
+              onClick={() => setInventoryTab('all')}
+              className={`rounded-lg px-3 py-2 text-sm font-medium ${inventoryTab === 'all' ? 'bg-tufts-blue text-white dark:bg-tufts-blue' : 'bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'}`}
+            >
+              All Products
+            </button>
+            <button
+              type="button"
+              onClick={() => setInventoryTab('low')}
+              className={`rounded-lg px-3 py-2 text-sm font-medium ${inventoryTab === 'low' ? 'bg-tufts-blue text-white dark:bg-tufts-blue' : 'bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'}`}
+            >
+              Low Stock ({lowStockCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setInventoryTab('planner')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${inventoryTab === 'planner' ? 'bg-tufts-blue text-white dark:bg-tufts-blue' : 'bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'}`}
+            >
+              <Star className="h-4 w-4" aria-hidden />
+              Restock Planner ({restockData.summaryStats.needsRestockCount})
+            </button>
+          </div>
+          {inventoryTab === 'planner' ? (
+            <div className="p-4">
+              <RestockPlannerSection
+                items={restockData.items}
+                summaryStats={restockData.summaryStats}
+                isLoading={restockData.isLoading}
+                onMarkAsReceived={async (selected) => {
+                  const today = getTodayInAppTz();
+                  const bySupplier = new Map<string, Array<{ item: RestockItem; qty: number }>>();
+                  selected.forEach(({ item, qty }) => {
+                    const key = item.supplierName || '—';
+                    if (!bySupplier.has(key)) bySupplier.set(key, []);
+                    bySupplier.get(key)!.push({ item, qty });
+                  });
+                  for (const { item, qty } of selected) {
+                    const doc = await productsApi.getById(item.id);
+                    if (doc) {
+                      const current = Number(doc.stock) ?? 0;
+                      await productsApi.update(item.id, { stock: Math.max(0, current + qty) });
+                    }
+                    await stockAdjustmentsApi.insert({
+                      id: `adj_${generateId()}`,
+                      productId: item.id,
+                      type: 'in',
+                      quantity: qty,
+                      reason: 'Restock via planner',
+                      date: today,
+                    });
+                  }
+                  for (const [supplierName, list] of bySupplier) {
+                    const totalCost = list.reduce((s, { item, qty }) => s + item.costPrice * qty, 0);
+                    const itemNames = list.map(({ item }) => item.name).join(', ');
+                    await expensesApi.insert({
+                      id: `exp_${generateId()}`,
+                      date: today,
+                      itemBought: `${supplierName} restock: ${itemNames}`,
+                      purpose: 'Stock',
+                      amount: totalCost,
+                      paidBy: 'Cash',
+                      receiptAttached: false,
+                      paidByWho: 'Inventory',
+                    });
+                  }
+                  setMessage('✓ Stock updated for ' + selected.length + ' products. Expense recorded.');
+                  setTimeout(() => setMessage(null), 4000);
+                }}
+              />
+            </div>
+          ) : (
+            <>
+          <h2 className="sr-only">Products & stock</h2>
           <div className="border-b border-slate-100 px-4 py-3">
             <label htmlFor="inventory-product-search" className="sr-only">Search products</label>
             <div className="relative">
@@ -868,6 +951,8 @@ export default function InventoryPage() {
               </ul>
             )}
           </div>
+            </>
+          )}
         </section>
       </div>
     </div>

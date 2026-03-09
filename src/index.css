@@ -251,6 +251,16 @@
   .no-print {
     display: none !important;
   }
+  /* Restock Planner: when printing from planner, only show the print-only block */
+  .restock-planner-print-container .print\:block {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 9999;
+    overflow: auto;
+    padding: 1rem;
+  }
   .report-page {
     max-width: none;
     background: white !important;

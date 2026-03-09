@@ -16,6 +16,7 @@ export type Product = {
   minStockLevel: number;
   reorderLevel?: number;
   maxStockLevel?: number;
+  restockCycleDays?: number;
   imageUrl?: string;
   barcode?: string;
   supplierId?: string;
