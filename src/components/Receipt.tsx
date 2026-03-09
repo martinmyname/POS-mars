@@ -234,7 +234,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
                   <span className="receipt-item-name">{item.name}</span>
                   {item.originalPrice != null && item.originalPrice > item.unitPrice && (
                     <div className="receipt-item-discount">
-                      <span className="receipt-item-original">
+                      <span className="receipt-item-original money">
                         {formatUGX(item.originalPrice)} × {item.qty}
                       </span>
                       <span className="receipt-discount-badge">Discount applied</span>
@@ -246,14 +246,14 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
                   <div className="receipt-item-price">
                     {item.originalPrice != null && item.originalPrice > item.unitPrice ? (
                       <div>
-                        <span className="receipt-price-original">{formatUGX(item.originalPrice)}</span>
-                        <span className="receipt-price-current">{formatUGX(item.unitPrice)}</span>
+                        <span className="receipt-price-original money">{formatUGX(item.originalPrice)}</span>
+                        <span className="receipt-price-current money">{formatUGX(item.unitPrice)}</span>
                       </div>
                     ) : (
-                      formatUGX(item.unitPrice)
+                      <span className="money">{formatUGX(item.unitPrice)}</span>
                     )}
                   </div>
-                  <div className="receipt-item-total">{formatUGX(item.lineTotal)}</div>
+                  <div className="receipt-item-total money">{formatUGX(item.lineTotal)}</div>
                 </div>
               </div>
             ))}
@@ -264,7 +264,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
         <div className="receipt-total-section">
           <div className="receipt-total-row">
             <span className="receipt-total-label">Total</span>
-            <span className="receipt-total-amount">{formatUGX(data.total)}</span>
+            <span className="receipt-total-amount money">{formatUGX(data.total)}</span>
           </div>
         </div>
 

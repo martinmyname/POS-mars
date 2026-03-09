@@ -49,7 +49,7 @@ function Header() {
       <div className="mx-auto flex max-w-app items-center justify-between px-3 py-2 sm:px-6 sm:py-3">
         <Link
           to="/"
-          className="flex items-center gap-2 font-heading font-bold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover"
+          className="flex items-center gap-2 font-serif text-lg font-bold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover sm:text-xl"
         >
           <img src="/logo.png" alt="Mars Kitchen Essentials" className="h-8 w-8 shrink-0 object-contain" />
           <span className="hidden text-lg sm:inline sm:text-xl">Mars Kitchen Essentials</span>

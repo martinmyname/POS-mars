@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrders, useProducts, ordersApi, productsApi, generateId } from '@/hooks/useData';
 import { getTodayInAppTz, getMonthRangeInAppTz } from '@/lib/appTimezone';
-import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { format } from 'date-fns';
 import { subDays } from 'date-fns';
 import type { OrderItem } from '@/types';
@@ -317,7 +317,7 @@ export default function ReturnsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold text-smoky-black">Returns & Exchanges</h1>
+        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">Returns & Exchanges</h1>
         <Link to="/" className="text-tufts-blue underline">← Dashboard</Link>
       </div>
       <p className="text-sm text-slate-600">
@@ -335,7 +335,7 @@ export default function ReturnsPage() {
       </p>
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">Select order to return</h2>
+          <h2 className="mb-3 font-sans text-lg font-semibold">Select order to return</h2>
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -368,7 +368,7 @@ export default function ReturnsPage() {
                   {o.customer?.name && (
                     <span className="ml-2 text-slate-500 text-sm">· {o.customer.name}</span>
                   )}
-                  <span className="block text-sm text-slate-600">{formatUGX(o.total)}</span>
+                  <span className="block text-sm text-slate-600"><Money value={o.total} className="text-slate-600" /></span>
                 </button>
               </li>
             ))}
@@ -382,7 +382,7 @@ export default function ReturnsPage() {
         <section>
           {selectedOrder ? (
             <>
-              <h2 className="mb-3 font-heading text-lg font-semibold">Items to return</h2>
+              <h2 className="mb-3 font-sans text-lg font-semibold">Items to return</h2>
               <ul className="mb-4 space-y-2">
                 {selectedOrder.items.map((item) => (
                   <li key={item.productId} className="flex items-center justify-between rounded border border-slate-200 bg-white p-3">
@@ -403,7 +403,7 @@ export default function ReturnsPage() {
                 ))}
               </ul>
 
-              <h2 className="mb-2 font-heading text-lg font-semibold">How is this return handled?</h2>
+              <h2 className="mb-2 font-sans text-lg font-semibold">How is this return handled?</h2>
               <div className="mb-4 flex gap-4">
                 <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 has-[:checked]:border-tufts-blue has-[:checked]:bg-blue-50">
                   <input
@@ -443,7 +443,7 @@ export default function ReturnsPage() {
                     {filteredExchangeProducts.map((p) => (
                       <li key={p.id} className="flex items-center justify-between rounded bg-white px-2 py-1">
                         <span className="text-sm">{p.name}</span>
-                        <span className="text-sm text-slate-600">{formatUGX(p.retailPrice)}</span>
+                        <span className="text-sm text-slate-600"><Money value={p.retailPrice} className="text-slate-600" /></span>
                         <button
                           type="button"
                           onClick={() => addToExchangeCart(p)}
@@ -465,13 +465,13 @@ export default function ReturnsPage() {
                               <button type="button" onClick={() => updateExchangeCartQty(l.productId, -1)} className="rounded border px-1.5">−</button>
                               <span>{l.qty}</span>
                               <button type="button" onClick={() => updateExchangeCartQty(l.productId, 1)} className="rounded border px-1.5">+</button>
-                              <span className="ml-1">{formatUGX(l.sellingPrice * l.qty)}</span>
+                              <span className="ml-1"><Money value={l.sellingPrice * l.qty} className="text-sm" /></span>
                             </div>
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-2 text-sm font-semibold">Replacement total: {formatUGX(exchangeTotal)}</p>
-                      <p className="text-xs text-slate-500">Return value: {formatUGX(returnValue)}. Customer pays difference if replacement &gt; return.</p>
+                      <p className="mt-2 text-sm font-semibold">Replacement total: <Money value={exchangeTotal} className="font-semibold" /></p>
+                      <p className="text-xs text-slate-500">Return value: <Money value={returnValue} className="text-slate-500" />. Customer pays difference if replacement &gt; return.</p>
                     </>
                   )}
                 </div>

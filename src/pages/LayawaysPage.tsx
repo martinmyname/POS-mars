@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLayaways, layawaysApi, productsApi } from '@/hooks/useData';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { format } from 'date-fns';
 import { DollarSign, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -128,7 +129,7 @@ export default function LayawaysPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black">
+        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">
           Deposits & Layaways
         </h1>
         <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
@@ -150,7 +151,7 @@ export default function LayawaysPage() {
 
       <div className="card overflow-hidden">
         <div className="border-b border-slate-200/80 bg-slate-50/50 px-4 py-3">
-          <h2 className="mb-3 font-heading text-lg font-semibold text-smoky-black">Layaways</h2>
+          <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">Layaways</h2>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
@@ -181,9 +182,9 @@ export default function LayawaysPage() {
                           Created: {format(new Date(l.createdAt), 'dd MMM yyyy, HH:mm')}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                          <span className="font-semibold text-emerald-700">Total: {formatUGX(l.totalAmount)}</span>
-                          <span className="text-slate-600">Paid: {formatUGX(l.paidAmount)}</span>
-                          <span className="text-amber-600">Remaining: {formatUGX(l.remainingAmount)}</span>
+                          <span className="font-semibold text-emerald-700">Total: <Money value={l.totalAmount} className="font-semibold text-emerald-700" /></span>
+                          <span className="text-slate-600">Paid: <Money value={l.paidAmount} className="text-slate-600" /></span>
+                          <span className="text-amber-600">Remaining: <Money value={l.remainingAmount} className="text-amber-600" /></span>
                         </div>
                         {l.status === 'completed' && l.completedAt && (
                           <p className="mt-1 text-xs text-emerald-600">
@@ -246,7 +247,7 @@ export default function LayawaysPage() {
                                   <span>
                                     {item.name} × {item.qty}
                                   </span>
-                                  <span>{formatUGX(item.totalPrice)}</span>
+                                  <span><Money value={item.totalPrice} className="text-slate-600" /></span>
                                 </li>
                               ))}
                             </ul>

@@ -4,6 +4,7 @@ import { useCashSessions, useOrders, useExpenses, useSupplierLedger, cashSession
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC } from '@/lib/appTimezone';
 import { format } from 'date-fns';
 import { Lock, Unlock, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
@@ -258,7 +259,7 @@ export default function CashManagementPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black">
+        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">
           Cash Management
         </h1>
         <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
@@ -281,7 +282,7 @@ export default function CashManagementPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Open/Close Cash */}
         <section className="card p-5">
-          <h2 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold text-smoky-black">
+          <h2 className="mb-4 flex items-center gap-2 font-sans text-lg font-semibold text-smoky-black">
             {todaySession ? (
               <>
                 <Lock className="h-5 w-5 text-emerald-600" />
@@ -303,20 +304,20 @@ export default function CashManagementPage() {
                   Opened at: {format(new Date(todaySession.openedAt), 'dd MMM yyyy, HH:mm')}
                 </p>
                 <p className="mt-2 text-lg font-semibold text-emerald-700">
-                  Opening Amount: {formatUGX(todaySession.openingAmount)}
+                  Opening Amount: <Money value={todaySession.openingAmount} className="text-lg font-semibold text-emerald-700" />
                 </p>
                 {todaySession.expectedAmount !== undefined && (
                   <div className="mt-2 space-y-1 text-sm text-slate-700">
                     <p className="font-medium text-slate-800">
-                      Expected in drawer (Cash): {formatUGX(todaySession.expectedAmount)}
+                      Expected in drawer (Cash): <Money value={todaySession.expectedAmount} className="font-medium text-slate-800" />
                     </p>
-                    <p>Expected MTN MoMo: {formatUGX(todayExpected.mtnFromOrders)}</p>
-                    <p>Expected Airtel Pay: {formatUGX(todayExpected.airtelFromOrders)}</p>
+                    <p>Expected MTN MoMo: <Money value={todayExpected.mtnFromOrders} className="text-slate-700" /></p>
+                    <p>Expected Airtel Pay: <Money value={todayExpected.airtelFromOrders} className="text-slate-700" /></p>
                     {(todayExpected.allExpensesToday > 0 || todayExpected.supplierPaymentsToday > 0) && (
                       <p className="mt-1 border-t border-slate-200 pt-1 text-slate-600">
-                        Deductions today: expenses {formatUGX(todayExpected.allExpensesToday)}
+                        Deductions today: expenses <Money value={todayExpected.allExpensesToday} className="text-slate-600" />
                         {todayExpected.supplierPaymentsToday > 0 && (
-                          <>, supplier payments {formatUGX(todayExpected.supplierPaymentsToday)}</>
+                          <>, supplier payments <Money value={todayExpected.supplierPaymentsToday} className="text-slate-600" /></>
                         )}
                       </p>
                     )}
@@ -443,7 +444,7 @@ export default function CashManagementPage() {
         {/* Recent Sessions */}
         <section className="card overflow-hidden">
           <div className="border-b border-slate-200/80 bg-slate-50/50 px-4 py-3">
-            <h2 className="font-heading text-lg font-semibold text-smoky-black">Recent Sessions</h2>
+            <h2 className="font-sans text-lg font-semibold text-smoky-black">Recent Sessions</h2>
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
             {sessions.length === 0 ? (
@@ -463,12 +464,12 @@ export default function CashManagementPage() {
                           )}
                         </p>
                         <p className="mt-1 text-sm text-slate-600">
-                          Opened: {formatUGX(s.openingAmount)} by {s.openedBy}
+                          Opened: <Money value={s.openingAmount} className="text-slate-600" /> by {s.openedBy}
                         </p>
                         {s.closedAt && (
                           <>
                             <p className="mt-1 text-sm text-slate-600">
-                              Closed: {formatUGX(s.closingAmount ?? 0)} by {s.closedBy}
+                              Closed: <Money value={s.closingAmount ?? 0} className="text-slate-600" /> by {s.closedBy}
                             </p>
                             {s.difference !== undefined && (
                               <p
@@ -481,7 +482,7 @@ export default function CashManagementPage() {
                                 ) : (
                                   <TrendingDown className="h-4 w-4" />
                                 )}
-                                {s.difference >= 0 ? 'Over' : 'Short'} by {formatUGX(Math.abs(s.difference))}
+                                {s.difference >= 0 ? 'Over' : 'Short'} by <Money value={Math.abs(s.difference)} className={s.difference >= 0 ? 'text-emerald-700' : 'text-red-700'} />
                               </p>
                             )}
                           </>

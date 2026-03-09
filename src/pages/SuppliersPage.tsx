@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '@/context/ThemeContext';
 import { useSuppliers, useSupplierLedger, suppliersApi, supplierLedgerApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { exportToCSV } from '@/utils/exportUtils';
 import {
@@ -344,7 +345,7 @@ export default function SuppliersPage() {
           <span className="text-2xl" aria-hidden>⚖️</span>
           <div>
             <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Owed to Suppliers</p>
-            <p className="text-2xl font-bold text-amber-800 dark:text-amber-200">{formatUGX(totalOwed)}</p>
+            <p className="text-2xl font-bold text-amber-800 dark:text-amber-200"><Money value={totalOwed} className="text-2xl font-bold text-amber-800 dark:text-amber-200" /></p>
             <p className="text-xs text-slate-500">{suppliersWithBalance} suppliers with open balance</p>
           </div>
         </div>
@@ -399,7 +400,7 @@ export default function SuppliersPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Task 10 — Add supplier form */}
         <section className="card p-4">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Add supplier</h2>
+          <h2 className="mb-3 font-sans text-lg font-semibold">Add supplier</h2>
           {addSuccess && (
             <p className="mb-3 text-sm font-medium text-emerald-600 dark:text-emerald-400">✓ Supplier added</p>
           )}
@@ -615,7 +616,7 @@ export default function SuppliersPage() {
                     <Sparkline points={lastPoints} owing={owing} />
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${owing ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
-                        {formatUGX(displayBalance)}
+                        <Money value={displayBalance} className={owing ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'} />
                       </p>
                       <span
                         className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
@@ -644,11 +645,11 @@ export default function SuppliersPage() {
                             <>
                               <div className="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Total Credited</p>
-                                <p className="font-semibold text-red-700 dark:text-red-300">{formatUGX(totalCredited)}</p>
+                                <p className="font-semibold text-red-700 dark:text-red-300"><Money value={totalCredited} className="font-semibold text-red-700 dark:text-red-300" /></p>
                               </div>
                               <div className="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Total Paid</p>
-                                <p className="font-semibold text-emerald-700 dark:text-emerald-300">{formatUGX(totalPaid)}</p>
+                                <p className="font-semibold text-emerald-700 dark:text-emerald-300"><Money value={totalPaid} className="font-semibold text-emerald-700 dark:text-emerald-300" /></p>
                               </div>
                               <div className="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Payment Rate</p>
@@ -707,9 +708,9 @@ export default function SuppliersPage() {
                               ))}
                             </div>
                             <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
-                              {bucket30 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> 0–30d: {formatUGX(bucket30)}</span>}
-                              {bucket60 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> 31–60d: {formatUGX(bucket60)}</span>}
-                              {bucket61 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-red-500" /> 61d+: {formatUGX(bucket61)}</span>}
+                              {bucket30 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> 0–30d: <Money value={bucket30} className="text-slate-600 dark:text-slate-400" /></span>}
+                              {bucket60 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> 31–60d: <Money value={bucket60} className="text-slate-600 dark:text-slate-400" /></span>}
+                              {bucket61 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-red-500" /> 61d+: <Money value={bucket61} className="text-slate-600 dark:text-slate-400" /></span>}
                             </p>
                           </div>
                         );
@@ -730,7 +731,7 @@ export default function SuppliersPage() {
                                 .join(', ')}
                             </p>
                             <p className="mt-1.5 text-xs text-red-700 dark:text-red-300">
-                              Amount still owed (after payments): {formatUGX(balance)}
+                              Amount still owed (after payments): <Money value={balance} className="text-red-700 dark:text-red-300" />
                             </p>
                           </div>
                         );
@@ -942,13 +943,13 @@ export default function SuppliersPage() {
                                         </td>
                                         <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">
                                           {e.type === 'credit' ? (
-                                            <span className="text-red-700 dark:text-red-300">+{formatUGX(e.amount)}</span>
+                                            <span className="text-red-700 dark:text-red-300">+<Money value={e.amount} className="text-red-700 dark:text-red-300" /></span>
                                           ) : (
-                                            <span className="text-emerald-700 dark:text-emerald-300">−{formatUGX(e.amount)}</span>
+                                            <span className="text-emerald-700 dark:text-emerald-300">−<Money value={e.amount} className="text-emerald-700 dark:text-emerald-300" /></span>
                                           )}
                                         </td>
                                         <td className={`whitespace-nowrap px-3 py-2 text-right font-semibold ${rb > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
-                                          {formatUGX(rb)}
+                                          <Money value={rb} className={rb > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'} />
                                         </td>
                                       </tr>
                                     );

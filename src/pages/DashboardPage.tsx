@@ -5,6 +5,7 @@ import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
 import { useCustomerSummary } from '@/hooks/useCustomerSummary';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { FIXED_COST_PURPOSES } from '@/lib/expenseConstants';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC, addDaysToDateStr } from '@/lib/appTimezone';
 import { getDailyGoals, getEffectiveDailyGoals } from '@/lib/dailyGoalsStorage';
@@ -310,7 +311,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-slate-500">Revenue today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate">{formatUGX(revenueToday)}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate"><Money value={revenueToday} className="text-lg sm:text-2xl font-bold text-emerald-700" /></p>
                   {revenueTodayPct !== 0 && (
                     <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
@@ -330,7 +331,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-slate-500">Revenue today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate">{formatUGX(revenueToday)}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate"><Money value={revenueToday} className="text-lg sm:text-2xl font-bold text-emerald-700" /></p>
                   {revenueTodayPct !== 0 && (
                     <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
@@ -351,7 +352,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-slate-500">Gross profit today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-teal-700 truncate">{formatUGX(profitToday)}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-teal-700 truncate"><Money value={profitToday} className="text-lg sm:text-2xl font-bold text-teal-700" /></p>
                   {profitTodayPct !== 0 && (
                     <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {profitTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
@@ -371,7 +372,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-slate-500">Gross profit today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-teal-700 truncate">{formatUGX(profitToday)}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-teal-700 truncate"><Money value={profitToday} className="text-lg sm:text-2xl font-bold text-teal-700" /></p>
                   {profitTodayPct !== 0 && (
                     <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {profitTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
@@ -392,7 +393,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-slate-500">Expenses today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUGX(expensesToday)}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-red-600 truncate"><Money value={expensesToday} className="text-lg sm:text-2xl font-bold text-red-600" /></p>
                 </div>
               </div>
             </Link>
@@ -404,7 +405,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-slate-500">Expenses today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatUGX(expensesToday)}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-red-600 truncate"><Money value={expensesToday} className="text-lg sm:text-2xl font-bold text-red-600" /></p>
                 </div>
               </div>
             </div>
@@ -414,7 +415,7 @@ export default function DashboardPage() {
       {/* Today's Goals — general goal, or yesterday's actual if higher (see Reports to edit base goals) */}
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-heading text-base font-semibold text-smoky-black sm:text-lg">Today&apos;s Goals</h2>
+          <h2 className="font-sans text-base font-semibold text-smoky-black sm:text-lg">Today&apos;s Goals</h2>
           <Link to="/reports/daily" className="text-xs font-medium text-tufts-blue hover:underline sm:text-sm">
             Edit goals → Reports
           </Link>
@@ -429,7 +430,7 @@ export default function DashboardPage() {
               />
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              {formatUGX(revenueToday)} / {formatUGX(effectiveGoals.revenueTarget)}
+              <Money value={revenueToday} className="text-slate-500" /> / <Money value={effectiveGoals.revenueTarget} className="text-slate-700" />
               {effectiveGoals.revenueTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
                   ({Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100).toFixed(0)}%)
@@ -463,7 +464,7 @@ export default function DashboardPage() {
               />
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              {formatUGX(profitToday)} / {formatUGX(effectiveGoals.profitTarget)}
+              <Money value={profitToday} className="text-slate-500" /> / <Money value={effectiveGoals.profitTarget} className="text-slate-700" />
               {effectiveGoals.profitTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
                   ({Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100).toFixed(0)}%)
@@ -476,7 +477,7 @@ export default function DashboardPage() {
 
       {alerts.length > 0 && (
         <div className="card col-span-full space-y-2 p-4 sm:p-5">
-          <h2 className="font-heading text-sm font-semibold text-smoky-black">Alerts</h2>
+          <h2 className="font-sans text-sm font-semibold text-smoky-black">Alerts</h2>
           <ul className="space-y-2">
             {alerts.map((a) => (
               <li key={a.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -512,7 +513,7 @@ export default function DashboardPage() {
           )}
           {(scheduledDueToday.length > 0 || scheduledUpcoming.length > 0) && (
             <Link to="/deliveries" className="col-span-full card-hover card block p-4 sm:p-5">
-              <h2 className="mb-3 flex items-center gap-2 font-heading text-base font-semibold text-smoky-black sm:text-lg">
+              <h2 className="mb-3 flex items-center gap-2 font-sans text-base font-semibold text-smoky-black sm:text-lg">
                 <CalendarClock className="h-5 w-5 text-tufts-blue" />
                 Scheduled orders
               </h2>
@@ -523,7 +524,7 @@ export default function DashboardPage() {
                     {scheduledDueToday.map((o) => (
                       <li key={o.id} className="flex items-center justify-between gap-2">
                         <span>Order #{o.orderNumber ?? o.id.slice(-8)}</span>
-                        <span className="font-medium">{formatUGX(o.total)}</span>
+                        <span className="font-medium"><Money value={o.total} className="font-medium" /></span>
                       </li>
                     ))}
                   </ul>
@@ -539,7 +540,7 @@ export default function DashboardPage() {
                         <span>
                           Order #{o.orderNumber ?? o.id.slice(-8)} · {format(parseISO(o.scheduledFor), 'EEE, d MMM')}
                         </span>
-                        <span className="font-medium text-slate-800">{formatUGX(o.total)}</span>
+                        <span className="font-medium text-slate-800"><Money value={o.total} className="font-medium text-slate-800" /></span>
                       </li>
                     ))}
                   </ul>
@@ -549,7 +550,7 @@ export default function DashboardPage() {
           )}
 
       <div>
-        <h2 className="mb-3 sm:mb-4 font-heading text-base font-semibold text-smoky-black sm:text-lg">Quick actions</h2>
+        <h2 className="mb-3 sm:mb-4 font-sans text-base font-semibold text-smoky-black sm:text-lg">Quick actions</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           {navItems.map(({ to, label, icon: Icon, primary }) => (
             <Link

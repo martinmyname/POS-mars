@@ -47,7 +47,7 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold text-smoky-black">Customers</h1>
+        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">Customers</h1>
         <Link to="/" className="text-tufts-blue underline">← Dashboard</Link>
       </div>
       <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 dark:border-[#1f2937] dark:bg-[#111827]/50">
@@ -61,7 +61,7 @@ export default function CustomersPage() {
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Add customer</h2>
+          <h2 className="mb-3 font-sans text-lg font-semibold">Add customer</h2>
           <form onSubmit={handleSubmit} className="space-y-3">
             <label htmlFor="customer-name" className="sr-only">Name</label>
             <input id="customer-name" name="name" type="text" placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
@@ -73,7 +73,7 @@ export default function CustomersPage() {
           </form>
         </section>
         <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">Customer list</h2>
+          <h2 className="mb-3 font-sans text-lg font-semibold">Customer list</h2>
           <ul className="space-y-2">
             {customers.map((c) => (
               <li key={c.id} className="rounded border border-slate-200 bg-white p-3">

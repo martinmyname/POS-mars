@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useDeliveries, useOrders, useProducts, deliveriesApi, ordersApi, productsApi } from '@/hooks/useData';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC } from '@/lib/appTimezone';
 import { format } from 'date-fns';
 import { Bike, DollarSign, ChevronDown, ChevronRight, Package, MapPin, Phone, Archive, RefreshCw } from 'lucide-react';
@@ -349,7 +350,7 @@ export default function DeliveriesPage() {
 
       <section className="card overflow-hidden">
         <div className="border-b border-slate-200/80 bg-slate-50/50 px-4 py-4">
-          <h2 className="mb-3 font-heading text-lg font-semibold text-smoky-black">
+          <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">
             Deliveries
           </h2>
           {/* Quick filters */}
@@ -533,14 +534,14 @@ export default function DeliveriesPage() {
                       <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
                         <div className="text-right">
                           <div className="text-lg font-bold text-emerald-700">
-                            {formatUGX(d.amountToCollect)}
+                            <Money value={d.amountToCollect} className="text-lg font-bold text-emerald-700" />
                           </div>
                           {receivedAmount > 0 && (
                             <div className="text-xs text-slate-500">
-                              Paid: {formatUGX(receivedAmount)}
+                              Paid: <Money value={receivedAmount} className="text-slate-500" />
                               {remaining > 0 && (
                                 <span className="ml-1 font-medium text-amber-600">
-                                  · Remaining: {formatUGX(remaining)}
+                                  · Remaining: <Money value={remaining} className="text-amber-600" />
                                 </span>
                               )}
                             </div>
@@ -665,13 +666,13 @@ export default function DeliveriesPage() {
                               <div className="flex items-center justify-between">
                                 <span className="text-sm font-medium text-slate-700">Amount to receive:</span>
                                 <span className="text-lg font-bold text-emerald-700">
-                                  {formatUGX(remaining > 0 ? remaining : d.amountToCollect)}
+                                  <Money value={remaining > 0 ? remaining : d.amountToCollect} className="text-emerald-700" />
                                 </span>
                               </div>
                               {remaining > 0 && receivedAmount > 0 && (
                                 <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
                                   <span>Already received:</span>
-                                  <span>{formatUGX(receivedAmount)}</span>
+                                  <span><Money value={receivedAmount} className="text-slate-500" /></span>
                                 </div>
                               )}
                             </div>
@@ -704,7 +705,7 @@ export default function DeliveriesPage() {
                               className="btn-primary w-full text-sm font-semibold"
                             >
                               <DollarSign className="mr-2 inline h-4 w-4" />
-                              Confirm Payment Received ({formatUGX(remaining > 0 ? remaining : d.amountToCollect)})
+                              Confirm Payment Received (<Money value={remaining > 0 ? remaining : d.amountToCollect} className="text-emerald-700" />)
                             </button>
                             <p className="mt-2 text-xs text-slate-500 text-center">
                               Click to confirm rider has returned with the full payment
@@ -720,7 +721,7 @@ export default function DeliveriesPage() {
                             </p>
                             {d.paymentReceivedAt && (
                               <p className="mt-1 text-xs text-emerald-600">
-                                Received: {formatUGX(receivedAmount)} on{' '}
+                                Received: <Money value={receivedAmount} className="text-emerald-600" /> on{' '}
                                 {format(new Date(d.paymentReceivedAt), 'dd MMM yyyy, HH:mm')}
                                 {d.paymentReceivedBy && ` by ${d.paymentReceivedBy}`}
                               </p>
@@ -740,18 +741,18 @@ export default function DeliveriesPage() {
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-slate-600">Order Total:</span>
-                                <span className="font-semibold">{formatUGX(order.total)}</span>
+                                <span className="font-semibold"><Money value={order.total} className="font-semibold" /></span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-600">Amount to Collect:</span>
-                                <span className="font-semibold text-emerald-700">{formatUGX(d.amountToCollect)}</span>
+                                <span className="font-semibold text-emerald-700"><Money value={d.amountToCollect} className="font-semibold text-emerald-700" /></span>
                               </div>
                               <div className="mt-2 pt-2 border-t border-slate-100">
                                 <span className="text-slate-600">Items:</span>
                                 <ul className="mt-1 space-y-0.5">
                                   {order.items.map((item, idx) => (
                                     <li key={idx} className="text-slate-600">
-                                      • {products.get(item.productId)?.name ?? (item as { name?: string }).name ?? item.productId} × {item.qty} @ {formatUGX((item as { unitPrice?: number }).unitPrice ?? item.sellingPrice)}
+                                      • {products.get(item.productId)?.name ?? (item as { name?: string }).name ?? item.productId} × {item.qty} @ <Money value={(item as { unitPrice?: number }).unitPrice ?? item.sellingPrice} className="text-slate-600" />
                                     </li>
                                   ))}
                                 </ul>

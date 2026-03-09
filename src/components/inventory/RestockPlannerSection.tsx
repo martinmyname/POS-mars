@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { exportToCSV } from '@/utils/exportUtils';
 import {
   AlertTriangle,
@@ -169,7 +169,7 @@ export function RestockPlannerSection({
         </div>
         <div className="card border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
           <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Order Total Cost</p>
-          <p className="text-xl font-bold text-amber-800 dark:text-amber-200">{formatUGX(Number.isFinite(orderTotalCost) ? orderTotalCost : 0)}</p>
+          <p className="text-xl font-bold text-amber-800 dark:text-amber-200"><Money value={Number.isFinite(orderTotalCost) ? orderTotalCost : 0} className="text-xl font-bold text-amber-800 dark:text-amber-200" /></p>
         </div>
         </div>
       </div>
@@ -179,7 +179,7 @@ export function RestockPlannerSection({
         <div className="card flex items-center justify-between gap-3 border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/40">
           <p className="flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-200">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            Revenue at risk from low/out-of-stock items this restock cycle: {formatUGX(summaryStats.totalRevenueAtRisk)}
+            Revenue at risk from low/out-of-stock items this restock cycle: <Money value={summaryStats.totalRevenueAtRisk} className="text-red-800 dark:text-red-200" />
           </p>
           <button
             type="button"
@@ -558,8 +558,8 @@ function RestockRow({
           </div>
         </td>
         <td className="px-2 py-2 text-right">
-          <p className="font-semibold">{formatUGX(totalCost)}</p>
-          <p className="text-xs text-slate-500">{formatUGX(item.costPrice)}/unit</p>
+          <p className="font-semibold"><Money value={totalCost} className="font-semibold" /></p>
+          <p className="text-xs text-slate-500"><Money value={item.costPrice} className="text-slate-500" />/unit</p>
         </td>
         <td className="px-2 py-2 no-print">
           <button type="button" onClick={onToggleExpand} className="p-1">
@@ -574,10 +574,10 @@ function RestockRow({
               <p><span className="text-slate-500">Current Stock</span> {item.stock}</p>
               <p><span className="text-slate-500">Min Level</span> {item.minStockLevel}</p>
               <p><span className="text-slate-500">Restock Cycle</span> {item.restockCycleDays}d</p>
-              <p><span className="text-slate-500">Revenue at Risk</span> {formatUGX(item.revenueAtRisk)}</p>
+              <p><span className="text-slate-500">Revenue at Risk</span> <Money value={item.revenueAtRisk} className="text-sm" /></p>
               <p><span className="text-slate-500">Avg Daily Sales</span> {item.avgDailySales}</p>
               <p><span className="text-slate-500">Last Sold</span> {item.lastSoldDaysAgo < 999 ? `${item.lastSoldDaysAgo}d ago` : 'Never'}</p>
-              <p><span className="text-slate-500">Sell Price</span> {formatUGX(item.retailPrice)}</p>
+              <p><span className="text-slate-500">Sell Price</span> <Money value={item.retailPrice} className="text-sm" /></p>
               <p><span className="text-slate-500">Gross Margin %</span> {item.retailPrice > 0 ? Math.round(((item.retailPrice - item.costPrice) / item.retailPrice) * 100) : 0}%</p>
             </div>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
@@ -630,7 +630,7 @@ function GroupBySupplierView(
               <Building2 className="h-5 w-5 text-slate-600 dark:text-slate-400" />
               <span className="font-semibold">{supplierName}</span>
               <span className="text-sm text-slate-500">
-                ({list.length} items · {formatUGX(subtotal)})
+                ({list.length} items · <Money value={subtotal} className="text-slate-500" />)
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -701,7 +701,7 @@ function OrderSummaryFooter({
   return (
     <>
       <div className="card border-t-2 border-teal-200 bg-teal-50/30 p-4 dark:border-teal-800 dark:bg-teal-950/30 no-print">
-        <h3 className="mb-3 font-heading text-lg font-semibold">Order Summary — {selectedItems.length} products selected</h3>
+        <h3 className="mb-3 font-sans text-lg font-semibold">Order Summary — {selectedItems.length} products selected</h3>
         <div className="space-y-2">
           {Object.entries(bySupplier).map(([name, list]) => (
             <div key={name}>
@@ -712,13 +712,13 @@ function OrderSummaryFooter({
                 ))}
               </ul>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Subtotal: {formatUGX(list.reduce((s, i) => s + orderQty(i) * i.costPrice, 0))}
+                Subtotal: <Money value={list.reduce((s, i) => s + orderQty(i) * i.costPrice, 0)} className="text-slate-700 dark:text-slate-300" />
               </p>
             </div>
           ))}
         </div>
         <p className="mt-3 border-t border-slate-200 pt-3 text-lg font-bold dark:border-slate-600">
-          Total restock investment: {formatUGX(orderTotalCost)}
+          Total restock investment: <Money value={orderTotalCost} className="text-lg font-bold" />
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={onExport} className="btn-secondary inline-flex items-center gap-2 text-sm">
@@ -743,7 +743,7 @@ function OrderSummaryFooter({
       <div className="hidden print:block print:break-before-auto" style={{ fontSize: '12px', color: '#000', background: '#fff' }}>
         <h2 className="text-lg font-bold mb-2">RESTOCK ORDER — Mars Kitchen Essentials</h2>
         <p className="mb-3 text-sm">
-          Generated: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} | Total: {formatUGX(orderTotalCost)}
+          Generated: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} | Total: <Money value={orderTotalCost} />
         </p>
         <table className="w-full border-collapse text-sm" style={{ fontSize: '12px' }}>
           <thead>
@@ -763,13 +763,13 @@ function OrderSummaryFooter({
                 <td className="py-1 pr-2">{i.name}{i.sku ? ` (${i.sku})` : ''}</td>
                 <td className="py-1 pr-2">{i.supplierName}</td>
                 <td className="text-right py-1 pr-2">{orderQty(i)}</td>
-                <td className="text-right py-1 pr-2">{formatUGX(i.costPrice)}</td>
-                <td className="text-right py-1">{formatUGX(orderQty(i) * i.costPrice)}</td>
+                <td className="text-right py-1 pr-2"><Money value={i.costPrice} /></td>
+                <td className="text-right py-1"><Money value={orderQty(i) * i.costPrice} /></td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="mt-3 font-bold text-right">TOTAL: {formatUGX(orderTotalCost)}</p>
+        <p className="mt-3 font-bold text-right">TOTAL: <Money value={orderTotalCost} className="font-bold" /></p>
         <p className="mt-2 text-xs text-gray-600">Grouped by supplier — place separate orders with each supplier.</p>
       </div>
     </>

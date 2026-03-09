@@ -6,6 +6,7 @@ import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
 import { useRestockData, type RestockItem } from '@/hooks/inventory/useRestockData';
 import { RestockPlannerSection } from '@/components/inventory/RestockPlannerSection';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { AlertTriangle, Package, Pencil, Search, X, Star } from 'lucide-react';
 
@@ -347,7 +348,7 @@ export default function InventoryPage() {
         id: `exp_${generateId()}`,
         date: today,
         itemBought: productName,
-        purpose: 'Inventory purchase',
+        purpose: 'Stock',
         amount: costTotal,
         paidBy: 'Cash',
         receiptAttached: false,
@@ -400,7 +401,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-500">Inventory value (cost)</p>
-              <p className="text-xl font-bold text-smoky-black">{formatUGX(valuationCost)}</p>
+              <p className="text-xl font-bold text-smoky-black"><Money value={valuationCost} className="text-xl font-bold text-smoky-black" /></p>
             </div>
           </div>
           <div className="card flex items-center gap-4 p-4">
@@ -409,7 +410,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-500">Inventory value (retail)</p>
-              <p className="text-xl font-bold text-emerald-700">{formatUGX(valuationRetail)}</p>
+              <p className="text-xl font-bold text-emerald-700"><Money value={valuationRetail} className="text-xl font-bold text-emerald-700" /></p>
             </div>
           </div>
         </div>
@@ -434,7 +435,7 @@ export default function InventoryPage() {
                 <li key={p.id}>
                   <span className="font-medium">{p.name}</span>
                   {p.sku && <span className="text-amber-700"> ({p.sku})</span>} — cost{' '}
-                  {formatUGX(p.costPrice)}, retail {formatUGX(p.retailPrice)}
+                  <Money value={p.costPrice} className="text-slate-600" />, retail <Money value={p.retailPrice} className="text-slate-600" />
                 </li>
               ))}
             </ul>
@@ -444,7 +445,7 @@ export default function InventoryPage() {
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         <section className="card p-4 sm:p-5">
-          <h2 className="mb-4 font-heading text-lg font-semibold text-smoky-black">Add product</h2>
+          <h2 className="mb-4 font-sans text-lg font-semibold text-smoky-black">Add product</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
               <input
@@ -657,7 +658,7 @@ export default function InventoryPage() {
             )}
             {lowStockCount > 0 && (
               <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-900">
-                <span className="font-semibold">Total restock needed: {formatUGX(totalRestockCost)}</span>
+                <span className="font-semibold">Total restock needed: <Money value={totalRestockCost} className="font-semibold" /></span>
                 <span className="text-amber-800"> ({lowStockCount} {lowStockCount === 1 ? 'item' : 'items'})</span>
               </p>
             )}
@@ -813,11 +814,11 @@ export default function InventoryPage() {
                           const row = lowStockTable.find((r) => r.id === p.id);
                           return row ? (
                             <span className="text-xs font-medium text-amber-700" title={`${row.unitsNeeded} units × ${formatUGX(p.costPrice)}`}>
-                              Restock cost: {formatUGX(row.restockCost)}
+                              Restock cost: <Money value={row.restockCost} className="text-amber-700 font-medium" />
                             </span>
                           ) : null;
                         })()}
-                        <span className="text-slate-500">{formatUGX(p.retailPrice)}</span>
+                        <span className="text-slate-500"><Money value={p.retailPrice} className="text-slate-500" /></span>
                       </div>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">

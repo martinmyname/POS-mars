@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useExpenses, expensesApi, generateId } from '@/hooks/useData';
 import { useExpenseMetrics } from '@/hooks/expenses/useExpenseMetrics';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { format } from 'date-fns';
 import { EXPENSE_PURPOSE_OPTIONS, PURPOSE_COLORS, UNCATEGORIZED_LABEL } from '@/lib/expenseConstants';
@@ -180,7 +181,7 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-smoky-black">Expenses</h1>
+        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">Expenses</h1>
         <Link to="/" className="btn-secondary inline-flex w-fit text-sm">← Dashboard</Link>
       </div>
 
@@ -189,9 +190,9 @@ export default function ExpensesPage() {
         <div className="card p-4">
           <div className="flex items-center gap-2 text-red-600">
             <span aria-hidden>📅</span>
-            <span className="font-heading text-lg font-semibold">Today&apos;s Expenses</span>
+            <span className="font-sans text-lg font-semibold">Today&apos;s Expenses</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-red-600">{formatUGX(metrics.todayTotal)}</p>
+          <p className="mt-1 text-2xl font-bold text-red-600"><Money value={metrics.todayTotal} className="text-2xl font-bold text-red-600" /></p>
           <p className="text-sm text-slate-500">
             {metrics.todayCount === 0 ? 'None recorded yet' : `${metrics.todayCount} entries`}
           </p>
@@ -199,9 +200,9 @@ export default function ExpensesPage() {
         <div className="card p-4">
           <div className="flex items-center gap-2 text-amber-600">
             <span aria-hidden>📊</span>
-            <span className="font-heading text-lg font-semibold">This Month Total</span>
+            <span className="font-sans text-lg font-semibold">This Month Total</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-amber-600">{formatUGX(metrics.monthTotal)}</p>
+          <p className="mt-1 text-2xl font-bold text-amber-600"><Money value={metrics.monthTotal} className="text-2xl font-bold text-amber-600" /></p>
           <p className="text-sm text-slate-500">
             {metrics.weekOverWeekChange != null
               ? `${metrics.weekOverWeekChange >= 0 ? '+' : ''}${(metrics.weekOverWeekChange * 100).toFixed(1)}% vs last week`
@@ -211,17 +212,17 @@ export default function ExpensesPage() {
         <div className="card p-4">
           <div className="flex items-center gap-2 text-blue-600">
             <span aria-hidden>⚙️</span>
-            <span className="font-heading text-lg font-semibold">Operating (month)</span>
+            <span className="font-sans text-lg font-semibold">Operating (month)</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-blue-600">{formatUGX(metrics.operatingExpenses)}</p>
+          <p className="mt-1 text-2xl font-bold text-blue-600"><Money value={metrics.operatingExpenses} className="text-2xl font-bold text-blue-600" /></p>
           <p className="text-sm text-slate-500">Excl. stock/restock · counts toward net profit</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 text-green-600">
             <span aria-hidden>📦</span>
-            <span className="font-heading text-lg font-semibold">Restock / Stock (month)</span>
+            <span className="font-sans text-lg font-semibold">Restock / Stock (month)</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-green-600">{formatUGX(metrics.restockExpenses)}</p>
+          <p className="mt-1 text-2xl font-bold text-green-600"><Money value={metrics.restockExpenses} className="text-2xl font-bold text-green-600" /></p>
           <p className="text-sm text-slate-500">Not deducted from net profit</p>
         </div>
       </div>
@@ -230,7 +231,7 @@ export default function ExpensesPage() {
         {/* Left column: Form + Spending by Purpose + Quick Stats */}
         <div className="space-y-6">
           <section className="card p-5">
-            <h2 className="mb-4 font-heading text-lg font-semibold text-smoky-black">Add expense</h2>
+            <h2 className="mb-4 font-sans text-lg font-semibold text-smoky-black">Add expense</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div>
                 <label htmlFor="expense-date" className="mb-1 block text-sm font-medium text-slate-700">Date</label>
@@ -309,7 +310,7 @@ export default function ExpensesPage() {
 
           {/* Task 2 — Spending by Purpose */}
           <section className="card p-5">
-            <h2 className="mb-3 font-heading text-lg font-semibold text-smoky-black">Spending by Purpose</h2>
+            <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">Spending by Purpose</h2>
             <div className="mb-3 flex gap-1 rounded-lg bg-slate-100 p-1">
               {LIST_PERIODS.map((p) => (
                 <button
@@ -370,7 +371,7 @@ export default function ExpensesPage() {
 
           {/* Task 3 — Quick Stats */}
           <section className="card p-5">
-            <h2 className="mb-3 font-heading text-lg font-semibold text-smoky-black">This Month — Quick Stats</h2>
+            <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">This Month — Quick Stats</h2>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
                 <p className="text-xs font-medium text-slate-500">Avg per day</p>
@@ -406,7 +407,7 @@ export default function ExpensesPage() {
 
         {/* Right column: Recent expenses list */}
         <section className="card overflow-hidden flex flex-col">
-          <h2 className="border-b border-slate-200/80 bg-slate-50/50 px-5 py-4 font-heading text-lg font-semibold text-smoky-black">Recent expenses</h2>
+          <h2 className="border-b border-slate-200/80 bg-slate-50/50 px-5 py-4 font-sans text-lg font-semibold text-smoky-black">Recent expenses</h2>
 
           {/* Task 4 — Filter controls */}
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-slate-50/30 px-4 py-3">

@@ -7,8 +7,7 @@ import { Sun, Moon } from 'lucide-react';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const { signIn, signUp, loading, error, clearError } = useAuth();
+  const { signIn, loading, error, clearError } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,8 +17,7 @@ export default function LoginPage() {
     e.preventDefault();
     clearError();
     try {
-      if (isSignUp) await signUp(email, password);
-      else await signIn(email, password);
+      await signIn(email, password);
       navigate(from, { replace: true });
     } catch (_err) {
       // Error stored in context
@@ -41,12 +39,8 @@ export default function LoginPage() {
           <div className="mb-3 flex justify-center sm:mb-4">
             <img src="/logo.png" alt="Mars Kitchen Essentials" className="h-14 w-14 object-contain sm:h-16 sm:w-16" />
           </div>
-          <h1 className="page-title text-center">
-            {isSignUp ? 'Create account' : 'Sign in'}
-          </h1>
-          <p className="page-subtitle text-center">
-            {isSignUp ? 'Register for Mars Kitchen Essentials' : 'Welcome back'}
-          </p>
+          <h1 className="page-title text-center">Sign in</h1>
+          <p className="page-subtitle text-center">Welcome back</p>
           <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4 sm:mt-6">
             <label htmlFor="login-email" className="sr-only">Email</label>
             <input
@@ -70,7 +64,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="input-base"
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
             />
             {error && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
@@ -82,16 +76,9 @@ export default function LoginPage() {
               disabled={loading}
               className="btn-primary w-full py-3 disabled:opacity-50"
             >
-              {loading ? 'Please wait…' : isSignUp ? 'Sign up' : 'Sign in'}
+              {loading ? 'Please wait…' : 'Sign in'}
             </button>
           </form>
-          <button
-            type="button"
-            onClick={() => { setIsSignUp((v) => !v); clearError(); }}
-            className="mt-4 w-full text-center text-sm font-medium text-tufts-blue hover:text-tufts-blue-hover"
-          >
-            {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
-          </button>
         </div>
       </div>
     </div>

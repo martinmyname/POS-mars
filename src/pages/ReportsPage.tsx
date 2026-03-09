@@ -20,6 +20,7 @@ import {
   usePeriodMetricsCore,
 } from '@/hooks/reports';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { getDailyGoals, setDailyGoals, getEffectiveDailyGoals, type DailyGoals } from '@/lib/dailyGoalsStorage';
 import {
   getTodayInAppTz,
@@ -27,7 +28,10 @@ import {
   getWeekRangeInAppTz,
 } from '@/lib/appTimezone';
 import { getChannelLabel } from '@/lib/orderConstants';
-import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, Receipt, Printer, FileText, ChevronRight, Settings, X, Store, Globe, MessageCircle, Share2, Users, Download } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, Receipt, Printer, FileText, ChevronRight, ChevronDown, Settings, X, Store, Globe, MessageCircle, Share2, Users, Download } from 'lucide-react';
+
+/** Max rows to show before collapsing the rest into a "Show more" section */
+const INITIAL_LIST_SIZE = 8;
 import { exportToCSV } from '@/utils/exportUtils';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, Bar, LineChart, Line, ComposedChart, PieChart, Pie, Cell } from 'recharts';
 
@@ -300,7 +304,7 @@ export default function ReportsPage() {
   return (
     <div className="report-page space-y-4 sm:space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="report-heading text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports</h1>
+        <h1 className="report-heading text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">Reports &amp; Analytics</h1>
         <div className="flex flex-wrap items-center gap-2 no-print">
           <button
             type="button"
@@ -381,7 +385,7 @@ export default function ReportsPage() {
         </div>
         <div className="report-card p-4 sm:p-5">
           <p className="text-xs sm:text-sm report-muted">Today – Revenue</p>
-          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate">{formatUGX(revenueToday)}</p>
+          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate"><Money value={revenueToday} className="text-lg sm:text-2xl font-bold report-accent-teal" /></p>
           {revenueTodayPct !== 0 && <ChangeBadge value={revenueTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="revenue" data={last7DaysSparkline} />
@@ -389,7 +393,7 @@ export default function ReportsPage() {
         </div>
         <div className="report-card p-4 sm:p-5">
           <p className="text-xs sm:text-sm report-muted">Today – Gross Profit</p>
-          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate">{formatUGX(profitToday)}</p>
+          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate"><Money value={profitToday} className="text-lg sm:text-2xl font-bold report-accent-teal" /></p>
           {profitTodayPct !== 0 && <ChangeBadge value={profitTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="profit" data={last7DaysSparkline} />
@@ -397,7 +401,7 @@ export default function ReportsPage() {
         </div>
         <div className="report-card p-4 sm:p-5">
           <p className="text-xs sm:text-sm report-muted">Today – Operating Expenses</p>
-          <p className="text-lg sm:text-2xl font-bold report-accent-red truncate">{formatUGX(expensesToday)}</p>
+          <p className="text-lg sm:text-2xl font-bold report-accent-red truncate"><Money value={expensesToday} className="text-lg sm:text-2xl font-bold report-accent-red" /></p>
           {expensesTodayPct !== 0 && <ChangeBadge value={expensesTodayPct} inverse />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="expenses" data={last7DaysSparkline} />
@@ -429,7 +433,7 @@ export default function ReportsPage() {
                 style={{ width: `${effectiveGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-xs report-muted mt-1">{formatUGX(revenueToday)} / {formatUGX(effectiveGoals.revenueTarget)}</p>
+            <p className="text-xs report-muted mt-1"><Money value={revenueToday} className="report-muted" /> / <Money value={effectiveGoals.revenueTarget} className="report-muted" /></p>
           </div>
           <div>
             <p className="text-sm report-muted mb-1">Orders</p>
@@ -449,7 +453,7 @@ export default function ReportsPage() {
                 style={{ width: `${effectiveGoals.profitTarget > 0 ? Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-xs report-muted mt-1">{formatUGX(profitToday)} / {formatUGX(effectiveGoals.profitTarget)}</p>
+            <p className="text-xs report-muted mt-1"><Money value={profitToday} className="report-muted" /> / <Money value={effectiveGoals.profitTarget} className="report-muted" /></p>
           </div>
         </div>
       </div>
@@ -517,18 +521,18 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Revenue</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-teal truncate">{formatUGX(periodMetrics.grossIncome)}</p>
+              <p className="text-xl font-bold report-accent-teal truncate"><Money value={periodMetrics.grossIncome} className="text-xl font-bold report-accent-teal" /></p>
               {periodMetrics.revenueGrowth !== 0 && <ChangeBadge value={periodMetrics.revenueGrowth} />}
             </div>
-            <p className="text-xs report-muted truncate">vs {prevPeriodLabel}: {formatUGX(previousPeriodRevenue)}</p>
+            <p className="text-xs report-muted truncate">vs {prevPeriodLabel}: <Money value={previousPeriodRevenue} className="report-muted" /></p>
           </div>
           <div className="min-w-0">
             <p className="text-sm report-muted">Gross Profit</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-teal">{formatUGX(periodMetrics.grossProfit)}</p>
+              <p className="text-xl font-bold report-accent-teal"><Money value={periodMetrics.grossProfit} className="text-xl font-bold report-accent-teal" /></p>
               {periodMetrics.profitGrowth !== 0 && <ChangeBadge value={periodMetrics.profitGrowth} />}
             </div>
-            <p className="text-xs report-muted">vs {prevPeriodLabel}: {formatUGX(periodMetrics.previousPeriodGrossProfit)}</p>
+            <p className="text-xs report-muted">vs {prevPeriodLabel}: <Money value={periodMetrics.previousPeriodGrossProfit} className="report-muted" /></p>
           </div>
           <div className="min-w-0">
             <p className="text-sm report-muted">Gross Margin %</p>
@@ -540,15 +544,15 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Operating Expenses</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-red">{formatUGX(periodMetrics.operatingExpenses)}</p>
+              <p className="text-xl font-bold report-accent-red"><Money value={periodMetrics.operatingExpenses} className="text-xl font-bold report-accent-red" /></p>
               {periodMetrics.operatingExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.operatingExpensesGrowth} inverse />}
             </div>
-            <p className="text-xs report-muted">excl. Stock &amp; Inventory purchase</p>
+            <p className="text-xs report-muted">excl. Stock</p>
           </div>
           <div className="min-w-0">
             <p className="text-sm report-muted">Restock Expenses</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold text-[#f59e0b]">{formatUGX(periodMetrics.restockExpenses)}</p>
+              <p className="text-xl font-bold text-[#f59e0b]"><Money value={periodMetrics.restockExpenses} className="text-xl font-bold text-[#f59e0b]" /></p>
               {periodMetrics.restockExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.restockExpensesGrowth} inverse />}
             </div>
             <p className="text-xs report-muted">Stock purchases (not deducted from profit)</p>
@@ -557,7 +561,7 @@ export default function ReportsPage() {
             <p className="text-sm report-muted">Net Profit</p>
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className={`text-xl font-bold ${periodMetrics.netProfit >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
-                {formatUGX(periodMetrics.netProfit)}
+                <Money value={periodMetrics.netProfit} className="font-semibold" />
               </p>
               {periodMetrics.netProfitGrowth !== 0 && <ChangeBadge value={periodMetrics.netProfitGrowth} />}
             </div>
@@ -583,7 +587,7 @@ export default function ReportsPage() {
             Cash Flow Waterfall ({periodLabel})
           </h3>
           <ul className="space-y-2">
-            {periodMetrics.cashFlowWaterfall.map((row, i) => (
+            {periodMetrics.cashFlowWaterfall.slice(0, INITIAL_LIST_SIZE).map((row, i) => (
               <li key={i} className="flex items-center justify-between gap-3 py-2 sm:py-1.5 border-b border-slate-200 dark:border-[#1f2937] last:border-0 min-w-0">
                 <span className="report-muted text-sm truncate min-w-0">
                   {row.type === 'inflow' && '+'}
@@ -596,11 +600,38 @@ export default function ReportsPage() {
                     row.type === 'inflow' ? 'report-accent-teal' : row.type === 'outflow' ? 'report-accent-red' : 'text-[#f59e0b]'
                   }`}
                 >
-                  {formatUGX(row.value)}
+                  <Money value={row.value} className="report-accent-teal" />
                 </span>
               </li>
             ))}
           </ul>
+          {periodMetrics.cashFlowWaterfall.length > INITIAL_LIST_SIZE && (
+            <details className="no-print group mt-1">
+              <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
+                <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                Show {periodMetrics.cashFlowWaterfall.length - INITIAL_LIST_SIZE} more line items
+              </summary>
+              <ul className="space-y-2 mt-1">
+                {periodMetrics.cashFlowWaterfall.slice(INITIAL_LIST_SIZE).map((row, i) => (
+                  <li key={INITIAL_LIST_SIZE + i} className="flex items-center justify-between gap-3 py-2 sm:py-1.5 border-b border-slate-200 dark:border-[#1f2937] last:border-0 min-w-0">
+                    <span className="report-muted text-sm truncate min-w-0">
+                      {row.type === 'inflow' && '+'}
+                      {row.type === 'outflow' && '-'}
+                      {row.type === 'subtotal' && '='}
+                      {' '}{row.label}
+                    </span>
+                    <span
+                      className={`font-medium tabular-nums ${
+                        row.type === 'inflow' ? 'report-accent-teal' : row.type === 'outflow' ? 'report-accent-red' : 'text-[#f59e0b]'
+                      }`}
+                    >
+                      <Money value={row.value} className="report-accent-teal" />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       )}
 
@@ -625,15 +656,15 @@ export default function ReportsPage() {
               <Line type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} name="Gross Profit" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
-          <div className="mt-4 report-table-wrap">
+          <div className="mt-4 report-table-wrap max-h-[320px] overflow-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#1f2937]">
-                  <th className="px-3 py-2 text-left report-muted">Hour</th>
-                  <th className="px-3 py-2 text-right report-muted">Orders</th>
-                  <th className="px-3 py-2 text-right report-muted">Revenue</th>
-                  <th className="px-3 py-2 text-right report-muted">Gross Profit</th>
-                  <th className="px-3 py-2 text-right report-muted">Avg Order Value</th>
+                  <th className="px-3 py-2 text-left report-muted sticky top-0 bg-white dark:bg-[#111827]">Hour</th>
+                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Orders</th>
+                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Revenue</th>
+                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Gross Profit</th>
+                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Avg Order Value</th>
                 </tr>
               </thead>
               <tbody>
@@ -649,9 +680,9 @@ export default function ReportsPage() {
                       )}
                     </td>
                     <td className="px-3 py-2 text-right text-slate-700 dark:text-[#e5e7eb]">{h.orders}</td>
-                    <td className="px-3 py-2 text-right report-accent-teal">{formatUGX(h.revenue)}</td>
-                    <td className="px-3 py-2 text-right text-[#f59e0b]">{formatUGX(h.profit)}</td>
-                    <td className="px-3 py-2 text-right report-muted">{formatUGX(h.avgOrderValue)}</td>
+                    <td className="px-3 py-2 text-right report-accent-teal"><Money value={h.revenue} className="report-accent-teal" /></td>
+                    <td className="px-3 py-2 text-right text-[#f59e0b]"><Money value={h.profit} className="text-[#f59e0b]" /></td>
+                    <td className="px-3 py-2 text-right report-muted"><Money value={h.avgOrderValue} className="report-muted" /></td>
                   </tr>
                 ))}
               </tbody>
@@ -694,7 +725,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {periodMetrics.grossProfitHistory.map((row: { periodLabel: string; orders: number; revenue: number; grossProfit: number; marginPct: number; vsPreviousPct?: number | null }, idx) => {
+                {periodMetrics.grossProfitHistory.slice(0, INITIAL_LIST_SIZE).map((row: { periodLabel: string; orders: number; revenue: number; grossProfit: number; marginPct: number; vsPreviousPct?: number | null }, idx) => {
                   const isBest = row.periodLabel === periodMetrics.bestProfitPeriodLabel;
                   const isWorst = row.periodLabel === periodMetrics.worstProfitPeriodLabel && (periodMetrics.grossProfitHistory?.length ?? 0) > 1;
                   return (
@@ -708,8 +739,8 @@ export default function ReportsPage() {
                         {isWorst && <span className="ml-2 text-xs report-accent-red">Worst</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{row.orders}</td>
-                      <td className="px-3 py-2 text-right report-muted">{formatUGX(row.revenue)}</td>
-                      <td className="px-3 py-2 text-right font-semibold report-accent-teal">{formatUGX(row.grossProfit)}</td>
+                      <td className="px-3 py-2 text-right report-muted"><Money value={row.revenue} className="report-muted" /></td>
+                      <td className="px-3 py-2 text-right font-semibold report-accent-teal"><Money value={row.grossProfit} className="font-semibold report-accent-teal" /></td>
                       <td className="px-3 py-2 text-right report-muted">{row.marginPct.toFixed(1)}%</td>
                       <td className="px-3 py-2 text-right">
                         {row.vsPreviousPct != null ? (
@@ -725,6 +756,48 @@ export default function ReportsPage() {
                 })}
               </tbody>
             </table>
+            {periodMetrics.grossProfitHistory.length > INITIAL_LIST_SIZE && (
+              <details className="no-print group mt-1">
+                <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                  Show {periodMetrics.grossProfitHistory.length - INITIAL_LIST_SIZE} more periods
+                </summary>
+                <table className="w-full text-sm mt-1">
+                  <tbody>
+                    {periodMetrics.grossProfitHistory.slice(INITIAL_LIST_SIZE).map((row: { periodLabel: string; orders: number; revenue: number; grossProfit: number; marginPct: number; vsPreviousPct?: number | null }, idx) => {
+                      const actualIdx = INITIAL_LIST_SIZE + idx;
+                      const isBest = row.periodLabel === periodMetrics.bestProfitPeriodLabel;
+                      const isWorst = row.periodLabel === periodMetrics.worstProfitPeriodLabel && (periodMetrics.grossProfitHistory?.length ?? 0) > 1;
+                      return (
+                        <tr
+                          key={actualIdx}
+                          className={`border-b border-slate-200/80 dark:border-[#1f2937]/50 ${isBest ? 'bg-[#34d399]/15' : ''} ${isWorst ? 'bg-[#f87171]/15' : ''}`}
+                        >
+                          <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                            {row.periodLabel}
+                            {isBest && <span className="ml-2 text-xs report-accent-teal">Best</span>}
+                            {isWorst && <span className="ml-2 text-xs report-accent-red">Worst</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{row.orders}</td>
+                          <td className="px-3 py-2 text-right report-muted"><Money value={row.revenue} className="report-muted" /></td>
+                          <td className="px-3 py-2 text-right font-semibold report-accent-teal"><Money value={row.grossProfit} className="font-semibold report-accent-teal" /></td>
+                          <td className="px-3 py-2 text-right report-muted">{row.marginPct.toFixed(1)}%</td>
+                          <td className="px-3 py-2 text-right">
+                            {row.vsPreviousPct != null ? (
+                              <span className={row.vsPreviousPct >= 0 ? 'report-accent-teal' : 'report-accent-red'}>
+                                {row.vsPreviousPct >= 0 ? '+' : ''}{row.vsPreviousPct.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="report-muted">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </details>
+            )}
           </div>
         </div>
       )}
@@ -777,13 +850,13 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {periodMetrics.topCustomersBySpend.map((c) => (
+                {periodMetrics.topCustomersBySpend.slice(0, INITIAL_LIST_SIZE).map((c) => (
                   <tr key={c.customerId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                     <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100">{c.name}</td>
                     <td className="px-2 py-1.5 report-muted">{c.phone}</td>
                     <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{c.visits}</td>
-                    <td className="px-2 py-1.5 text-right report-accent-teal">{formatUGX(c.totalSpent)}</td>
-                    <td className="px-2 py-1.5 text-right report-muted">{formatUGX(c.avgPerVisit)}</td>
+                    <td className="px-2 py-1.5 text-right report-accent-teal"><Money value={c.totalSpent} className="report-accent-teal" /></td>
+                    <td className="px-2 py-1.5 text-right report-muted"><Money value={c.avgPerVisit} className="report-muted" /></td>
                     <td className="px-2 py-1.5 text-right report-muted">
                       {new Date(c.lastVisit).toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: '2-digit', month: 'short' })}
                     </td>
@@ -791,6 +864,30 @@ export default function ReportsPage() {
                 ))}
               </tbody>
             </table>
+            {periodMetrics.topCustomersBySpend.length > INITIAL_LIST_SIZE && (
+              <details className="no-print group mt-1">
+                <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                  Show {periodMetrics.topCustomersBySpend.length - INITIAL_LIST_SIZE} more customers
+                </summary>
+                <table className="w-full text-sm mt-1">
+                  <tbody>
+                    {periodMetrics.topCustomersBySpend.slice(INITIAL_LIST_SIZE).map((c) => (
+                      <tr key={c.customerId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                        <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100">{c.name}</td>
+                        <td className="px-2 py-1.5 report-muted">{c.phone}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{c.visits}</td>
+                        <td className="px-2 py-1.5 text-right report-accent-teal"><Money value={c.totalSpent} className="report-accent-teal" /></td>
+                        <td className="px-2 py-1.5 text-right report-muted"><Money value={c.avgPerVisit} className="report-muted" /></td>
+                        <td className="px-2 py-1.5 text-right report-muted">
+                          {new Date(c.lastVisit).toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: '2-digit', month: 'short' })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            )}
           </div>
         ) : (
           <p className="text-sm report-muted">No customer orders in this period.</p>
@@ -818,7 +915,7 @@ export default function ReportsPage() {
           </div>
           <div>
             <p className="text-xs report-muted">Restock cost (to min level)</p>
-            <p className="text-lg font-semibold report-accent-teal">{formatUGX(periodMetrics.lowStockTable.reduce((s, r) => s + r.restockCost, 0))}</p>
+            <p className="text-lg font-semibold report-accent-teal"><Money value={periodMetrics.lowStockTable.reduce((s, r) => s + r.restockCost, 0)} className="text-lg font-semibold report-accent-teal" /></p>
           </div>
         </div>
         {periodMetrics.lowStockTable.length > 0 ? (
@@ -834,17 +931,38 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {periodMetrics.lowStockTable.map((row) => (
+                {periodMetrics.lowStockTable.slice(0, INITIAL_LIST_SIZE).map((row) => (
                   <tr key={row.id} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                     <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={row.name}>{row.name}</td>
                     <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{row.stock}</td>
                     <td className="px-2 py-1.5 text-right report-muted">{row.minStockLevel}</td>
                     <td className="px-2 py-1.5 text-right text-[#f59e0b]">{row.unitsNeeded}</td>
-                    <td className="px-2 py-1.5 text-right report-accent-red">{formatUGX(row.restockCost)}</td>
+                    <td className="px-2 py-1.5 text-right report-accent-red"><Money value={row.restockCost} className="report-accent-red" /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {periodMetrics.lowStockTable.length > INITIAL_LIST_SIZE && (
+              <details className="no-print group mt-1">
+                <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                  Show {periodMetrics.lowStockTable.length - INITIAL_LIST_SIZE} more low-stock items
+                </summary>
+                <table className="w-full text-sm mt-1">
+                  <tbody>
+                    {periodMetrics.lowStockTable.slice(INITIAL_LIST_SIZE).map((row) => (
+                      <tr key={row.id} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                        <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={row.name}>{row.name}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{row.stock}</td>
+                        <td className="px-2 py-1.5 text-right report-muted">{row.minStockLevel}</td>
+                        <td className="px-2 py-1.5 text-right text-[#f59e0b]">{row.unitsNeeded}</td>
+                        <td className="px-2 py-1.5 text-right report-accent-red"><Money value={row.restockCost} className="report-accent-red" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            )}
           </div>
         ) : (
           <p className="text-sm report-muted">All products above minimum stock level.</p>
@@ -864,7 +982,7 @@ export default function ReportsPage() {
           </div>
           <div>
             <p className="text-xs report-muted">Total refunded</p>
-            <p className="text-xl font-bold report-accent-red">{formatUGX(periodMetrics.totalRefunded)}</p>
+            <p className="text-xl font-bold report-accent-red"><Money value={periodMetrics.totalRefunded} className="text-xl font-bold report-accent-red" /></p>
           </div>
           <div>
             <p className="text-xs report-muted">Return rate</p>
@@ -882,7 +1000,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {periodMetrics.topReturnedProducts.map((r) => (
+                {periodMetrics.topReturnedProducts.slice(0, INITIAL_LIST_SIZE).map((r) => (
                   <tr key={r.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                     <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[180px]" title={r.name}>{r.name}</td>
                     <td className="px-2 py-1.5 text-right report-accent-red">{r.qtyReturned}</td>
@@ -891,6 +1009,25 @@ export default function ReportsPage() {
                 ))}
               </tbody>
             </table>
+            {periodMetrics.topReturnedProducts.length > INITIAL_LIST_SIZE && (
+              <details className="no-print group mt-1">
+                <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                  Show {periodMetrics.topReturnedProducts.length - INITIAL_LIST_SIZE} more returned products
+                </summary>
+                <table className="w-full text-sm mt-1">
+                  <tbody>
+                    {periodMetrics.topReturnedProducts.slice(INITIAL_LIST_SIZE).map((r) => (
+                      <tr key={r.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                        <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[180px]" title={r.name}>{r.name}</td>
+                        <td className="px-2 py-1.5 text-right report-accent-red">{r.qtyReturned}</td>
+                        <td className="px-2 py-1.5 report-muted truncate max-w-[200px]" title={r.reason}>{r.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            )}
           </div>
         ) : (
           <p className="text-sm report-muted">No returns in this period.</p>
@@ -904,7 +1041,7 @@ export default function ReportsPage() {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-sm report-muted">Avg Order Value</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatUGX(periodMetrics.avgOrderValue)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100"><Money value={periodMetrics.avgOrderValue} className="font-semibold text-slate-900 dark:text-slate-100" /></span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm report-muted">Gross Margin %</span>
@@ -930,7 +1067,7 @@ export default function ReportsPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-sm report-muted">Revenue per Customer</span>
-              <span className="font-semibold report-accent-teal">{formatUGX(periodMetrics.revenuePerCustomer)}</span>
+              <span className="font-semibold report-accent-teal"><Money value={periodMetrics.revenuePerCustomer} className="font-semibold report-accent-teal" /></span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm report-muted">Avg Visits per Customer</span>
@@ -1018,7 +1155,7 @@ export default function ReportsPage() {
                           <div key={pm.method} className="flex items-center justify-between gap-2 text-sm">
                             <span className="report-muted truncate">{label}</span>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="w-16 text-right font-medium text-slate-900 dark:text-slate-100 tabular-nums">{formatUGX(pm.amount)}</span>
+                              <span className="w-16 text-right font-medium text-slate-900 dark:text-slate-100 tabular-nums"><Money value={pm.amount} className="font-medium text-slate-900 dark:text-slate-100" /></span>
                               <span className="text-xs report-muted w-10 text-right">({share.toFixed(1)}%)</span>
                               <span className="text-xs report-muted">({pm.count})</span>
                             </div>
@@ -1082,7 +1219,7 @@ export default function ReportsPage() {
                           {label}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-medium report-accent-teal tabular-nums">{formatUGX(ch.revenue)}</span>
+                          <span className="font-medium report-accent-teal tabular-nums"><Money value={ch.revenue} className="font-medium report-accent-teal" /></span>
                           <span className="text-xs report-muted">({ch.count} {ch.count === 1 ? 'order' : 'orders'})</span>
                           <span className="text-xs text-[#f59e0b] w-10 text-right">{share.toFixed(1)}%</span>
                         </div>
@@ -1134,11 +1271,11 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {periodMetrics.expensesByPurpose.slice(0, 10).map((ep) => (
+                  {periodMetrics.expensesByPurpose.slice(0, INITIAL_LIST_SIZE).map((ep) => (
                     <tr key={ep.purpose} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                       <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[140px]" title={ep.purpose}>{ep.purpose}</td>
                       <td className="px-2 py-1.5 text-right">
-                        <span className="report-accent-red font-medium">{formatUGX(ep.amount)}</span>
+                        <span className="report-accent-red font-medium"><Money value={ep.amount} className="report-accent-red font-medium" /></span>
                         <span className="ml-1 text-xs report-muted">({ep.count})</span>
                       </td>
                       <td className="px-2 py-1.5 text-right">
@@ -1149,12 +1286,43 @@ export default function ReportsPage() {
                         ) : (
                           <span className="report-muted">—</span>
                         )}
-                        <span className="ml-1 text-xs report-muted">({formatUGX(ep.prevAmount ?? 0)})</span>
+                        <span className="ml-1 text-xs report-muted">(<Money value={ep.prevAmount ?? 0} className="report-muted" />)</span>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {periodMetrics.expensesByPurpose.length > INITIAL_LIST_SIZE && (
+                <details className="no-print group mt-1">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
+                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                    Show {periodMetrics.expensesByPurpose.length - INITIAL_LIST_SIZE} more expense categories
+                  </summary>
+                  <table className="w-full text-sm mt-1">
+                    <tbody>
+                      {periodMetrics.expensesByPurpose.slice(INITIAL_LIST_SIZE).map((ep) => (
+                        <tr key={ep.purpose} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                          <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[140px]" title={ep.purpose}>{ep.purpose}</td>
+                          <td className="px-2 py-1.5 text-right">
+                            <span className="report-accent-red font-medium"><Money value={ep.amount} className="report-accent-red font-medium" /></span>
+                            <span className="ml-1 text-xs report-muted">({ep.count})</span>
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            {(ep.pctChange ?? 0) !== 0 ? (
+                              <span className={(ep.pctChange ?? 0) > 0 ? 'report-accent-red' : 'report-accent-teal'}>
+                                {(ep.pctChange ?? 0) > 0 ? '+' : ''}{(ep.pctChange ?? 0).toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="report-muted">—</span>
+                            )}
+                            <span className="ml-1 text-xs report-muted">(<Money value={ep.prevAmount ?? 0} className="report-muted" />)</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </details>
+              )}
             </div>
           )}
         </div>
@@ -1188,14 +1356,14 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {periodMetrics.topProducts.map((product) => {
+                {periodMetrics.topProducts.slice(0, INITIAL_LIST_SIZE).map((product) => {
                   const marginColor = product.marginPct > 35 ? 'report-accent-teal' : product.marginPct >= 20 ? 'text-[#f59e0b]' : 'report-accent-red';
                   return (
                     <tr key={product.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                       <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={product.name}>{product.name}</td>
                       <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{product.qty}</td>
-                      <td className="px-3 py-2 text-right report-accent-teal">{formatUGX(product.revenue)}</td>
-                      <td className="px-3 py-2 text-right report-accent-teal">{formatUGX(product.profit)}</td>
+                      <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.revenue} className="report-accent-teal" /></td>
+                      <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.profit} className="report-accent-teal" /></td>
                       <td className="px-3 py-2 text-right">
                         <span className={`font-medium ${marginColor}`}>{product.marginPct.toFixed(1)}%</span>
                       </td>
@@ -1205,6 +1373,33 @@ export default function ReportsPage() {
                 })}
               </tbody>
             </table>
+            {periodMetrics.topProducts.length > INITIAL_LIST_SIZE && (
+              <details className="no-print group mt-1">
+                <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                  Show {periodMetrics.topProducts.length - INITIAL_LIST_SIZE} more products
+                </summary>
+                <table className="w-full text-sm mt-1">
+                  <tbody>
+                    {periodMetrics.topProducts.slice(INITIAL_LIST_SIZE).map((product) => {
+                      const marginColor = product.marginPct > 35 ? 'report-accent-teal' : product.marginPct >= 20 ? 'text-[#f59e0b]' : 'report-accent-red';
+                      return (
+                        <tr key={product.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
+                          <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={product.name}>{product.name}</td>
+                          <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{product.qty}</td>
+                          <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.revenue} className="report-accent-teal" /></td>
+                          <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.profit} className="report-accent-teal" /></td>
+                          <td className="px-3 py-2 text-right">
+                            <span className={`font-medium ${marginColor}`}>{product.marginPct.toFixed(1)}%</span>
+                          </td>
+                          <td className="px-3 py-2 text-right report-muted">{product.totalReturns}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </details>
+            )}
           </div>
         </div>
       )}
@@ -1248,7 +1443,7 @@ export default function ReportsPage() {
                       {payload.map((p) => (
                         <div key={p.dataKey} className="flex justify-between gap-4 text-sm">
                           <span className="report-muted">{p.name}</span>
-                          <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">{formatUGX(Number(p.value))}</span>
+                          <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100"><Money value={Number(p.value)} className="font-medium text-slate-900 dark:text-slate-100" /></span>
                         </div>
                       ))}
                       {row && row.revenue > 0 && (
@@ -1276,12 +1471,12 @@ export default function ReportsPage() {
           Break-even Tracker
         </h3>
         <p className="text-sm report-muted mb-3">
-          Fixed costs (Rent, Labour, Utility, Maintenance) this period: {formatUGX(periodMetrics.fixedCosts)}
+          Fixed costs (Rent, Labour, Utility, Maintenance) this period: <Money value={periodMetrics.fixedCosts} className="font-medium" />
         </p>
         <div className="space-y-3">
           <div>
             <p className="text-sm report-muted mb-1">Break-even revenue threshold</p>
-            <p className="text-xl font-bold text-[#f59e0b]">{formatUGX(periodMetrics.breakEvenRevenue)}</p>
+            <p className="text-xl font-bold text-[#f59e0b]"><Money value={periodMetrics.breakEvenRevenue} className="text-xl font-bold text-[#f59e0b]" /></p>
           </div>
           <div>
             <p className="text-sm report-muted mb-1">Progress (current revenue vs break-even)</p>
@@ -1295,7 +1490,7 @@ export default function ReportsPage() {
               />
             </div>
             <p className="text-xs report-muted mt-1">
-              {formatUGX(periodMetrics.grossIncome)} / {formatUGX(periodMetrics.breakEvenRevenue)} ({periodMetrics.breakEvenProgress.toFixed(0)}%)
+              <Money value={periodMetrics.grossIncome} className="font-medium" /> / <Money value={periodMetrics.breakEvenRevenue} className="font-medium" /> ({periodMetrics.breakEvenProgress.toFixed(0)}%)
             </p>
           </div>
           <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -1350,7 +1545,7 @@ export default function ReportsPage() {
           </h3>
           <ul className="space-y-2 text-sm text-slate-700 dark:text-[#e5e7eb] print:text-slate-700">
             <li>
-              <strong>Revenue</strong> for {periodLabel.toLowerCase()} was <strong className="report-accent-teal print:text-emerald-700">{formatUGX(periodMetrics.grossIncome)}</strong>
+              <strong>Revenue</strong> for {periodLabel.toLowerCase()} was <strong className="report-accent-teal print:text-emerald-700"><Money value={periodMetrics.grossIncome} className="report-accent-teal print:text-emerald-700" /></strong>
               {periodMetrics.revenueGrowth !== 0 && (
                 <span className={periodMetrics.revenueGrowth > 0 ? 'report-accent-teal print:text-emerald-600' : 'report-accent-red print:text-red-600'}>
                   {' '}({periodMetrics.revenueGrowth > 0 ? '+' : ''}{periodMetrics.revenueGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()}).
@@ -1358,7 +1553,7 @@ export default function ReportsPage() {
               )}
             </li>
             <li>
-              <strong>Gross profit</strong> was <strong className="report-accent-teal print:text-emerald-700">{formatUGX(periodMetrics.grossProfit)}</strong>
+              <strong>Gross profit</strong> was <strong className="report-accent-teal print:text-emerald-700"><Money value={periodMetrics.grossProfit} className="report-accent-teal print:text-emerald-700" /></strong>
               {periodMetrics.profitGrowth !== 0 && (
                 <span className={periodMetrics.profitGrowth > 0 ? 'report-accent-teal print:text-emerald-600' : 'report-accent-red print:text-red-600'}>
                   {' '}({periodMetrics.profitGrowth > 0 ? '+' : ''}{periodMetrics.profitGrowth.toFixed(1)}% vs {prevPeriodLabel.toLowerCase()})
@@ -1369,7 +1564,7 @@ export default function ReportsPage() {
             <li>
               <strong>Net profit</strong> (after operating expenses, excluding stock purchases) was{' '}
               <strong className={periodMetrics.netProfit >= 0 ? 'report-accent-teal print:text-emerald-700' : 'report-accent-red print:text-red-700'}>
-                {formatUGX(periodMetrics.netProfit)}
+                <Money value={periodMetrics.netProfit} className="font-semibold" />
               </strong>
               {periodMetrics.netProfitGrowth !== 0 && (
                 <span className={periodMetrics.netProfitGrowth > 0 ? 'report-accent-teal print:text-emerald-600' : 'report-accent-red print:text-red-600'}>
@@ -1378,7 +1573,7 @@ export default function ReportsPage() {
               )}
             </li>
             <li>
-              {ordersPeriod} orders in period · Average order value {formatUGX(periodMetrics.avgOrderValue)} · {periodMetrics.uniqueCustomers} unique customers.
+              {ordersPeriod} orders in period · Average order value <Money value={periodMetrics.avgOrderValue} className="report-muted" /> · {periodMetrics.uniqueCustomers} unique customers.
             </li>
           </ul>
         </div>

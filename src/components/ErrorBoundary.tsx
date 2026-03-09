@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div
           style={{
             padding: 24,
-            fontFamily: 'system-ui, sans-serif',
+            fontFamily: 'var(--font-sans)',
             maxWidth: 560,
             margin: '40px auto',
             background: '#fef2f2',

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts, usePromotions, useSuppliers, productsApi, ordersApi, expensesApi, supplierLedgerApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
 import { getSettings } from '@/lib/settings';
 import { getTodayInAppTz } from '@/lib/appTimezone';
@@ -213,7 +214,7 @@ export default function POSPage() {
           id: `exp_${generateId()}`,
           date: today,
           itemBought: restockProduct.name,
-          purpose: 'Inventory purchase',
+          purpose: 'Stock',
           amount: costTotal,
           paidBy: 'Cash',
           receiptAttached: false,
@@ -563,7 +564,7 @@ export default function POSPage() {
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card p-3 sm:p-4">
-          <h2 className="mb-2 sm:mb-3 font-heading text-base font-semibold text-smoky-black sm:text-lg">Products</h2>
+          <h2 className="mb-2 sm:mb-3 font-sans text-base font-semibold text-smoky-black sm:text-lg">Products</h2>
           <label htmlFor="pos-quick-search" className="sr-only">Quick search products</label>
           <input
             id="pos-quick-search"
@@ -592,7 +593,7 @@ export default function POSPage() {
                       <span className="text-xs text-slate-500">{p.sku}</span>
                     </div>
                     <div className="flex items-center gap-2 text-right">
-                      <span className="block font-semibold text-emerald-700">{formatUGX(p.retailPrice)}</span>
+                      <span className="block font-semibold text-emerald-700"><Money value={p.retailPrice} className="font-semibold text-emerald-700" /></span>
                       <span className="text-xs text-slate-500">Stock: {p.stock}</span>
                       <button
                         type="button"
@@ -619,7 +620,7 @@ export default function POSPage() {
                       <span className="text-xs text-slate-500">{p.sku}</span>
                     </div>
                     <div className="flex items-center gap-2 text-right">
-                      <span className="block font-semibold text-emerald-700">{formatUGX(p.retailPrice)}</span>
+                      <span className="block font-semibold text-emerald-700"><Money value={p.retailPrice} className="font-semibold text-emerald-700" /></span>
                       <span className={`text-xs ${p.minStockLevel != null && p.stock <= p.minStockLevel ? 'text-red-600' : 'text-slate-500'}`}>
                         Stock: {p.stock}
                       </span>
@@ -632,7 +633,7 @@ export default function POSPage() {
         </section>
 
         <section className="card p-3 sm:p-4 lg:sticky lg:top-24 lg:self-start">
-          <h2 className="mb-2 sm:mb-3 font-heading text-base font-semibold text-smoky-black sm:text-lg">Cart</h2>
+          <h2 className="mb-2 sm:mb-3 font-sans text-base font-semibold text-smoky-black sm:text-lg">Cart</h2>
           <div className="rounded-xl border border-slate-200/80 bg-slate-50/30 p-3 sm:p-4">
             {cart.length === 0 ? (
               <p className="py-4 text-center text-slate-500">Cart is empty</p>
@@ -649,11 +650,11 @@ export default function POSPage() {
                         <span className="text-xs text-slate-500">
                           {l.originalPrice > l.sellingPrice ? (
                             <>
-                              <span className="line-through">{formatUGX(l.originalPrice)}</span>
-                              <span className="ml-1 text-emerald-600 font-medium">{formatUGX(l.sellingPrice)}</span>
+                              <span className="line-through"><Money value={l.originalPrice} className="line-through" /></span>
+                              <span className="ml-1 text-emerald-600 font-medium"><Money value={l.sellingPrice} className="text-emerald-600 font-medium" /></span>
                             </>
                           ) : (
-                            formatUGX(l.sellingPrice)
+                            <Money value={l.sellingPrice} className="text-slate-500" />
                           )}
                           {' × '}
                           {l.qty}
@@ -707,7 +708,7 @@ export default function POSPage() {
                           </div>
                         ) : (
                           <>
-                            <span className="w-24 text-right font-semibold text-emerald-700">{formatUGX(l.sellingPrice * l.qty)}</span>
+                            <span className="w-24 text-right font-semibold text-emerald-700"><Money value={l.sellingPrice * l.qty} className="font-semibold text-emerald-700" /></span>
                             <button
                               type="button"
                               onClick={() => startEditPrice(l)}
@@ -735,16 +736,16 @@ export default function POSPage() {
                 <div className="mt-4 space-y-3 rounded-lg border-2 border-emerald-200 bg-emerald-50/50 p-4">
                   <div className="flex items-baseline justify-between">
                     <span className="text-sm font-medium text-slate-700">Total</span>
-                    <span className="text-2xl font-bold text-emerald-700">{formatUGX(subtotal)}</span>
+                    <span className="text-2xl font-bold text-emerald-700"><Money value={subtotal} className="text-2xl font-bold text-emerald-700" /></span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Profit</span>
-                    <span className="font-semibold text-emerald-600">{formatUGX(grossProfit)}</span>
+                    <span className="font-semibold text-emerald-600"><Money value={grossProfit} className="font-semibold text-emerald-600" /></span>
                   </div>
                   {promoDiscount > 0 && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">Promotion</span>
-                      <span className="font-semibold text-green-600">−{formatUGX(promoDiscount)}</span>
+                      <span className="font-semibold text-green-600">−<Money value={promoDiscount} className="font-semibold text-green-600" /></span>
                     </div>
                   )}
                 </div>
@@ -816,7 +817,7 @@ export default function POSPage() {
                           + Add payment
                         </button>
                         <p className={`text-sm font-medium ${splitTotal === subtotal ? 'text-green-600' : 'text-amber-600'}`}>
-                          {formatUGX(splitTotal)} / {formatUGX(subtotal)}
+                          <Money value={splitTotal} className={splitTotal === subtotal ? 'text-green-600' : 'text-amber-600'} /> / <Money value={subtotal} className={splitTotal === subtotal ? 'text-green-600' : 'text-amber-600'} />
                         </p>
                       </div>
                     </div>
@@ -843,10 +844,6 @@ export default function POSPage() {
                     <div className="space-y-1.5">
                       {promotions.map((promo) => {
                         const isSelected = selectedPromoId === promo.id;
-                        const discountText =
-                          promo.type === 'percent_off'
-                            ? `${promo.value}% off`
-                            : `${formatUGX(promo.value)} off`;
                         return (
                           <label
                             key={promo.id}
@@ -864,10 +861,12 @@ export default function POSPage() {
                             />
                             <div className="flex-1">
                               <span className="text-sm font-medium text-slate-900">{promo.name}</span>
-                              <span className="ml-2 text-xs text-slate-600">({discountText})</span>
+                              <span className="ml-2 text-xs text-slate-600">
+                                ({promo.type === 'percent_off' ? `${promo.value}% off` : <><Money value={promo.value} className="text-slate-600" /> off</>})
+                              </span>
                               {promo.minPurchase && (
                                 <span className="ml-1 text-xs text-slate-500">
-                                  min {formatUGX(promo.minPurchase)}
+                                  min <Money value={promo.minPurchase} className="text-slate-500" />
                                 </span>
                               )}
                             </div>
@@ -1048,7 +1047,7 @@ export default function POSPage() {
                     />
                     <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1">Amount to collect</label>
-                      <p className="text-lg font-semibold text-emerald-700">{formatUGX(subtotal)}</p>
+                      <p className="text-lg font-semibold text-emerald-700"><Money value={subtotal} className="text-lg font-semibold text-emerald-700" /></p>
                       <p className="text-xs text-slate-500 mt-0.5">Automatically set from order total</p>
                     </div>
                     <div className="border-t border-slate-200 pt-3 mt-2 space-y-2">
@@ -1134,7 +1133,7 @@ export default function POSPage() {
                           const remaining = subtotal - amt;
                           return (
                             <p className="mt-1 text-xs text-slate-600">
-                              Remaining: {formatUGX(remaining)} ({((remaining / subtotal) * 100).toFixed(1)}%)
+                              Remaining: <Money value={remaining} className="text-slate-600" /> ({((remaining / subtotal) * 100).toFixed(1)}%)
                             </p>
                           );
                         }
@@ -1208,7 +1207,7 @@ export default function POSPage() {
       {restockProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
-            <h3 className="mb-1 font-heading text-lg font-semibold text-smoky-black">Quick restock</h3>
+            <h3 className="mb-1 font-sans text-lg font-semibold text-smoky-black">Quick restock</h3>
             <p className="mb-4 text-sm text-slate-600">{restockProduct.name}</p>
             <label className="mb-1 block text-xs font-medium text-slate-600">Quantity</label>
             <input
@@ -1230,7 +1229,7 @@ export default function POSPage() {
                 onChange={(e) => setRestockRecordExpense(e.target.checked)}
                 className="rounded border-slate-300"
               />
-              <span className="text-sm text-slate-700">Record as cash expense (inventory purchase)</span>
+              <span className="text-sm text-slate-700">Record as cash expense (Stock)</span>
             </label>
             {!restockRecordExpense && (
               <div className="mb-4">

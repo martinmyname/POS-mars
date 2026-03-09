@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePromotions, promotionsApi, generateId } from '@/hooks/useData';
-import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { format } from 'date-fns';
 import type { PromotionType } from '@/types';
 
@@ -50,12 +50,12 @@ export default function PromotionsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold text-smoky-black">Promotions</h1>
+        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">Promotions</h1>
         <Link to="/" className="text-tufts-blue underline">← Dashboard</Link>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Create promotion</h2>
+          <h2 className="mb-3 font-sans text-lg font-semibold">Create promotion</h2>
           <form onSubmit={handleSubmit} className="space-y-3">
             <label htmlFor="promo-name" className="sr-only">Name</label>
             <input id="promo-name" name="name" type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
@@ -77,16 +77,16 @@ export default function PromotionsPage() {
           </form>
         </section>
         <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">Active promotions</h2>
+          <h2 className="mb-3 font-sans text-lg font-semibold">Active promotions</h2>
           <ul className="space-y-2">
             {promos.map((p) => (
               <li key={p.id} className="flex items-center justify-between rounded border border-slate-200 bg-white p-3">
                 <div>
                   <p className="font-medium">{p.name}</p>
                   <p className="text-sm text-slate-600">
-                    {p.type === 'percent_off' ? p.value + '% off' : formatUGX(p.value) + ' off'}
+                    {p.type === 'percent_off' ? p.value + '% off' : <><Money value={p.value} className="text-slate-600" /> off</>}
                     {' · '}{format(new Date(p.startDate), 'dd MMM')} – {p.endDate ? format(new Date(p.endDate), 'dd MMM yyyy') : '–'}
-                    {p.minPurchase != null && ` · Min ${formatUGX(p.minPurchase)}`}
+                    {p.minPurchase != null && <> · Min <Money value={p.minPurchase} className="text-slate-600" /></>}
                   </p>
                 </div>
                 <label className="flex items-center gap-2">

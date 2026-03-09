@@ -1,4 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap');
+/* ── Apple Type System ──────────────────────────────────────────── */
+:root {
+  --font-sans: -apple-system, "SF Pro Text", "SF Pro Display",
+    BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-serif: "New York", "Georgia", ui-serif, serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 28px;
+  --text-4xl: 34px;
+  --text-5xl: 48px;
+}
 
 @tailwind base;
 @tailwind components;
@@ -9,18 +25,42 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
   }
+  html,
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply m-0 bg-background-grey text-smoky-black antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: inherit;
+  }
+  input, button, select, textarea {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+  }
+  code, pre, kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
   }
   :focus-visible {
     @apply outline-none ring-2 ring-tufts-blue ring-offset-2 ring-offset-background-grey;
   }
+}
+
+/* UGX / money: mono + tabular-nums for aligned columns */
+[data-money],
+.money {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 @layer components {
@@ -43,7 +83,7 @@
     @apply min-h-[2.75rem] min-w-[2.75rem];
   }
   .page-title {
-    @apply font-heading text-xl font-bold tracking-tight text-smoky-black sm:text-2xl md:text-3xl;
+    @apply font-serif text-2xl font-bold tracking-tight text-smoky-black sm:text-3xl md:text-4xl;
   }
   .page-subtitle {
     @apply mt-1 text-sm text-slate-500;
@@ -207,7 +247,7 @@
   }
 }
 .report-page .report-heading {
-  font-family: 'Syne', system-ui, sans-serif;
+  font-family: var(--font-serif);
   font-weight: 700;
   color: #0f172a;
 }
