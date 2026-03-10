@@ -49,11 +49,11 @@ function Header() {
       <div className="mx-auto flex max-w-app items-center justify-between px-3 py-2 sm:px-6 sm:py-3">
         <Link
           to="/"
-          className="flex items-center gap-2 font-serif text-lg font-bold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover sm:text-xl"
+          className="flex items-center gap-2 font-sans text-headline font-semibold tracking-tight text-tufts-blue transition hover:text-tufts-blue-hover"
         >
           <img src="/logo.png" alt="Mars Kitchen Essentials" className="h-8 w-8 shrink-0 object-contain" />
-          <span className="hidden text-lg sm:inline sm:text-xl">Mars Kitchen Essentials</span>
-          <span className="text-lg sm:hidden">MKE POS</span>
+          <span className="hidden sm:inline">Mars Kitchen Essentials</span>
+          <span className="sm:hidden">MKE POS</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
           {user && (
@@ -69,7 +69,7 @@ function Header() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="btn-secondary text-xs sm:text-sm"
+                className="btn-secondary text-body"
               >
                 <span className="hidden sm:inline">Sign out</span>
                 <span className="sm:hidden">Out</span>
@@ -106,7 +106,7 @@ function BottomNav() {
           aria-current={active ? 'page' : undefined}
         >
           <Icon className="h-5 w-5" strokeWidth={2} />
-          <span className="text-[10px] font-medium">{label}</span>
+          <span className="text-caption2 font-medium">{label}</span>
         </Link>
       ))}
     </nav>

@@ -1,19 +1,44 @@
-/* ── Apple Type System ──────────────────────────────────────────── */
+/* ─── Apple Typography System ─────────────────────────────────────── */
+
 :root {
-  --font-sans: -apple-system, "SF Pro Text", "SF Pro Display",
-    BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-serif: "New York", "Georgia", ui-serif, serif;
-  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 14px;
-  --text-md: 15px;
-  --text-lg: 17px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 28px;
-  --text-4xl: 34px;
-  --text-5xl: 48px;
+  /* Font families — matches apple.com exactly */
+  --font-sans:  -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                "SF Pro Text", "SF Pro Icons",
+                "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "New York", ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono:  "SF Mono", ui-monospace, "Cascadia Code", "Fira Code",
+                Menlo, Monaco, Consolas, monospace;
+
+  /* Apple HIG type scale (web-adapted, in px) — base (desktop) */
+  --text-caption2: 11px;   /* smallest label, tab bar items */
+  --text-caption1: 12px;   /* secondary captions, timestamps */
+  --text-footnote: 13px;   /* footnotes, helper text */
+  --text-subhead:  15px;   /* subheadings, secondary nav */
+  --text-callout:  16px;   /* callouts, emphasized body */
+  --text-body:     17px;   /* body text — Apple's recommended minimum */
+  --text-headline: 17px;   /* same size as body, but semibold */
+  --text-title3:   20px;   /* small titles, card headers */
+  --text-title2:   22px;   /* section titles */
+  --text-title1:   28px;   /* page section headings */
+  --text-large:    34px;   /* large page titles (SF Pro Display kicks in) */
+  --text-hero:     48px;   /* hero / splash display (New York or SF Pro) */
+}
+
+/* Mobile: slightly larger sizes so text stays viewable on small screens */
+@media (max-width: 767px) {
+  :root {
+    --text-caption2: 12px;   /* 11 → 12 */
+    --text-caption1: 13px;   /* 12 → 13 */
+    --text-footnote: 14px;   /* 13 → 14 */
+    --text-subhead:  16px;   /* 15 → 16 */
+    --text-body:     18px;   /* 17 → 18 */
+    --text-headline: 18px;
+    --text-title3:   21px;   /* 20 → 21 */
+    --text-title2:   24px;   /* 22 → 24 */
+    --text-title1:   30px;   /* 28 → 30 */
+    --text-large:    36px;   /* 34 → 36 */
+    --text-hero:     40px;   /* 48 → 40 so it fits narrow viewports */
+  }
 }
 
 @tailwind base;
@@ -28,11 +53,12 @@
   html,
   body {
     font-family: var(--font-sans);
-    font-size: var(--text-base);
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
+    font-size: var(--text-body);   /* 17px — Apple's body baseline */
+    line-height: 1.47059;          /* Apple's exact body line-height ratio */
+    -webkit-font-smoothing: antialiased;    /* critical — makes SF Pro crisp on macOS */
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1;
   }
   body {
     @apply m-0 bg-background-grey text-smoky-black antialiased;
@@ -42,13 +68,15 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: inherit;
   }
+  /* Inputs, buttons, selects must explicitly inherit — they don't by default */
   input, button, select, textarea {
-    font-family: var(--font-sans);
-    font-size: var(--text-base);
+    font-family: inherit;
+    font-size: inherit;
   }
-  code, pre, kbd {
+  /* Monospaced elements */
+  code, pre, kbd, samp {
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    font-size: var(--text-caption1);
   }
   :focus-visible {
     @apply outline-none ring-2 ring-tufts-blue ring-offset-2 ring-offset-background-grey;
@@ -83,10 +111,10 @@
     @apply min-h-[2.75rem] min-w-[2.75rem];
   }
   .page-title {
-    @apply font-serif text-2xl font-bold tracking-tight text-smoky-black sm:text-3xl md:text-4xl;
+    @apply font-sans text-large font-bold text-smoky-black;
   }
   .page-subtitle {
-    @apply mt-1 text-sm text-slate-500;
+    @apply mt-1 text-subhead text-slate-500;
   }
   /* Scrollable table wrapper for mobile */
   .table-wrap {

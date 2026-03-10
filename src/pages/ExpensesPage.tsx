@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useExpenses, expensesApi, generateId } from '@/hooks/useData';
 import { useExpenseMetrics } from '@/hooks/expenses/useExpenseMetrics';
-import { formatUGX } from '@/lib/formatUGX';
 import { Money } from '@/components/Money';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { format } from 'date-fns';
@@ -181,7 +180,7 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">Expenses</h1>
+        <h1 className="page-title">Expenses</h1>
         <Link to="/" className="btn-secondary inline-flex w-fit text-sm">← Dashboard</Link>
       </div>
 
@@ -190,20 +189,20 @@ export default function ExpensesPage() {
         <div className="card p-4">
           <div className="flex items-center gap-2 text-red-600">
             <span aria-hidden>📅</span>
-            <span className="font-sans text-lg font-semibold">Today&apos;s Expenses</span>
+            <span className="font-sans text-headline font-semibold">Today&apos;s Expenses</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-red-600"><Money value={metrics.todayTotal} className="text-2xl font-bold text-red-600" /></p>
-          <p className="text-sm text-slate-500">
+          <p className="mt-1"><Money value={metrics.todayTotal} size="large" className="font-bold text-red-600" /></p>
+          <p className="text-footnote text-slate-500">
             {metrics.todayCount === 0 ? 'None recorded yet' : `${metrics.todayCount} entries`}
           </p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 text-amber-600">
             <span aria-hidden>📊</span>
-            <span className="font-sans text-lg font-semibold">This Month Total</span>
+            <span className="font-sans text-headline font-semibold">This Month Total</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-amber-600"><Money value={metrics.monthTotal} className="text-2xl font-bold text-amber-600" /></p>
-          <p className="text-sm text-slate-500">
+          <p className="mt-1"><Money value={metrics.monthTotal} size="large" className="font-bold text-amber-600" /></p>
+          <p className="text-footnote text-slate-500">
             {metrics.weekOverWeekChange != null
               ? `${metrics.weekOverWeekChange >= 0 ? '+' : ''}${(metrics.weekOverWeekChange * 100).toFixed(1)}% vs last week`
               : `${metrics.monthCount} entries this month`}
@@ -212,18 +211,18 @@ export default function ExpensesPage() {
         <div className="card p-4">
           <div className="flex items-center gap-2 text-blue-600">
             <span aria-hidden>⚙️</span>
-            <span className="font-sans text-lg font-semibold">Operating (month)</span>
+            <span className="font-sans text-headline font-semibold">Operating (month)</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-blue-600"><Money value={metrics.operatingExpenses} className="text-2xl font-bold text-blue-600" /></p>
-          <p className="text-sm text-slate-500">Excl. stock/restock · counts toward net profit</p>
+          <p className="mt-1"><Money value={metrics.operatingExpenses} size="large" className="font-bold text-blue-600" /></p>
+          <p className="text-footnote text-slate-500">Excl. stock/restock · counts toward net profit</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 text-green-600">
             <span aria-hidden>📦</span>
-            <span className="font-sans text-lg font-semibold">Restock / Stock (month)</span>
+            <span className="font-sans text-headline font-semibold">Restock / Stock (month)</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-green-600"><Money value={metrics.restockExpenses} className="text-2xl font-bold text-green-600" /></p>
-          <p className="text-sm text-slate-500">Not deducted from net profit</p>
+          <p className="mt-1"><Money value={metrics.restockExpenses} size="large" className="font-bold text-green-600" /></p>
+          <p className="text-footnote text-slate-500">Not deducted from net profit</p>
         </div>
       </div>
 
@@ -231,17 +230,17 @@ export default function ExpensesPage() {
         {/* Left column: Form + Spending by Purpose + Quick Stats */}
         <div className="space-y-6">
           <section className="card p-5">
-            <h2 className="mb-4 font-sans text-lg font-semibold text-smoky-black">Add expense</h2>
+            <h2 className="mb-4 font-sans text-title3 font-semibold text-smoky-black">Add expense</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div>
-                <label htmlFor="expense-date" className="mb-1 block text-sm font-medium text-slate-700">Date</label>
+                <label htmlFor="expense-date" className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-700">Date</label>
                 <input id="expense-date" name="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-base w-full" />
-                <p className="mt-0.5 text-xs text-slate-500">Use a past date to record historical expenses (e.g. January)</p>
+                <p className="mt-0.5 text-footnote text-slate-500">Use a past date to record historical expenses (e.g. January)</p>
               </div>
               <label htmlFor="expense-item" className="sr-only">Item bought</label>
               <input id="expense-item" name="item_bought" type="text" placeholder="e.g. Cooking oil (defaults to 'Misc' if blank)" value={itemBought} onChange={(e) => setItemBought(e.target.value)} className="input-base" />
               <div>
-                <label htmlFor="expense-purpose" className="mb-1 block text-sm font-medium text-slate-700">Purpose</label>
+                <label htmlFor="expense-purpose" className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-700">Purpose</label>
                 <select
                   id="expense-purpose"
                   name="purpose"
@@ -256,10 +255,10 @@ export default function ExpensesPage() {
                     </option>
                   ))}
                 </select>
-                {purposeError && <p className="mt-1 text-xs text-red-600">{purposeError}</p>}
+                {purposeError && <p className="mt-1 text-footnote text-red-600">{purposeError}</p>}
               </div>
               <div>
-                <label htmlFor="expense-amount" className="mb-1 block text-sm font-medium text-slate-700">Amount (UGX)</label>
+                <label htmlFor="expense-amount" className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-700">Amount (UGX)</label>
                 <input
                   id="expense-amount"
                   name="amount"
@@ -286,7 +285,7 @@ export default function ExpensesPage() {
                   step="1"
                   className={`input-base ${amountError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                 />
-                {amountError && <p className="mt-1 text-xs text-red-600">{amountError}</p>}
+                {amountError && <p className="mt-1 text-footnote text-red-600">{amountError}</p>}
               </div>
               <label htmlFor="expense-paid-by" className="sr-only">Paid by</label>
               <input id="expense-paid-by" name="paid_by" type="text" placeholder="Paid by (e.g. Cash, Mobile Money)" value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="input-base" />
@@ -304,27 +303,27 @@ export default function ExpensesPage() {
               </button>
             </form>
             {apiErrorMessage && (
-              <p className="mt-2 text-sm text-red-600">Failed to save. Try again.</p>
+              <p className="mt-2 text-footnote text-red-600">Failed to save. Try again.</p>
             )}
           </section>
 
           {/* Task 2 — Spending by Purpose */}
           <section className="card p-5">
-            <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">Spending by Purpose</h2>
+            <h2 className="mb-3 font-sans text-title3 font-semibold text-smoky-black">Spending by Purpose</h2>
             <div className="mb-3 flex gap-1 rounded-lg bg-slate-100 p-1">
               {LIST_PERIODS.map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => setBreakdownPeriod(p)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize ${breakdownPeriod === p ? 'bg-white text-smoky-black shadow' : 'text-slate-600 hover:text-smoky-black'}`}
+                  className={`rounded-md px-3 py-1.5 text-subhead font-medium capitalize ${breakdownPeriod === p ? 'bg-white text-smoky-black shadow' : 'text-slate-600 hover:text-smoky-black'}`}
                 >
                   {p === 'all' ? 'All' : p}
                 </button>
               ))}
             </div>
             {breakdownMetrics.byPurpose.length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-500">No expenses in this period.</p>
+              <p className="py-4 text-center text-footnote text-slate-500">No expenses in this period.</p>
             ) : (
               <div className="space-y-3">
                 {breakdownMetrics.byPurpose.map((row) => {
@@ -354,8 +353,8 @@ export default function ExpensesPage() {
                           points={points}
                         />
                       </svg>
-                      <span className="ml-auto text-sm font-medium tabular-nums">{formatUGX(row.total)}</span>
-                      <span className="text-xs text-slate-500">{(pct).toFixed(1)}%</span>
+                      <span className="ml-auto"><Money value={row.total} size="body" className="font-medium" /></span>
+                      <span className="text-caption2 text-slate-500">{(pct).toFixed(1)}%</span>
                       <div className="w-full overflow-hidden rounded-full bg-slate-100" style={{ height: 4 }}>
                         <div
                           className="h-full rounded-full"
@@ -371,34 +370,32 @@ export default function ExpensesPage() {
 
           {/* Task 3 — Quick Stats */}
           <section className="card p-5">
-            <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">This Month — Quick Stats</h2>
+            <h2 className="mb-3 font-sans text-title3 font-semibold text-smoky-black">This Month — Quick Stats</h2>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-xs font-medium text-slate-500">Avg per day</p>
-                <p className="text-lg font-bold tabular-nums">{formatUGX(Math.round(metrics.avgPerDay))}</p>
-                <p className="text-xs text-slate-500">daily average</p>
+                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Avg per day</p>
+                <p className="mt-1"><Money value={Math.round(metrics.avgPerDay)} size="medium" className="font-bold" /></p>
+                <p className="text-footnote text-slate-500">daily average</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-xs font-medium text-slate-500">Biggest expense</p>
-                <p className="text-lg font-bold tabular-nums">
-                  {metrics.biggestExpense ? formatUGX(metrics.biggestExpense.amount) : '—'}
-                </p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Biggest expense</p>
+                <p className="mt-1">{metrics.biggestExpense ? <Money value={metrics.biggestExpense.amount} size="medium" className="font-bold" /> : '—'}</p>
+                <p className="truncate text-footnote text-slate-500">
                   {metrics.biggestExpense?.itemBought ?? '—'}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-xs font-medium text-slate-500">Top purpose</p>
-                <p className="text-sm font-bold">{metrics.topPurpose?.purpose ?? '—'}</p>
-                <p className="text-xs text-slate-500 tabular-nums">
-                  {metrics.topPurpose ? formatUGX(metrics.topPurpose.total) : '—'}
+                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Top purpose</p>
+                <p className="text-subhead font-bold">{metrics.topPurpose?.purpose ?? '—'}</p>
+                <p className="text-footnote text-slate-500">
+                  {metrics.topPurpose ? <Money value={metrics.topPurpose.total} size="body" /> : '—'}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-xs font-medium text-slate-500">Top spender</p>
-                <p className="text-sm font-bold">{metrics.topPayer?.who ?? '—'}</p>
-                <p className="text-xs text-slate-500 tabular-nums">
-                  {metrics.topPayer ? formatUGX(metrics.topPayer.total) : '—'}
+                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Top spender</p>
+                <p className="text-subhead font-bold">{metrics.topPayer?.who ?? '—'}</p>
+                <p className="text-footnote text-slate-500">
+                  {metrics.topPayer ? <Money value={metrics.topPayer.total} size="body" /> : '—'}
                 </p>
               </div>
             </div>
@@ -407,7 +404,7 @@ export default function ExpensesPage() {
 
         {/* Right column: Recent expenses list */}
         <section className="card overflow-hidden flex flex-col">
-          <h2 className="border-b border-slate-200/80 bg-slate-50/50 px-5 py-4 font-sans text-lg font-semibold text-smoky-black">Recent expenses</h2>
+          <h2 className="border-b border-slate-200/80 bg-slate-50/50 px-5 py-4 font-sans text-title3 font-semibold text-smoky-black">Recent expenses</h2>
 
           {/* Task 4 — Filter controls */}
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-slate-50/30 px-4 py-3">
@@ -417,7 +414,7 @@ export default function ExpensesPage() {
                   key={p}
                   type="button"
                   onClick={() => setListPeriod(p)}
-                  className={`rounded-md px-2 py-1.5 text-xs font-medium capitalize ${listPeriod === p ? 'bg-white shadow' : 'text-slate-600'}`}
+                  className={`rounded-md px-2 py-1.5 text-caption2 font-medium capitalize ${listPeriod === p ? 'bg-white shadow' : 'text-slate-600'}`}
                 >
                   {p === 'all' ? 'All' : p}
                 </button>
@@ -459,8 +456,8 @@ export default function ExpensesPage() {
           </div>
 
           {/* Task 5e — List header */}
-          <div className="flex justify-end px-5 py-2 text-right text-sm text-slate-500">
-            {filteredList.length} entries · {formatUGX(visibleTotal)}
+          <div className="flex justify-end px-5 py-2 text-right text-footnote text-slate-500">
+            {filteredList.length} entries · <Money value={visibleTotal} size="body" />
           </div>
 
           <div className="max-h-[560px] overflow-y-auto">
@@ -499,7 +496,7 @@ export default function ExpensesPage() {
                       />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{e.itemBought}</p>
-                        <p className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
+                        <p className="flex flex-wrap items-center gap-1.5 text-subhead text-slate-600">
                           <span
                             className="inline-block rounded-full px-2 py-0.5 text-[11px] font-medium"
                             style={{ backgroundColor: `${purposeColor}26`, color: purposeColor }}
@@ -509,13 +506,13 @@ export default function ExpensesPage() {
                           {format(new Date(e.date), 'dd MMM yyyy')} · {e.paidBy}
                         </p>
                         {isHover && runTotal != null && isThisMonth(e.date) && (
-                          <p className="mt-1 text-xs text-slate-400">
+                          <p className="mt-1 text-footnote text-slate-400">
                             month total<br />
-                            <span className="font-medium tabular-nums">{formatUGX(runTotal)}</span>
+                            <Money value={runTotal} size="small" className="font-medium" />
                           </p>
                         )}
                       </div>
-                      <span className="shrink-0 font-medium text-red-700 tabular-nums">{formatUGX(e.amount)}</span>
+                      <span className="shrink-0"><Money value={e.amount} size="body" className="font-medium text-red-700" /></span>
                     </li>
                   );
                 })}
@@ -525,9 +522,9 @@ export default function ExpensesPage() {
 
           {/* Task 5d — Footer */}
           {filteredList.length > 0 && (
-            <div className="mt-auto border-t border-slate-200/80 bg-slate-50/50 px-5 py-3 text-right text-sm">
+            <div className="mt-auto border-t border-slate-200/80 bg-slate-50/50 px-5 py-3 text-right text-body">
               <span className="font-medium">Total · {filteredList.length} entries</span>
-              <span className="ml-2 font-semibold tabular-nums">{formatUGX(visibleTotal)}</span>
+              <span className="ml-2"><Money value={visibleTotal} size="medium" className="font-semibold" /></span>
             </div>
           )}
 
@@ -535,7 +532,7 @@ export default function ExpensesPage() {
           <div className="border-t border-slate-200/80 px-5 py-3">
             <Link
               to="/reports?section=expenses"
-              className="text-xs text-slate-500 hover:text-tufts-blue hover:underline"
+              className="text-footnote text-slate-500 hover:text-tufts-blue hover:underline"
             >
               📊 See full expense analytics &amp; breakdowns in Reports →
             </Link>

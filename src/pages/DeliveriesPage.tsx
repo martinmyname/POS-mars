@@ -326,13 +326,13 @@ export default function DeliveriesPage() {
             type="button"
             onClick={refreshDeliveriesFromServer}
             disabled={isRefreshing}
-            className="btn-secondary inline-flex w-fit shrink-0 items-center gap-1.5 text-sm disabled:opacity-70"
+            className="btn-secondary inline-flex w-fit shrink-0 items-center gap-1.5 text-body disabled:opacity-70"
             title="Refresh deliveries from server (see updates from other users)"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </button>
-          <Link to="/pos" className="btn-secondary inline-flex w-fit shrink-0 text-sm">
+          <Link to="/pos" className="btn-secondary inline-flex w-fit shrink-0 text-body">
             ← Create Delivery from POS
           </Link>
         </div>
@@ -350,7 +350,7 @@ export default function DeliveriesPage() {
 
       <section className="card overflow-hidden">
         <div className="border-b border-slate-200/80 bg-slate-50/50 px-4 py-4">
-          <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">
+          <h2 className="mb-3 font-sans text-title3 font-semibold text-smoky-black">
             Deliveries
           </h2>
           {/* Quick filters */}

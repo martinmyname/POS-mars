@@ -344,9 +344,9 @@ export default function SuppliersPage() {
         <div className="card flex items-center gap-4 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
           <span className="text-2xl" aria-hidden>⚖️</span>
           <div>
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Owed to Suppliers</p>
-            <p className="text-2xl font-bold text-amber-800 dark:text-amber-200"><Money value={totalOwed} className="text-2xl font-bold text-amber-800 dark:text-amber-200" /></p>
-            <p className="text-xs text-slate-500">{suppliersWithBalance} suppliers with open balance</p>
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Total Owed to Suppliers</p>
+            <p className=""><Money value={totalOwed} size="large" className="font-bold text-amber-800 dark:text-amber-200" /></p>
+            <p className="text-footnote text-slate-500">{suppliersWithBalance} suppliers with open balance</p>
           </div>
         </div>
         <div
@@ -358,11 +358,11 @@ export default function SuppliersPage() {
         >
           <span className="text-2xl" aria-hidden>🔴</span>
           <div>
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Overdue Payments</p>
-            <p className={`text-2xl font-bold ${overdueCount > 0 ? 'text-red-800 dark:text-red-200' : 'text-emerald-800 dark:text-emerald-200'}`}>
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Overdue Payments</p>
+            <p className={`text-title3 font-bold ${overdueCount > 0 ? 'text-red-800 dark:text-red-200' : 'text-emerald-800 dark:text-emerald-200'}`}>
               {overdueCount}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-footnote text-slate-500">
               {overdueCount > 0 ? `${overdueCount} past pay-by date` : 'All payments on time'}
             </p>
           </div>
@@ -376,11 +376,11 @@ export default function SuppliersPage() {
         >
           <span className="text-2xl" aria-hidden>⏰</span>
           <div>
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Due Within 7 Days</p>
-            <p className={`text-2xl font-bold ${dueWithin7Count > 0 ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Due Within 7 Days</p>
+            <p className={`text-title3 font-bold ${dueWithin7Count > 0 ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>
               {dueWithin7Count}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-footnote text-slate-500">
               {dueWithin7Count > 0 ? 'Act soon to avoid overdue' : 'Nothing due soon'}
             </p>
           </div>
@@ -388,9 +388,9 @@ export default function SuppliersPage() {
         <div className="card flex items-center gap-4 border-slate-200 bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
           <span className="text-2xl" aria-hidden>🏭</span>
           <div>
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Suppliers</p>
-            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{suppliers.length}</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Total Suppliers</p>
+            <p className="text-title3 font-bold text-slate-800 dark:text-slate-100">{suppliers.length}</p>
+            <p className="text-footnote text-slate-500">
               {suppliersWithBalance} active (balance &gt; 0), {settledCount} settled
             </p>
           </div>
@@ -400,7 +400,7 @@ export default function SuppliersPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Task 10 — Add supplier form */}
         <section className="card p-4">
-          <h2 className="mb-3 font-sans text-lg font-semibold">Add supplier</h2>
+          <h2 className="mb-3 font-sans text-title3 font-semibold">Add supplier</h2>
           {addSuccess && (
             <p className="mb-3 text-sm font-medium text-emerald-600 dark:text-emerald-400">✓ Supplier added</p>
           )}

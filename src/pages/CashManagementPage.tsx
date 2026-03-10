@@ -259,10 +259,10 @@ export default function CashManagementPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">
+        <h1 className="page-title">
           Cash Management
         </h1>
-        <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
+        <Link to="/" className="btn-secondary inline-flex w-fit text-body">
           ← Dashboard
         </Link>
       </div>
@@ -282,7 +282,7 @@ export default function CashManagementPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Open/Close Cash */}
         <section className="card p-5">
-          <h2 className="mb-4 flex items-center gap-2 font-sans text-lg font-semibold text-smoky-black">
+          <h2 className="mb-4 flex items-center gap-2 font-sans text-title3 font-semibold text-smoky-black">
             {todaySession ? (
               <>
                 <Lock className="h-5 w-5 text-emerald-600" />
@@ -304,7 +304,7 @@ export default function CashManagementPage() {
                   Opened at: {format(new Date(todaySession.openedAt), 'dd MMM yyyy, HH:mm')}
                 </p>
                 <p className="mt-2 text-lg font-semibold text-emerald-700">
-                  Opening Amount: <Money value={todaySession.openingAmount} className="text-lg font-semibold text-emerald-700" />
+                  Opening Amount: <Money value={todaySession.openingAmount} size="medium" className="font-semibold text-emerald-700" />
                 </p>
                 {todaySession.expectedAmount !== undefined && (
                   <div className="mt-2 space-y-1 text-sm text-slate-700">
@@ -444,7 +444,7 @@ export default function CashManagementPage() {
         {/* Recent Sessions */}
         <section className="card overflow-hidden">
           <div className="border-b border-slate-200/80 bg-slate-50/50 px-4 py-3">
-            <h2 className="font-sans text-lg font-semibold text-smoky-black">Recent Sessions</h2>
+            <h2 className="font-sans text-title3 font-semibold text-smoky-black">Recent Sessions</h2>
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
             {sessions.length === 0 ? (

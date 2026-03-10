@@ -143,33 +143,33 @@ export function RestockPlannerSection({
           healthScore.color === 'amber' ? 'border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-950/30' :
           'border-red-300 bg-red-50/50 dark:border-red-700 dark:bg-red-950/30'
         }`}>
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Inventory Health</p>
-          <p className={`text-3xl font-bold ${
+          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Inventory Health</p>
+          <p className={`text-title1 font-bold ${
             healthScore.color === 'emerald' ? 'text-emerald-700 dark:text-emerald-300' :
             healthScore.color === 'amber' ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'
           }`}>{healthScore.score}</p>
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-400">{healthScore.label}</p>
+          <p className="text-caption2 font-medium text-slate-600 dark:text-slate-400">{healthScore.label}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 flex-1">
         <div className="card border-red-200 bg-red-50/50 p-3 dark:border-red-800 dark:bg-red-950/30">
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Out of Stock</p>
-          <p className="text-xl font-bold text-red-800 dark:text-red-200">{summaryStats.outCount}</p>
+          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Out of Stock</p>
+          <p className="text-title3 font-bold text-red-800 dark:text-red-200">{summaryStats.outCount}</p>
         </div>
         <div className="card border-orange-200 bg-orange-50/50 p-3 dark:border-orange-800 dark:bg-orange-950/30">
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Critical</p>
-          <p className="text-xl font-bold text-orange-800 dark:text-orange-200">{summaryStats.criticalCount}</p>
+          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Critical</p>
+          <p className="text-title3 font-bold text-orange-800 dark:text-orange-200">{summaryStats.criticalCount}</p>
         </div>
         <div className="card border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Low Stock</p>
-          <p className="text-xl font-bold text-amber-800 dark:text-amber-200">{summaryStats.lowCount}</p>
+          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Low Stock</p>
+          <p className="text-title3 font-bold text-amber-800 dark:text-amber-200">{summaryStats.lowCount}</p>
         </div>
         <div className="card border-teal-200 bg-teal-50/50 p-3 dark:border-teal-800 dark:bg-teal-950/30">
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Selected to Order</p>
-          <p className="text-xl font-bold text-teal-800 dark:text-teal-200">{selectedIds.size}</p>
+          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Selected to Order</p>
+          <p className="text-title3 font-bold text-teal-800 dark:text-teal-200">{selectedIds.size}</p>
         </div>
         <div className="card border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Order Total Cost</p>
-          <p className="text-xl font-bold text-amber-800 dark:text-amber-200"><Money value={Number.isFinite(orderTotalCost) ? orderTotalCost : 0} className="text-xl font-bold text-amber-800 dark:text-amber-200" /></p>
+          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Order Total Cost</p>
+          <p><Money value={Number.isFinite(orderTotalCost) ? orderTotalCost : 0} size="large" className="font-bold text-amber-800 dark:text-amber-200" /></p>
         </div>
         </div>
       </div>
@@ -177,9 +177,9 @@ export function RestockPlannerSection({
       {/* Step 4 — Revenue at risk banner */}
       {summaryStats.totalRevenueAtRisk > 0 && !revenueBannerDismissed && (
         <div className="card flex items-center justify-between gap-3 border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/40">
-          <p className="flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-200">
+          <p className="flex items-center gap-2 text-subhead font-medium text-red-800 dark:text-red-200">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            Revenue at risk from low/out-of-stock items this restock cycle: <Money value={summaryStats.totalRevenueAtRisk} className="text-red-800 dark:text-red-200" />
+            Revenue at risk from low/out-of-stock items this restock cycle: <Money value={summaryStats.totalRevenueAtRisk} size="body" className="text-red-800 dark:text-red-200" />
           </p>
           <button
             type="button"
@@ -701,7 +701,7 @@ function OrderSummaryFooter({
   return (
     <>
       <div className="card border-t-2 border-teal-200 bg-teal-50/30 p-4 dark:border-teal-800 dark:bg-teal-950/30 no-print">
-        <h3 className="mb-3 font-sans text-lg font-semibold">Order Summary — {selectedItems.length} products selected</h3>
+        <h3 className="mb-3 font-sans text-title3 font-semibold">Order Summary — {selectedItems.length} products selected</h3>
         <div className="space-y-2">
           {Object.entries(bySupplier).map(([name, list]) => (
             <div key={name}>
@@ -717,8 +717,8 @@ function OrderSummaryFooter({
             </div>
           ))}
         </div>
-        <p className="mt-3 border-t border-slate-200 pt-3 text-lg font-bold dark:border-slate-600">
-          Total restock investment: <Money value={orderTotalCost} className="text-lg font-bold" />
+        <p className="mt-3 border-t border-slate-200 pt-3 text-title3 font-bold dark:border-slate-600">
+          Total restock investment: <Money value={orderTotalCost} size="large" className="font-bold" />
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={onExport} className="btn-secondary inline-flex items-center gap-2 text-sm">
@@ -741,7 +741,7 @@ function OrderSummaryFooter({
       </div>
       {/* Print-only shopping list */}
       <div className="hidden print:block print:break-before-auto" style={{ fontSize: '12px', color: '#000', background: '#fff' }}>
-        <h2 className="text-lg font-bold mb-2">RESTOCK ORDER — Mars Kitchen Essentials</h2>
+        <h2 className="text-title3 font-bold mb-2">RESTOCK ORDER — Mars Kitchen Essentials</h2>
         <p className="mb-3 text-sm">
           Generated: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} | Total: <Money value={orderTotalCost} />
         </p>

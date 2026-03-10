@@ -47,21 +47,21 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">Customers</h1>
+        <h1 className="page-title">Customers</h1>
         <Link to="/" className="text-tufts-blue underline">← Dashboard</Link>
       </div>
       <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 dark:border-[#1f2937] dark:bg-[#111827]/50">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-subhead text-slate-600 dark:text-slate-400">
           <span className="font-medium text-slate-800 dark:text-slate-200">This month:</span>{' '}
           {uniqueCustomers} unique customers · {returningCustomerRate.toFixed(0)}% returning · {atRiskCount} at-risk
         </p>
-        <Link to="/reports/daily" className="mt-1 inline-block text-sm font-medium text-tufts-blue hover:underline">
+        <Link to="/reports/daily" className="mt-1 inline-block text-subhead font-medium text-tufts-blue hover:underline">
           See full customer analytics → Reports
         </Link>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 font-sans text-lg font-semibold">Add customer</h2>
+          <h2 className="mb-3 font-sans text-title3 font-semibold">Add customer</h2>
           <form onSubmit={handleSubmit} className="space-y-3">
             <label htmlFor="customer-name" className="sr-only">Name</label>
             <input id="customer-name" name="name" type="text" placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} required className="w-full rounded border border-slate-300 px-3 py-2" />
@@ -73,13 +73,13 @@ export default function CustomersPage() {
           </form>
         </section>
         <section>
-          <h2 className="mb-3 font-sans text-lg font-semibold">Customer list</h2>
+          <h2 className="mb-3 font-sans text-title3 font-semibold">Customer list</h2>
           <ul className="space-y-2">
             {customers.map((c) => (
               <li key={c.id} className="rounded border border-slate-200 bg-white p-3">
                 <p className="font-medium">{c.name}</p>
-                <p className="text-sm text-slate-600">{c.phone}</p>
-                {c.address && <p className="text-sm text-slate-500">{c.address}</p>}
+                <p className="text-subhead text-slate-600">{c.phone}</p>
+                {c.address && <p className="text-subhead text-slate-500">{c.address}</p>}
               </li>
             ))}
           </ul>

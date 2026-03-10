@@ -1,145 +1,137 @@
 // src/styles/typography.ts
-// Apple type system — single source of truth for all type decisions.
+// Apple typography — single source of truth for semantic text styles.
+// Use for inline styles; prefer Tailwind classes (font-sans, text-body, etc.) where possible.
 
 export const fontFamilies = {
-  // SF Pro — for all UI, body, labels, nav, inputs, buttons
   sans:
-    '-apple-system, "SF Pro Text", "SF Pro Display", BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
-
-  // New York — for display headings and editorial moments only
-  serif: '"New York", "Georgia", ui-serif, serif',
-
-  // SF Mono — for code, prices, numeric data, IDs
-  mono: '"SF Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace',
+    '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif',
+  serif: '"New York", ui-serif, Georgia, "Times New Roman", serif',
+  mono: '"SF Mono", ui-monospace, "Cascadia Code", "Fira Code", Menlo, Monaco, Consolas, monospace',
 } as const;
 
-export const fontSizes = {
-  xs: '11px',
-  sm: '12px',
-  base: '14px',
-  md: '15px',
-  lg: '17px',
-  xl: '20px',
-  '2xl': '24px',
-  '3xl': '28px',
-  '4xl': '34px',
-  '5xl': '48px',
-} as const;
-
-export const fontWeights = {
-  light: 300,
-  regular: 400,
-  medium: 500,
-  semibold: 600,
-  bold: 700,
-  heavy: 800,
-} as const;
-
-export const lineHeights = {
-  tight: 1.2,
-  snug: 1.35,
-  normal: 1.5,
-  relaxed: 1.65,
-} as const;
-
-export const letterSpacings = {
-  tighter: '-0.02em',
-  tight: '-0.01em',
-  normal: '0',
-  wide: '0.04em',
-  wider: '0.08em',
-} as const;
-
-export const textStyles = {
-  heroTitle: {
+// Apple HIG text styles — adapted for web (px, not pt)
+export const appleTextStyles = {
+  hero: {
     fontFamily: fontFamilies.serif,
-    fontSize: fontSizes['5xl'],
-    fontWeight: fontWeights.heavy,
-    lineHeight: lineHeights.tight,
-    letterSpacing: letterSpacings.tighter,
+    fontSize: '48px',
+    fontWeight: 700,
+    lineHeight: 1.14,
+    letterSpacing: '-0.003em',
   },
-  pageTitle: {
-    fontFamily: fontFamilies.serif,
-    fontSize: fontSizes['4xl'],
-    fontWeight: fontWeights.bold,
-    lineHeight: lineHeights.tight,
-    letterSpacing: letterSpacings.tight,
-  },
-  sectionTitle: {
-    fontFamily: fontFamilies.serif,
-    fontSize: fontSizes['2xl'],
-    fontWeight: fontWeights.semibold,
-    lineHeight: lineHeights.snug,
-    letterSpacing: letterSpacings.tight,
-  },
-  cardTitle: {
+  largeTitle: {
     fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.lg,
-    fontWeight: fontWeights.semibold,
-    lineHeight: lineHeights.snug,
-    letterSpacing: letterSpacings.normal,
+    fontSize: '34px',
+    fontWeight: 700,
+    lineHeight: 1.21,
+    letterSpacing: '0.0037em',
   },
-  modalTitle: {
+  title1: {
     fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.semibold,
-    lineHeight: lineHeights.snug,
+    fontSize: '28px',
+    fontWeight: 700,
+    lineHeight: 1.32,
+    letterSpacing: '0.0013em',
   },
-  navItem: {
+  title2: {
     fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.medium,
-    lineHeight: lineHeights.normal,
+    fontSize: '22px',
+    fontWeight: 700,
+    lineHeight: 1.36,
+    letterSpacing: '0.0016em',
+  },
+  title3: {
+    fontFamily: fontFamilies.sans,
+    fontSize: '20px',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    letterSpacing: '0.0038em',
+  },
+  headline: {
+    fontFamily: fontFamilies.sans,
+    fontSize: '17px',
+    fontWeight: 600,
+    lineHeight: 1.47,
+    letterSpacing: '-0.0043em',
   },
   body: {
     fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.regular,
-    lineHeight: lineHeights.normal,
+    fontSize: '17px',
+    fontWeight: 400,
+    lineHeight: 1.47,
+    letterSpacing: '-0.0043em',
   },
-  bodyMd: {
+  callout: {
     fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.md,
-    fontWeight: fontWeights.regular,
-    lineHeight: lineHeights.normal,
+    fontSize: '16px',
+    fontWeight: 400,
+    lineHeight: 1.375,
+    letterSpacing: '-0.0031em',
   },
-  bodySmall: {
+  subhead: {
     fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.sm,
-    fontWeight: fontWeights.regular,
-    lineHeight: lineHeights.normal,
+    fontSize: '15px',
+    fontWeight: 400,
+    lineHeight: 1.4,
+    letterSpacing: '-0.0024em',
+  },
+  footnote: {
+    fontFamily: fontFamilies.sans,
+    fontSize: '13px',
+    fontWeight: 400,
+    lineHeight: 1.38,
+    letterSpacing: '-0.0008em',
+  },
+  caption1: {
+    fontFamily: fontFamilies.sans,
+    fontSize: '12px',
+    fontWeight: 400,
+    lineHeight: 1.33,
+    letterSpacing: '0',
+  },
+  caption2: {
+    fontFamily: fontFamilies.sans,
+    fontSize: '11px',
+    fontWeight: 400,
+    lineHeight: 1.36,
+    letterSpacing: '0.066em',
   },
   label: {
     fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.xs,
-    fontWeight: fontWeights.semibold,
-    letterSpacing: letterSpacings.wider,
+    fontSize: '11px',
+    fontWeight: 600,
+    lineHeight: 1.36,
+    letterSpacing: '0.08em',
     textTransform: 'uppercase' as const,
-    lineHeight: lineHeights.normal,
-  },
-  caption: {
-    fontFamily: fontFamilies.sans,
-    fontSize: fontSizes.xs,
-    fontWeight: fontWeights.regular,
-    lineHeight: lineHeights.normal,
-  },
-  money: {
-    fontFamily: fontFamilies.mono,
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.medium,
-    lineHeight: lineHeights.normal,
-    letterSpacing: letterSpacings.tight,
   },
   moneyLarge: {
     fontFamily: fontFamilies.mono,
-    fontSize: fontSizes['2xl'],
-    fontWeight: fontWeights.semibold,
-    lineHeight: lineHeights.tight,
-    letterSpacing: letterSpacings.tighter,
+    fontSize: '28px',
+    fontWeight: 600,
+    lineHeight: 1.2,
+    letterSpacing: '-0.02em',
+    fontVariantNumeric: 'tabular-nums',
   },
-  tableNum: {
+  moneyMedium: {
     fontFamily: fontFamilies.mono,
-    fontSize: fontSizes.sm,
-    fontWeight: fontWeights.regular,
+    fontSize: '20px',
+    fontWeight: 500,
+    lineHeight: 1.3,
+    letterSpacing: '-0.01em',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  moneyBody: {
+    fontFamily: fontFamilies.mono,
+    fontSize: '17px',
+    fontWeight: 400,
+    lineHeight: 1.47,
+    letterSpacing: '-0.0043em',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  moneySmall: {
+    fontFamily: fontFamilies.mono,
+    fontSize: '13px',
+    fontWeight: 400,
+    lineHeight: 1.38,
+    fontVariantNumeric: 'tabular-nums',
   },
 } as const;

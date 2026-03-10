@@ -557,14 +557,14 @@ export default function POSPage() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="page-title">POS Checkout</h1>
-        <Link to="/" className="btn-secondary inline-flex w-fit shrink-0 text-sm">
+        <Link to="/" className="btn-secondary inline-flex w-fit shrink-0 text-body">
           ← Dashboard
         </Link>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card p-3 sm:p-4">
-          <h2 className="mb-2 sm:mb-3 font-sans text-base font-semibold text-smoky-black sm:text-lg">Products</h2>
+          <h2 className="mb-2 sm:mb-3 font-sans text-title3 font-semibold text-smoky-black">Products</h2>
           <label htmlFor="pos-quick-search" className="sr-only">Quick search products</label>
           <input
             id="pos-quick-search"
@@ -578,7 +578,7 @@ export default function POSPage() {
           />
           <div className="max-h-[40vh] space-y-1.5 overflow-y-auto rounded-xl border border-slate-200/80 bg-slate-50/50 p-2 sm:max-h-[50vh]">
             {filteredProducts.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-500">
+              <p className="py-6 text-center text-subhead text-slate-500">
                 {products.length === 0 ? 'No products. Add some in Inventory.' : 'No matches. Try another search.'}
               </p>
             ) : (
@@ -590,15 +590,15 @@ export default function POSPage() {
                   >
                     <div className="flex-1 min-w-0 text-left">
                       <span className="block font-medium text-smoky-black">{p.name}</span>
-                      <span className="text-xs text-slate-500">{p.sku}</span>
+                      <span className="text-caption2 text-slate-500">{p.sku}</span>
                     </div>
                     <div className="flex items-center gap-2 text-right">
                       <span className="block font-semibold text-emerald-700"><Money value={p.retailPrice} className="font-semibold text-emerald-700" /></span>
-                      <span className="text-xs text-slate-500">Stock: {p.stock}</span>
+                      <span className="text-caption2 text-slate-500">Stock: {p.stock}</span>
                       <button
                         type="button"
                         onClick={() => openRestock({ id: p.id, name: p.name, costPrice: p.costPrice, retailPrice: p.retailPrice, supplierId: p.supplierId })}
-                        className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-200"
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-caption2 font-medium text-amber-800 transition hover:bg-amber-200"
                       >
                         <Package className="h-3.5 w-3.5" />
                         Restock
@@ -617,7 +617,7 @@ export default function POSPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <span className="block font-medium text-smoky-black">{p.name}</span>
-                      <span className="text-xs text-slate-500">{p.sku}</span>
+                      <span className="text-caption2 text-slate-500">{p.sku}</span>
                     </div>
                     <div className="flex items-center gap-2 text-right">
                       <span className="block font-semibold text-emerald-700"><Money value={p.retailPrice} className="font-semibold text-emerald-700" /></span>
@@ -633,7 +633,7 @@ export default function POSPage() {
         </section>
 
         <section className="card p-3 sm:p-4 lg:sticky lg:top-24 lg:self-start">
-          <h2 className="mb-2 sm:mb-3 font-sans text-base font-semibold text-smoky-black sm:text-lg">Cart</h2>
+          <h2 className="mb-2 sm:mb-3 font-sans text-title3 font-semibold text-smoky-black">Cart</h2>
           <div className="rounded-xl border border-slate-200/80 bg-slate-50/30 p-3 sm:p-4">
             {cart.length === 0 ? (
               <p className="py-4 text-center text-slate-500">Cart is empty</p>
@@ -736,7 +736,7 @@ export default function POSPage() {
                 <div className="mt-4 space-y-3 rounded-lg border-2 border-emerald-200 bg-emerald-50/50 p-4">
                   <div className="flex items-baseline justify-between">
                     <span className="text-sm font-medium text-slate-700">Total</span>
-                    <span className="text-2xl font-bold text-emerald-700"><Money value={subtotal} className="text-2xl font-bold text-emerald-700" /></span>
+                    <span><Money value={subtotal} size="medium" className="font-bold text-emerald-700" /></span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Profit</span>
@@ -752,7 +752,7 @@ export default function POSPage() {
 
                 {/* Quick Payment Methods */}
                 <div className="mt-3 sm:mt-4">
-                  <label className="mb-1.5 sm:mb-2 block text-xs font-medium text-slate-600">Quick Payment</label>
+                  <label className="mb-1.5 sm:mb-2 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Quick Payment</label>
                   <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                     {PAYMENT_OPTIONS.map((option) => {
                       const isSelected = !useSplitPayment && paymentMethod === option.value;
@@ -840,7 +840,7 @@ export default function POSPage() {
                 {/* Promotions - Checkboxes */}
                 {promotions.length > 0 && (
                   <div className="mt-4">
-                    <label className="mb-2 block text-xs font-medium text-slate-600">Promotions</label>
+                    <label className="mb-2 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Promotions</label>
                     <div className="space-y-1.5">
                       {promotions.map((promo) => {
                         const isSelected = selectedPromoId === promo.id;
@@ -879,7 +879,7 @@ export default function POSPage() {
 
                 {/* Sales Channel - Compact */}
                 <div className="mt-4">
-                  <label className="mb-2 block text-xs font-medium text-slate-600">Channel</label>
+                  <label className="mb-2 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Channel</label>
                   <select
                     value={orderChannel}
                     onChange={(e) => setOrderChannel(e.target.value as OrderChannel)}
@@ -954,7 +954,7 @@ export default function POSPage() {
                 {/* Schedule for later - date picker */}
                 {scheduleForLater && (
                   <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                    <label htmlFor="pos-scheduled-date" className="mb-1 block text-xs font-medium text-slate-600">Scheduled for (reminder on this day)</label>
+                    <label htmlFor="pos-scheduled-date" className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Scheduled for (reminder on this day)</label>
                     <input
                       id="pos-scheduled-date"
                       name="scheduled_for"
@@ -989,7 +989,7 @@ export default function POSPage() {
                 </div>
                 {backdateOrder && (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                    <label htmlFor="pos-order-date" className="mb-1 block text-xs font-medium text-slate-600">Order date & time</label>
+                    <label htmlFor="pos-order-date" className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Order date & time</label>
                     <div className="flex flex-wrap gap-2">
                       <input
                         id="pos-order-date"
@@ -1008,7 +1008,7 @@ export default function POSPage() {
                         className="input-base w-[120px] py-2 text-sm"
                       />
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Use this to enter historical sales (e.g. January).</p>
+                    <p className="mt-1 text-footnote text-slate-500">Use this to enter historical sales (e.g. January).</p>
                   </div>
                 )}
 
@@ -1046,12 +1046,12 @@ export default function POSPage() {
                       className="input-base w-full resize-none py-2 text-sm"
                     />
                     <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2">
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Amount to collect</label>
-                      <p className="text-lg font-semibold text-emerald-700"><Money value={subtotal} className="text-lg font-semibold text-emerald-700" /></p>
-                      <p className="text-xs text-slate-500 mt-0.5">Automatically set from order total</p>
+                      <label className="block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 mb-1">Amount to collect</label>
+                      <p className=""><Money value={subtotal} size="medium" className="font-semibold text-emerald-700" /></p>
+                      <p className="text-footnote text-slate-500 mt-0.5">Automatically set from order total</p>
                     </div>
                     <div className="border-t border-slate-200 pt-3 mt-2 space-y-2">
-                      <label htmlFor="pos-delivery-rider" className="block text-xs font-medium text-slate-600">Assign rider (optional)</label>
+                      <label htmlFor="pos-delivery-rider" className="block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Assign rider (optional)</label>
                       <input
                         id="pos-delivery-rider"
                         name="delivery_rider"
@@ -1148,7 +1148,7 @@ export default function POSPage() {
                   type="button"
                   onClick={placeOrder}
                   disabled={placing || cart.length === 0 || !deliveryOk}
-                  className="btn-primary mt-3 w-full py-3 text-base font-semibold shadow-lg disabled:opacity-50 sm:mt-4 sm:py-4 sm:text-lg"
+                  className="btn-primary mt-3 w-full py-3 text-body font-semibold shadow-lg disabled:opacity-50 sm:mt-4 sm:py-4"
                 >
                   {placing
                     ? 'Processing…'
@@ -1162,7 +1162,7 @@ export default function POSPage() {
             )}
           </div>
           {message && (
-            <p className={`mt-2 text-sm ${message.startsWith('Order') || message.startsWith('Stock added') ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`mt-2 text-subhead ${message.startsWith('Order') || message.startsWith('Stock added') ? 'text-green-600' : 'text-red-600'}`}>
               {message}
             </p>
           )}
@@ -1207,9 +1207,9 @@ export default function POSPage() {
       {restockProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
-            <h3 className="mb-1 font-sans text-lg font-semibold text-smoky-black">Quick restock</h3>
-            <p className="mb-4 text-sm text-slate-600">{restockProduct.name}</p>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Quantity</label>
+            <h3 className="mb-1 font-sans text-title3 font-semibold text-smoky-black">Quick restock</h3>
+            <p className="mb-4 text-subhead text-slate-600">{restockProduct.name}</p>
+            <label className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Quantity</label>
             <input
               type="number"
               min="1"
@@ -1233,7 +1233,7 @@ export default function POSPage() {
             </label>
             {!restockRecordExpense && (
               <div className="mb-4">
-                <label htmlFor="restock-supplier" className="mb-1 block text-xs font-medium text-slate-600">Supplier (credit)</label>
+                <label htmlFor="restock-supplier" className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600">Supplier (credit)</label>
                 <select
                   id="restock-supplier"
                   value={restockSupplierId}

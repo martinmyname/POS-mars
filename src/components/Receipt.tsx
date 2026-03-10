@@ -1,4 +1,5 @@
 import { formatUGX } from '@/lib/formatUGX';
+import { Money } from '@/components/Money';
 import { format } from 'date-fns';
 import { User, Phone, MapPin, Calendar, Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
 
@@ -97,7 +98,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 touch-target sm:px-4 transition"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-body font-medium text-slate-700 hover:bg-slate-50 touch-target sm:px-4 transition"
           >
             Close
           </button>
@@ -105,28 +106,28 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
         <button
           type="button"
           onClick={printReceipt}
-          className="rounded-lg bg-tufts-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90 touch-target sm:px-4 transition"
+          className="rounded-lg bg-tufts-blue px-3 py-2 text-body font-medium text-white hover:opacity-90 touch-target sm:px-4 transition"
         >
           🖨️ Print
         </button>
         <button 
           type="button" 
           onClick={shareToWhatsApp} 
-          className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-100 touch-target sm:px-4 transition"
+          className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-body font-medium text-green-700 hover:bg-green-100 touch-target sm:px-4 transition"
         >
           💬 WhatsApp
         </button>
         <button 
           type="button" 
           onClick={copyReceipt} 
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 touch-target sm:px-4 transition"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-body font-medium text-slate-700 hover:bg-slate-50 touch-target sm:px-4 transition"
         >
           📋 Copy
         </button>
         <button 
           type="button" 
           onClick={saveToDevice} 
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 touch-target sm:px-4 transition"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-body font-medium text-slate-700 hover:bg-slate-50 touch-target sm:px-4 transition"
         >
           💾 Save
         </button>
@@ -235,7 +236,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
                   {item.originalPrice != null && item.originalPrice > item.unitPrice && (
                     <div className="receipt-item-discount">
                       <span className="receipt-item-original money">
-                        {formatUGX(item.originalPrice)} × {item.qty}
+                        <Money value={item.originalPrice} size="small" /> × {item.qty}
                       </span>
                       <span className="receipt-discount-badge">Discount applied</span>
                     </div>
@@ -246,14 +247,14 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
                   <div className="receipt-item-price">
                     {item.originalPrice != null && item.originalPrice > item.unitPrice ? (
                       <div>
-                        <span className="receipt-price-original money">{formatUGX(item.originalPrice)}</span>
-                        <span className="receipt-price-current money">{formatUGX(item.unitPrice)}</span>
+                        <span className="receipt-price-original money"><Money value={item.originalPrice} size="body" /></span>
+                        <span className="receipt-price-current money"><Money value={item.unitPrice} size="body" /></span>
                       </div>
                     ) : (
-                      <span className="money">{formatUGX(item.unitPrice)}</span>
+                      <span className="money"><Money value={item.unitPrice} size="body" /></span>
                     )}
                   </div>
-                  <div className="receipt-item-total money">{formatUGX(item.lineTotal)}</div>
+                  <div className="receipt-item-total money"><Money value={item.lineTotal} size="body" /></div>
                 </div>
               </div>
             ))}
@@ -264,7 +265,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
         <div className="receipt-total-section">
           <div className="receipt-total-row">
             <span className="receipt-total-label">Total</span>
-            <span className="receipt-total-amount money">{formatUGX(data.total)}</span>
+            <span className="receipt-total-amount money"><Money value={data.total} size="medium" /></span>
           </div>
         </div>
 

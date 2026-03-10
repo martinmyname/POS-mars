@@ -388,7 +388,7 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="page-title">Inventory</h1>
-        <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
+        <Link to="/" className="btn-secondary inline-flex w-fit text-body">
           ← Dashboard
         </Link>
       </div>
@@ -400,8 +400,8 @@ export default function InventoryPage() {
               <Package className="h-5 w-5 text-slate-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Inventory value (cost)</p>
-              <p className="text-xl font-bold text-smoky-black"><Money value={valuationCost} className="text-xl font-bold text-smoky-black" /></p>
+              <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Inventory value (cost)</p>
+              <p><Money value={valuationCost} size="large" className="font-bold text-smoky-black" /></p>
             </div>
           </div>
           <div className="card flex items-center gap-4 p-4">
@@ -409,8 +409,8 @@ export default function InventoryPage() {
               <Package className="h-5 w-5 text-emerald-700" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Inventory value (retail)</p>
-              <p className="text-xl font-bold text-emerald-700"><Money value={valuationRetail} className="text-xl font-bold text-emerald-700" /></p>
+              <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Inventory value (retail)</p>
+              <p><Money value={valuationRetail} size="large" className="font-bold text-emerald-700" /></p>
             </div>
           </div>
         </div>
@@ -445,7 +445,7 @@ export default function InventoryPage() {
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         <section className="card p-4 sm:p-5">
-          <h2 className="mb-4 font-sans text-lg font-semibold text-smoky-black">Add product</h2>
+          <h2 className="mb-4 font-sans text-title3 font-semibold text-smoky-black">Add product</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
               <input

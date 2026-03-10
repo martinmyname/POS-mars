@@ -304,7 +304,7 @@ export default function ReportsPage() {
   return (
     <div className="report-page space-y-4 sm:space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="report-heading text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">Reports &amp; Analytics</h1>
+        <h1 className="font-sans text-large font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports &amp; Analytics</h1>
         <div className="flex flex-wrap items-center gap-2 no-print">
           <button
             type="button"
@@ -360,7 +360,7 @@ export default function ReportsPage() {
 
       {/* Today's Summary — real-time, % vs same day last week, 7-day sparkline */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2 no-print">
-        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Today&apos;s summary</span>
+        <span className="text-subhead font-medium text-slate-600 dark:text-slate-400">Today&apos;s summary</span>
         <button
           type="button"
           onClick={() => exportToCSV('today_summary', ['Metric', 'Value', 'vs Last Week'], [
@@ -377,7 +377,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <div className="report-card p-4 sm:p-5">
           <p className="text-xs sm:text-sm report-muted">Today – Orders</p>
-          <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-100 truncate">{ordersToday}</p>
+          <p className="text-title3 font-bold text-slate-900 dark:text-slate-100 truncate">{ordersToday}</p>
           {ordersTodayPct !== 0 && <ChangeBadge value={ordersTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="orders" data={last7DaysSparkline} />
@@ -385,7 +385,7 @@ export default function ReportsPage() {
         </div>
         <div className="report-card p-4 sm:p-5">
           <p className="text-xs sm:text-sm report-muted">Today – Revenue</p>
-          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate"><Money value={revenueToday} className="text-lg sm:text-2xl font-bold report-accent-teal" /></p>
+          <p className="truncate"><Money value={revenueToday} size="large" className="font-bold report-accent-teal" /></p>
           {revenueTodayPct !== 0 && <ChangeBadge value={revenueTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="revenue" data={last7DaysSparkline} />
@@ -393,7 +393,7 @@ export default function ReportsPage() {
         </div>
         <div className="report-card p-4 sm:p-5">
           <p className="text-xs sm:text-sm report-muted">Today – Gross Profit</p>
-          <p className="text-lg sm:text-2xl font-bold report-accent-teal truncate"><Money value={profitToday} className="text-lg sm:text-2xl font-bold report-accent-teal" /></p>
+          <p className="truncate"><Money value={profitToday} size="large" className="font-bold report-accent-teal" /></p>
           {profitTodayPct !== 0 && <ChangeBadge value={profitTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="profit" data={last7DaysSparkline} />
@@ -401,7 +401,7 @@ export default function ReportsPage() {
         </div>
         <div className="report-card p-4 sm:p-5">
           <p className="text-xs sm:text-sm report-muted">Today – Operating Expenses</p>
-          <p className="text-lg sm:text-2xl font-bold report-accent-red truncate"><Money value={expensesToday} className="text-lg sm:text-2xl font-bold report-accent-red" /></p>
+          <p className="truncate"><Money value={expensesToday} size="large" className="font-bold report-accent-red" /></p>
           {expensesTodayPct !== 0 && <ChangeBadge value={expensesTodayPct} inverse />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="expenses" data={last7DaysSparkline} />
@@ -412,7 +412,7 @@ export default function ReportsPage() {
       {/* Daily Goals Tracker — general target or yesterday's actual if higher */}
       <div className="report-card p-4 sm:p-5 no-print">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Daily Goals</h2>
+          <h2 className="report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">Daily Goals</h2>
           <button
             type="button"
             onClick={() => setGoalsModalOpen(true)}
@@ -433,7 +433,7 @@ export default function ReportsPage() {
                 style={{ width: `${effectiveGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-xs report-muted mt-1"><Money value={revenueToday} className="report-muted" /> / <Money value={effectiveGoals.revenueTarget} className="report-muted" /></p>
+            <p className="text-footnote report-muted mt-1"><Money value={revenueToday} size="small" className="report-muted" /> / <Money value={effectiveGoals.revenueTarget} size="small" className="report-muted" /></p>
           </div>
           <div>
             <p className="text-sm report-muted mb-1">Orders</p>
@@ -453,7 +453,7 @@ export default function ReportsPage() {
                 style={{ width: `${effectiveGoals.profitTarget > 0 ? Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-xs report-muted mt-1"><Money value={profitToday} className="report-muted" /> / <Money value={effectiveGoals.profitTarget} className="report-muted" /></p>
+            <p className="text-footnote report-muted mt-1"><Money value={profitToday} size="small" className="report-muted" /> / <Money value={effectiveGoals.profitTarget} size="small" className="report-muted" /></p>
           </div>
         </div>
       </div>
@@ -463,7 +463,7 @@ export default function ReportsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="goals-modal-title">
           <div className="report-card w-full max-w-md p-4 sm:p-6 my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 id="goals-modal-title" className="report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">Daily targets</h3>
+              <h3 id="goals-modal-title" className="report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">Daily targets</h3>
               <button type="button" onClick={() => setGoalsModalOpen(false)} className="p-1 text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-white" aria-label="Close">
                 <X className="h-5 w-5" />
               </button>
@@ -505,7 +505,7 @@ export default function ReportsPage() {
 
       {/* Period Overview — all metrics with % change vs previous period */}
       <div className="report-card p-4 sm:p-5">
-        <h2 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
           <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
           {periodLabel} Overview
         </h2>
@@ -513,7 +513,7 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Orders</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{ordersPeriod}</p>
+              <p className="text-title3 font-bold text-slate-900 dark:text-slate-100">{ordersPeriod}</p>
               {periodMetrics.ordersGrowth !== 0 && <ChangeBadge value={periodMetrics.ordersGrowth} />}
             </div>
             <p className="text-xs report-muted">vs {prevPeriodLabel}: {previousPeriodOrders}</p>
@@ -521,7 +521,7 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Revenue</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-teal truncate"><Money value={periodMetrics.grossIncome} className="text-xl font-bold report-accent-teal" /></p>
+              <p className="truncate"><Money value={periodMetrics.grossIncome} size="large" className="font-bold report-accent-teal" /></p>
               {periodMetrics.revenueGrowth !== 0 && <ChangeBadge value={periodMetrics.revenueGrowth} />}
             </div>
             <p className="text-xs report-muted truncate">vs {prevPeriodLabel}: <Money value={previousPeriodRevenue} className="report-muted" /></p>
@@ -529,7 +529,7 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Gross Profit</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-teal"><Money value={periodMetrics.grossProfit} className="text-xl font-bold report-accent-teal" /></p>
+              <p><Money value={periodMetrics.grossProfit} size="large" className="font-bold report-accent-teal" /></p>
               {periodMetrics.profitGrowth !== 0 && <ChangeBadge value={periodMetrics.profitGrowth} />}
             </div>
             <p className="text-xs report-muted">vs {prevPeriodLabel}: <Money value={periodMetrics.previousPeriodGrossProfit} className="report-muted" /></p>
@@ -537,14 +537,14 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Gross Margin %</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-teal">{periodMetrics.profitMargin.toFixed(1)}%</p>
+              <p className="text-title3 font-bold report-accent-teal">{periodMetrics.profitMargin.toFixed(1)}%</p>
             </div>
             <p className="text-xs report-muted">Gross profit / Revenue × 100</p>
           </div>
           <div className="min-w-0">
             <p className="text-sm report-muted">Operating Expenses</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold report-accent-red"><Money value={periodMetrics.operatingExpenses} className="text-xl font-bold report-accent-red" /></p>
+              <p><Money value={periodMetrics.operatingExpenses} size="large" className="font-bold report-accent-red" /></p>
               {periodMetrics.operatingExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.operatingExpensesGrowth} inverse />}
             </div>
             <p className="text-xs report-muted">excl. Stock</p>
@@ -552,7 +552,7 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Restock Expenses</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-xl font-bold text-[#f59e0b]"><Money value={periodMetrics.restockExpenses} className="text-xl font-bold text-[#f59e0b]" /></p>
+              <p><Money value={periodMetrics.restockExpenses} size="large" className="font-bold text-[#f59e0b]" /></p>
               {periodMetrics.restockExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.restockExpensesGrowth} inverse />}
             </div>
             <p className="text-xs report-muted">Stock purchases (not deducted from profit)</p>
@@ -560,8 +560,8 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Net Profit</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className={`text-xl font-bold ${periodMetrics.netProfit >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
-                <Money value={periodMetrics.netProfit} className="font-semibold" />
+              <p className={`text-title3 font-bold ${periodMetrics.netProfit >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
+                <Money value={periodMetrics.netProfit} size="large" className="font-semibold" />
               </p>
               {periodMetrics.netProfitGrowth !== 0 && <ChangeBadge value={periodMetrics.netProfitGrowth} />}
             </div>
@@ -570,7 +570,7 @@ export default function ReportsPage() {
           <div className="min-w-0">
             <p className="text-sm report-muted">Net Margin %</p>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <p className={`text-xl font-bold ${periodMetrics.netProfitMargin >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
+              <p className={`text-title3 font-bold ${periodMetrics.netProfitMargin >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
                 {periodMetrics.netProfitMargin.toFixed(1)}%
               </p>
             </div>
@@ -582,7 +582,7 @@ export default function ReportsPage() {
       {/* Cash Flow Waterfall */}
       {periodMetrics.cashFlowWaterfall.length > 0 && (
         <div className="report-card p-4 sm:p-5">
-          <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
             <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
             Cash Flow Waterfall ({periodLabel})
           </h3>
@@ -638,7 +638,7 @@ export default function ReportsPage() {
       {/* Sales by Hour (daily only) — revenue bars, profit line, table, peak hour highlight */}
       {period === 'daily' && periodMetrics.hourlyBreakdown.length > 0 && (
         <div className="report-card p-4 sm:p-5">
-          <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
             <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
             Sales by Hour (Today)
           </h3>
@@ -698,7 +698,7 @@ export default function ReportsPage() {
       {periodMetrics.grossProfitHistory.length > 0 && (
         <div className="report-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <h3 className="flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
               <TrendingUp className="h-5 w-5 report-accent-blue shrink-0" />
               Gross Profit History
             </h3>
@@ -805,7 +805,7 @@ export default function ReportsPage() {
       {/* Customer Analytics — New / Returning / At-risk + Top Customers */}
       <div className="report-card p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
             <Users className="h-5 w-5 report-accent-blue shrink-0" />
             Customer Analytics ({periodLabel})
           </h3>
@@ -896,7 +896,7 @@ export default function ReportsPage() {
 
       {/* Inventory Health — Health score, Low Stock table, Dead stock, Restock cost */}
       <div className="report-card p-4 sm:p-5">
-        <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
           <Package className="h-5 w-5 report-accent-amber" />
           Inventory Health
         </h3>
@@ -915,7 +915,7 @@ export default function ReportsPage() {
           </div>
           <div>
             <p className="text-xs report-muted">Restock cost (to min level)</p>
-            <p className="text-lg font-semibold report-accent-teal"><Money value={periodMetrics.lowStockTable.reduce((s, r) => s + r.restockCost, 0)} className="text-lg font-semibold report-accent-teal" /></p>
+            <p className="text-title3 font-semibold report-accent-teal"><Money value={periodMetrics.lowStockTable.reduce((s, r) => s + r.restockCost, 0)} className="text-title3 font-semibold report-accent-teal" /></p>
           </div>
         </div>
         {periodMetrics.lowStockTable.length > 0 ? (
@@ -971,7 +971,7 @@ export default function ReportsPage() {
 
       {/* Refund & Return Analytics */}
       <div className="report-card p-4 sm:p-5">
-        <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
           <Receipt className="h-5 w-5 report-accent-red" />
           Refund & Return Analytics ({periodLabel})
         </h3>
@@ -1037,7 +1037,7 @@ export default function ReportsPage() {
       {/* Key Metrics — 10 KPIs */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="report-card p-4 sm:p-5">
-          <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Key Metrics</h3>
+          <h3 className="mb-3 text-subhead font-semibold text-slate-900 dark:text-slate-100">Key Metrics</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-sm report-muted">Avg Order Value</span>
@@ -1087,7 +1087,7 @@ export default function ReportsPage() {
         {/* Payment Methods — donut chart + bar list with share % */}
         <div className="report-card p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+            <h3 className="flex items-center gap-2 text-subhead font-semibold text-slate-900 dark:text-slate-100">
               <CreditCard className="h-4 w-4 report-accent-blue" />
               Payment Methods
             </h3>
@@ -1173,7 +1173,7 @@ export default function ReportsPage() {
         {/* Sales by Channel — icon, revenue, orders, % share bar */}
         <div className="report-card p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+            <h3 className="flex items-center gap-2 text-subhead font-semibold text-slate-900 dark:text-slate-100">
               <ShoppingCart className="h-4 w-4 report-accent-blue" />
               Sales by Channel
             </h3>
@@ -1238,7 +1238,7 @@ export default function ReportsPage() {
         {/* Expenses by purpose — with vs previous period change */}
         <div className="report-card p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+            <h3 className="flex items-center gap-2 text-subhead font-semibold text-slate-900 dark:text-slate-100">
               <Receipt className="h-4 w-4 report-accent-red" />
               Expenses by purpose ({periodLabel})
             </h3>
@@ -1331,7 +1331,7 @@ export default function ReportsPage() {
       {periodMetrics.topProducts.length > 0 && (
         <div className="report-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <h3 className="flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
               <Package className="h-5 w-5 report-accent-blue" />
               Top Selling Products ({periodLabel})
             </h3>
@@ -1409,7 +1409,7 @@ export default function ReportsPage() {
       {/* Revenue & Profit Trend Chart — three lines, tooltip with exact values */}
       {periodMetrics.timeSeriesData.length > 0 && (
         <div className="report-card p-4 sm:p-5">
-          <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
             <TrendingUp className="h-5 w-5 report-accent-blue" />
             Revenue & Profit Trend
           </h3>
@@ -1466,7 +1466,7 @@ export default function ReportsPage() {
 
       {/* Break-even Tracker */}
       <div className="report-card p-4 sm:p-5">
-        <h3 className="mb-4 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
           <BarChart3 className="h-5 w-5 text-[#f59e0b]" />
           Break-even Tracker
         </h3>
@@ -1507,13 +1507,13 @@ export default function ReportsPage() {
 
       {/* ——— Shareholder / Executive Summary (bottom) ——— */}
       <div className="border-t border-slate-200 dark:border-[#1f2937] pt-8 print:border-t-slate-300">
-        <h2 className="mb-4 report-heading text-xl font-bold text-slate-900 dark:text-slate-100">For shareholders &amp; stakeholders</h2>
+        <h2 className="mb-4 report-heading text-title2 font-bold text-slate-900 dark:text-slate-100">For shareholders &amp; stakeholders</h2>
 
         {/* Report header: business name + period + generated timestamp (EAT) */}
         <div className="report-card border-l-4 border-l-[#60a5fa] p-5 print:bg-white print:border-slate-200 print:border-l-slate-400">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="report-heading text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 print:text-black">
+              <h3 className="report-heading text-title2 font-bold tracking-tight text-slate-900 dark:text-slate-100 print:text-black">
                 {REPORT_BUSINESS_NAME}
               </h3>
               <p className="mt-1 text-sm report-muted print:text-slate-600">
@@ -1527,7 +1527,7 @@ export default function ReportsPage() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#f59e0b] px-5 py-2.5 text-sm font-semibold text-[#0d1117] hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#f59e0b] px-5 py-2.5 text-subhead font-semibold text-[#0d1117] hover:opacity-90"
                 aria-label="Print or save as PDF"
               >
                 <Printer className="h-4 w-4" />
@@ -1539,7 +1539,7 @@ export default function ReportsPage() {
 
         {/* Executive summary bullets */}
         <div className="report-card border-l-4 border-l-[#34d399] p-5 print:bg-white print:border-slate-200 print:border-l-slate-400 mt-6">
-          <h3 className="mb-3 flex items-center gap-2 report-heading text-lg font-semibold text-slate-900 dark:text-slate-100 print:text-black">
+          <h3 className="mb-3 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100 print:text-black">
             <FileText className="h-5 w-5 report-accent-blue print:text-slate-600" />
             Executive Summary
           </h3>

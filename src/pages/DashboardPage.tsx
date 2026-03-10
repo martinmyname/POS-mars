@@ -244,8 +244,8 @@ export default function DashboardPage() {
                   <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Products</p>
-                  <p className="text-lg sm:text-2xl font-bold text-smoky-black truncate">{productCount}</p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Products</p>
+                  <p className="text-title3 font-bold text-smoky-black truncate">{productCount}</p>
                 </div>
               </div>
             </Link>
@@ -256,8 +256,8 @@ export default function DashboardPage() {
                   <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Products</p>
-                  <p className="text-lg sm:text-2xl font-bold text-smoky-black truncate">{productCount}</p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Products</p>
+                  <p className="text-title3 font-bold text-smoky-black truncate">{productCount}</p>
                 </div>
               </div>
             </div>
@@ -269,10 +269,10 @@ export default function DashboardPage() {
                   <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Orders today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-smoky-black truncate">{ordersToday}</p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Orders today</p>
+                  <p className="text-title3 font-bold text-smoky-black truncate">{ordersToday}</p>
                   {ordersTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
                       {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
                       {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
@@ -289,10 +289,10 @@ export default function DashboardPage() {
                   <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Orders today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-smoky-black truncate">{ordersToday}</p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Orders today</p>
+                  <p className="text-title3 font-bold text-smoky-black truncate">{ordersToday}</p>
                   {ordersTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
                       {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
                       {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
@@ -310,10 +310,10 @@ export default function DashboardPage() {
                   <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Revenue today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate"><Money value={revenueToday} className="text-lg sm:text-2xl font-bold text-emerald-700" /></p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Revenue today</p>
+                  <p className="truncate"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
                   {revenueTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
                       {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
                       {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
@@ -330,10 +330,10 @@ export default function DashboardPage() {
                   <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Revenue today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-emerald-700 truncate"><Money value={revenueToday} className="text-lg sm:text-2xl font-bold text-emerald-700" /></p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Revenue today</p>
+                  <p className="truncate"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
                   {revenueTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
                       {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
                       {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
@@ -351,10 +351,10 @@ export default function DashboardPage() {
                   <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Gross profit today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-teal-700 truncate"><Money value={profitToday} className="text-lg sm:text-2xl font-bold text-teal-700" /></p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Gross profit today</p>
+                  <p className="truncate"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
                   {profitTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {profitTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
                       {profitTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
                       {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
@@ -371,10 +371,10 @@ export default function DashboardPage() {
                   <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Gross profit today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-teal-700 truncate"><Money value={profitToday} className="text-lg sm:text-2xl font-bold text-teal-700" /></p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Gross profit today</p>
+                  <p className="truncate"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
                   {profitTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {profitTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
                       {profitTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
                       {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
@@ -392,8 +392,8 @@ export default function DashboardPage() {
                   <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Expenses today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600 truncate"><Money value={expensesToday} className="text-lg sm:text-2xl font-bold text-red-600" /></p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Expenses today</p>
+                  <p className="truncate"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
                 </div>
               </div>
             </Link>
@@ -404,8 +404,8 @@ export default function DashboardPage() {
                   <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-slate-500">Expenses today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600 truncate"><Money value={expensesToday} className="text-lg sm:text-2xl font-bold text-red-600" /></p>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Expenses today</p>
+                  <p className="truncate"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
                 </div>
               </div>
             </div>
@@ -415,22 +415,22 @@ export default function DashboardPage() {
       {/* Today's Goals — general goal, or yesterday's actual if higher (see Reports to edit base goals) */}
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-sans text-base font-semibold text-smoky-black sm:text-lg">Today&apos;s Goals</h2>
-          <Link to="/reports/daily" className="text-xs font-medium text-tufts-blue hover:underline sm:text-sm">
+          <h2 className="font-sans text-title3 font-semibold text-smoky-black">Today&apos;s Goals</h2>
+          <Link to="/reports/daily" className="text-footnote font-medium text-tufts-blue hover:underline">
             Edit goals → Reports
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-sm font-medium text-slate-500">Revenue</p>
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Revenue</p>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all"
                 style={{ width: `${effectiveGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="mt-0.5 text-xs text-slate-500">
-              <Money value={revenueToday} className="text-slate-500" /> / <Money value={effectiveGoals.revenueTarget} className="text-slate-700" />
+            <p className="mt-0.5 text-footnote text-slate-500">
+              <Money value={revenueToday} size="small" className="text-slate-500" /> / <Money value={effectiveGoals.revenueTarget} size="small" className="text-slate-700" />
               {effectiveGoals.revenueTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
                   ({Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100).toFixed(0)}%)
@@ -439,14 +439,14 @@ export default function DashboardPage() {
             </p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Orders</p>
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Orders</p>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all"
                 style={{ width: `${effectiveGoals.ordersTarget > 0 ? Math.min(100, (ordersToday / effectiveGoals.ordersTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-footnote text-slate-500">
               {ordersToday} / {effectiveGoals.ordersTarget} orders
               {effectiveGoals.ordersTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
@@ -456,15 +456,15 @@ export default function DashboardPage() {
             </p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Gross Profit</p>
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Gross Profit</p>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all"
                 style={{ width: `${effectiveGoals.profitTarget > 0 ? Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="mt-0.5 text-xs text-slate-500">
-              <Money value={profitToday} className="text-slate-500" /> / <Money value={effectiveGoals.profitTarget} className="text-slate-700" />
+            <p className="mt-0.5 text-footnote text-slate-500">
+              <Money value={profitToday} size="small" className="text-slate-500" /> / <Money value={effectiveGoals.profitTarget} size="small" className="text-slate-700" />
               {effectiveGoals.profitTarget > 0 && (
                 <span className="ml-1 font-medium text-slate-700">
                   ({Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100).toFixed(0)}%)
@@ -477,10 +477,10 @@ export default function DashboardPage() {
 
       {alerts.length > 0 && (
         <div className="card col-span-full space-y-2 p-4 sm:p-5">
-          <h2 className="font-sans text-sm font-semibold text-smoky-black">Alerts</h2>
+          <h2 className="font-sans text-title3 font-semibold text-smoky-black">Alerts</h2>
           <ul className="space-y-2">
             {alerts.map((a) => (
-              <li key={a.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <li key={a.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body">
                 <span>
                   {a.key === 'break-even' && <span className="text-red-600" aria-hidden>🔴</span>}
                   {a.key === 'at-risk' && <span className="text-amber-600" aria-hidden>🟡</span>}
@@ -488,7 +488,7 @@ export default function DashboardPage() {
                   {a.key === 'dead-stock' && <span className="text-slate-500" aria-hidden>⚪</span>}
                 </span>
                 <span className="text-slate-700 dark:text-slate-300">{a.message}</span>
-                <Link to={a.link} className="shrink-0 text-xs font-medium text-tufts-blue hover:underline">
+                <Link to={a.link} className="shrink-0 text-footnote font-medium text-tufts-blue hover:underline">
                   {a.linkLabel}
                 </Link>
               </li>
@@ -507,20 +507,20 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="font-semibold">Low stock alert</p>
-                <p className="text-sm text-amber-800">{lowStockCount} product(s) at or below minimum</p>
+                <p className="text-subhead text-amber-800">{lowStockCount} product(s) at or below minimum</p>
               </div>
             </Link>
           )}
           {(scheduledDueToday.length > 0 || scheduledUpcoming.length > 0) && (
             <Link to="/deliveries" className="col-span-full card-hover card block p-4 sm:p-5">
-              <h2 className="mb-3 flex items-center gap-2 font-sans text-base font-semibold text-smoky-black sm:text-lg">
+              <h2 className="mb-3 flex items-center gap-2 font-sans text-title3 font-semibold text-smoky-black">
                 <CalendarClock className="h-5 w-5 text-tufts-blue" />
                 Scheduled orders
               </h2>
               {scheduledDueToday.length > 0 && (
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-                  <p className="mb-2 text-sm font-semibold text-amber-900">Due today – reminder</p>
-                  <ul className="space-y-1.5 text-sm text-amber-800">
+                  <p className="mb-2 text-subhead font-semibold text-amber-900">Due today – reminder</p>
+                  <ul className="space-y-1.5 text-subhead text-amber-800">
                     {scheduledDueToday.map((o) => (
                       <li key={o.id} className="flex items-center justify-between gap-2">
                         <span>Order #{o.orderNumber ?? o.id.slice(-8)}</span>
@@ -528,13 +528,13 @@ export default function DashboardPage() {
                       </li>
                     ))}
                   </ul>
-                  <span className="mt-2 inline-block text-sm font-medium text-amber-800 underline">View deliveries →</span>
+                  <span className="mt-2 inline-block text-subhead font-medium text-amber-800 underline">View deliveries →</span>
                 </div>
               )}
               {scheduledUpcoming.length > 0 && (
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-slate-700">Upcoming</p>
-                  <ul className="space-y-1.5 text-sm text-slate-600">
+                  <p className="mb-2 text-subhead font-semibold text-slate-700">Upcoming</p>
+                  <ul className="space-y-1.5 text-subhead text-slate-600">
                     {scheduledUpcoming.map((o) => (
                       <li key={o.id} className="flex items-center justify-between gap-2">
                         <span>
@@ -550,7 +550,7 @@ export default function DashboardPage() {
           )}
 
       <div>
-        <h2 className="mb-3 sm:mb-4 font-sans text-base font-semibold text-smoky-black sm:text-lg">Quick actions</h2>
+        <h2 className="mb-3 sm:mb-4 font-sans text-title3 font-semibold text-smoky-black">Quick actions</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           {navItems.map(({ to, label, icon: Icon, primary }) => (
             <Link
@@ -569,7 +569,7 @@ export default function DashboardPage() {
               >
                 <Icon className={`h-5 w-5 ${primary ? 'text-white' : 'text-slate-600'}`} />
               </div>
-              <span className="font-medium text-sm sm:text-base truncate">{label}</span>
+              <span className="font-medium text-body truncate">{label}</span>
             </Link>
           ))}
         </div>

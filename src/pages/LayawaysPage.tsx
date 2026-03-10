@@ -129,7 +129,7 @@ export default function LayawaysPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">
+        <h1 className="page-title">
           Deposits & Layaways
         </h1>
         <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
@@ -151,7 +151,7 @@ export default function LayawaysPage() {
 
       <div className="card overflow-hidden">
         <div className="border-b border-slate-200/80 bg-slate-50/50 px-4 py-3">
-          <h2 className="mb-3 font-sans text-lg font-semibold text-smoky-black">Layaways</h2>
+          <h2 className="mb-3 font-sans text-title3 font-semibold text-smoky-black">Layaways</h2>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
