@@ -6,6 +6,10 @@ export interface StoreSettings {
   logoUrl: string;
   phone?: string;
   email?: string;
+  /** Over/short threshold in UGX; sessions exceeding this are flagged. Default 10000 */
+  cashOverShortThresholdUgx?: number;
+  /** End-of-day close reminder time in app timezone (HH:mm). Default 21:00 */
+  cashCloseReminderTime?: string;
 }
 
 const defaults: StoreSettings = {
@@ -14,6 +18,8 @@ const defaults: StoreSettings = {
   logoUrl: '',
   phone: '0703666646',
   email: 'info@marskitchenessentials.com',
+  cashOverShortThresholdUgx: 10000,
+  cashCloseReminderTime: '21:00',
 };
 
 export function getSettings(): StoreSettings {

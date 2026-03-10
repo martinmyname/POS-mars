@@ -185,6 +185,30 @@ export type CashSession = {
   _modified?: string;
 };
 
+export type PettyCashTransaction = {
+  id: string;
+  sessionId: string;
+  amount: number;
+  reason: string;
+  recordedAt: string;
+  recordedBy: string;
+  _deleted?: boolean;
+  _modified?: string;
+};
+
+export type CashSessionAuditLogEntry = {
+  id: string;
+  sessionId: string;
+  changedAt: string;
+  changedBy: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  reason: string | null;
+  _deleted?: boolean;
+  _modified?: string;
+};
+
 const TABLES = {
   products: 'products',
   orders: 'orders',
@@ -198,6 +222,8 @@ const TABLES = {
   supplier_ledger: 'supplier_ledger',
   layaways: 'layaways',
   cash_sessions: 'cash_sessions',
+  petty_cash_transactions: 'petty_cash_transactions',
+  cash_session_audit_log: 'cash_session_audit_log',
 } as const;
 
 function nowIso() {
@@ -349,14 +375,85 @@ export const layawaysApi = {
   subscribe: (cb: (p: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => void) => subscribe(TABLES.layaways, cb),
 };
 
+const CASH_SESSION_AUDIT_FIELDS = [
+  'openingAmount', 'closingAmount', 'expectedAmount', 'difference',
+  'openedAt', 'closedAt', 'openedBy', 'closedBy', 'notes',
+] as const;
+
+async function updateCashSessionAndLog(
+  id: string,
+  partial: Partial<CashSession>,
+  changedBy: string,
+  reason?: string
+): Promise<void> {
+  const current = await getById<CashSession>(TABLES.cash_sessions, id);
+  await updateById(TABLES.cash_sessions, id, partial as CashSession);
+  const changedAt = nowIso();
+  for (const field of CASH_SESSION_AUDIT_FIELDS) {
+    if (!(field in partial)) continue;
+    const oldVal = current != null ? (current as Record<string, unknown>)[field] : undefined;
+    const newVal = partial[field];
+    if (oldVal === newVal) continue;
+    await insert(TABLES.cash_session_audit_log, {
+      id: `audit_${generateId()}`,
+      sessionId: id,
+      changedAt,
+      changedBy,
+      field,
+      oldValue: oldVal != null ? String(oldVal) : null,
+      newValue: newVal != null ? String(newVal) : null,
+      reason: reason ?? null,
+    } as CashSessionAuditLogEntry);
+  }
+}
+
 export const cashSessionsApi = {
   getAll: () => getAll<CashSession>(TABLES.cash_sessions),
   getById: (id: string) => getById<CashSession>(TABLES.cash_sessions, id),
   getByDate: (date: string) => getOneBy<CashSession>(TABLES.cash_sessions, 'date', date),
   insert: (row: Omit<CashSession, '_deleted' | '_modified'>) => insert(TABLES.cash_sessions, row as CashSession),
   update: (id: string, partial: Partial<CashSession>) => updateById(TABLES.cash_sessions, id, partial),
+  updateAndLog: (id: string, partial: Partial<CashSession>, changedBy: string, reason?: string) =>
+    updateCashSessionAndLog(id, partial, changedBy, reason),
   remove: (id: string) => softDelete(TABLES.cash_sessions, id),
   subscribe: (cb: (p: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => void) => subscribe(TABLES.cash_sessions, cb),
+};
+
+async function getBySessionId<T>(table: string, sessionId: string): Promise<T[]> {
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq('sessionId', sessionId)
+    .eq('_deleted', false)
+    .order('recordedAt', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as T[];
+}
+
+async function getAuditBySessionId(sessionId: string): Promise<CashSessionAuditLogEntry[]> {
+  const { data, error } = await supabase
+    .from(TABLES.cash_session_audit_log)
+    .select('*')
+    .eq('sessionId', sessionId)
+    .eq('_deleted', false)
+    .order('changedAt', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as CashSessionAuditLogEntry[];
+}
+
+export const pettyCashTransactionsApi = {
+  getAll: () => getAll<PettyCashTransaction>(TABLES.petty_cash_transactions),
+  getById: (id: string) => getById<PettyCashTransaction>(TABLES.petty_cash_transactions, id),
+  getBySessionId: (sessionId: string) => getBySessionId<PettyCashTransaction>(TABLES.petty_cash_transactions, sessionId),
+  insert: (row: Omit<PettyCashTransaction, '_deleted' | '_modified'>) => insert(TABLES.petty_cash_transactions, row as PettyCashTransaction),
+  remove: (id: string) => softDelete(TABLES.petty_cash_transactions, id),
+  subscribe: (cb: (p: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => void) => subscribe(TABLES.petty_cash_transactions, cb),
+};
+
+export const cashSessionAuditLogApi = {
+  getBySessionId: getAuditBySessionId,
+  insert: (row: Omit<CashSessionAuditLogEntry, '_deleted' | '_modified'>) => insert(TABLES.cash_session_audit_log, row as CashSessionAuditLogEntry),
+  subscribe: (cb: (p: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => void) => subscribe(TABLES.cash_session_audit_log, cb),
 };
 
 /** Generate a simple id (same style as before; no nanoid dependency). */

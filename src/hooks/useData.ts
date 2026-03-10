@@ -13,6 +13,7 @@ import type {
   SupplierLedgerEntry,
   Layaway,
   CashSession,
+  PettyCashTransaction,
 } from '@/lib/data';
 import {
   productsApi,
@@ -25,6 +26,8 @@ import {
   supplierLedgerApi,
   layawaysApi,
   cashSessionsApi,
+  pettyCashTransactionsApi,
+  cashSessionAuditLogApi,
   generateId,
 } from '@/lib/data';
 
@@ -116,6 +119,10 @@ export function useCashSessions(opts?: { realtime?: boolean }) {
   return useTable(cashSessionsApi.getAll, cashSessionsApi.subscribe, opts);
 }
 
+export function usePettyCashTransactions(opts?: { realtime?: boolean }) {
+  return useTable(pettyCashTransactionsApi.getAll, pettyCashTransactionsApi.subscribe, opts);
+}
+
 export {
   productsApi,
   ordersApi,
@@ -127,6 +134,8 @@ export {
   supplierLedgerApi,
   layawaysApi,
   cashSessionsApi,
+  pettyCashTransactionsApi,
+  cashSessionAuditLogApi,
   generateId,
 };
-export type { Product, Order, Expense, Promotion, Customer, Delivery, Supplier, SupplierLedgerEntry, Layaway, CashSession };
+export type { Product, Order, Expense, Promotion, Customer, Delivery, Supplier, SupplierLedgerEntry, Layaway, CashSession, PettyCashTransaction };

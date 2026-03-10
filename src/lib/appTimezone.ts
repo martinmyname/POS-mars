@@ -71,6 +71,16 @@ export function getWeekdayInAppTz(dateStr: string): number {
   return map[day] ?? 0;
 }
 
+/** Current time as HH:mm in app timezone (e.g. for reminder scheduling). */
+export function getCurrentTimeAppTz(): string {
+  return new Date().toLocaleTimeString('en-GB', {
+    timeZone: APP_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 /** Add N days to a YYYY-MM-DD string (in app tz calendar). */
 export function addDaysToDateStr(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);

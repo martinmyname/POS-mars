@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getSettings, setSettings, type StoreSettings } from '@/lib/settings';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Building2, MapPin, Phone, Mail, User as UserIcon, LogOut } from 'lucide-react';
+import { Building2, MapPin, Phone, Mail, User as UserIcon, LogOut, Banknote, Clock } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
@@ -194,6 +194,49 @@ export default function SettingsPage() {
                 placeholder="info@marskitchenessentials.com"
                 className="input-base w-full"
               />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
+          <h2 className="mb-3 flex items-center gap-2 font-sans text-lg font-semibold text-smoky-black">
+            <Banknote className="h-5 w-5 text-tufts-blue" />
+            Cash management
+          </h2>
+          <p className="mb-4 text-sm text-slate-500">
+            Over/short threshold flags sessions that exceed this amount. End-of-day reminder prompts staff to close the drawer at the set time.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="settings-cash-threshold" className="mb-1 block text-sm font-medium text-slate-700">
+                Over/short threshold (UGX)
+              </label>
+              <input
+                id="settings-cash-threshold"
+                name="cash_over_short_threshold"
+                type="number"
+                min={0}
+                step={1000}
+                value={s.cashOverShortThresholdUgx ?? 10000}
+                onChange={(e) => setS((p) => ({ ...p, cashOverShortThresholdUgx: e.target.value ? Number(e.target.value) : undefined }))}
+                placeholder="10000"
+                className="input-base w-full"
+              />
+              <p className="mt-1 text-xs text-slate-500">Sessions with |difference| above this are flagged. Default 10,000.</p>
+            </div>
+            <div>
+              <label htmlFor="settings-cash-reminder-time" className="mb-1 block text-sm font-medium text-slate-700">
+                <Clock className="mr-1 inline h-4 w-4" /> End-of-day close reminder (time)
+              </label>
+              <input
+                id="settings-cash-reminder-time"
+                name="cash_close_reminder_time"
+                type="time"
+                value={s.cashCloseReminderTime ?? '21:00'}
+                onChange={(e) => setS((p) => ({ ...p, cashCloseReminderTime: e.target.value || undefined }))}
+                className="input-base w-full"
+              />
+              <p className="mt-1 text-xs text-slate-500">Shown once per day when the drawer is still open. Time is in your local app timezone (EAT).</p>
             </div>
           </div>
         </section>
