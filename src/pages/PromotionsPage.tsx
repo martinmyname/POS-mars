@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import type { PromotionType } from '@/types';
 
 export default function PromotionsPage() {
-  const { data: promos, loading } = usePromotions({ realtime: true });
+  const { data: promos, loading, refetch: refetchPromos } = usePromotions({ realtime: true });
   const [name, setName] = useState('');
   const [type, setType] = useState<PromotionType>('percent_off');
   const [value, setValue] = useState('');
@@ -33,6 +33,7 @@ export default function PromotionsPage() {
         minPurchase: minPurchase ? parseFloat(minPurchase) : undefined,
         active: true,
       });
+      await refetchPromos();
       setName('');
       setValue('');
       setMinPurchase('');
@@ -43,6 +44,7 @@ export default function PromotionsPage() {
 
   const toggleActive = async (id: string, active: boolean) => {
     await promotionsApi.update(id, { active });
+    await refetchPromos();
   };
 
   if (loading) return <div className="flex min-h-[40vh] items-center justify-center text-slate-500">Loading…</div>;
@@ -50,10 +52,10 @@ export default function PromotionsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-4xl font-bold tracking-tight text-smoky-black">Promotions</h1>
+        <h1 className="page-title font-sans lg:font-serif">Promotions</h1>
         <Link to="/" className="text-tufts-blue underline">← Dashboard</Link>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <section className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="mb-3 font-sans text-lg font-semibold">Create promotion</h2>
           <form onSubmit={handleSubmit} className="space-y-3">

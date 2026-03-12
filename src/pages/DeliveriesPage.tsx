@@ -25,9 +25,9 @@ const PAYMENT_STATUS_LABELS: Record<DeliveryPaymentStatus, string> = {
 
 export default function DeliveriesPage() {
   const { user } = useAuth();
-  const { data: deliveriesList, loading } = useDeliveries({ realtime: true });
-  const { data: ordersList } = useOrders({ realtime: true });
-  const { data: productsList } = useProducts({ realtime: true });
+  const { data: deliveriesList, loading, refetch: refetchDeliveries } = useDeliveries({ realtime: true });
+  const { data: ordersList, refetch: refetchOrders } = useOrders({ realtime: true });
+  const { data: productsList, refetch: refetchProducts } = useProducts({ realtime: true });
   const deliveries = useMemo(() => {
     const list = deliveriesList
       .filter((d) => d.orderId)
@@ -175,7 +175,8 @@ export default function DeliveriesPage() {
       updates.deliveryStatus = 'in_transit';
     }
     await deliveriesApi.update(id, updates);
-    
+    await refetchDeliveries();
+
     // Clear form
     setRiderName((prev) => {
       const next = { ...prev };
@@ -245,6 +246,7 @@ export default function DeliveriesPage() {
     }
     
     await deliveriesApi.update(id, updates);
+    await refetchDeliveries();
 
     // Clear form
     setPaymentAmount((prev) => {
@@ -295,15 +297,19 @@ export default function DeliveriesPage() {
       patch.deliveredAt = new Date().toISOString();
     }
     await deliveriesApi.update(id, patch);
+    await refetchDeliveries();
     if (status === 'cancelled') {
+      await refetchOrders();
+      await refetchProducts();
       setMessage('Delivery cancelled. Stock has been returned and order marked cancelled.');
       setTimeout(() => setMessage(null), 5000);
     }
   };
 
-  const refreshDeliveriesFromServer = () => {
+  const refreshDeliveriesFromServer = async () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 800);
+    await Promise.all([refetchDeliveries(), refetchOrders(), refetchProducts()]);
+    setIsRefreshing(false);
   };
 
   if (loading) {

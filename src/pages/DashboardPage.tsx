@@ -236,177 +236,169 @@ export default function DashboardPage() {
         <p className="page-subtitle">Overview of your store today</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {productCount > 0 ? (
-            <Link to="/inventory" className="card-hover card block p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-slate-100 p-2">
-                  <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+            <Link to="/inventory" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Products</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Products</p>
-                  <p className="text-title3 font-bold text-smoky-black truncate">{productCount}</p>
-                </div>
+                <p className="text-title3 font-bold text-smoky-black">{productCount}</p>
               </div>
             </Link>
           ) : (
-            <div className="card p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-slate-100 p-2">
-                  <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+            <div className="card stat-card p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Products</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Products</p>
-                  <p className="text-title3 font-bold text-smoky-black truncate">{productCount}</p>
-                </div>
+                <p className="text-title3 font-bold text-smoky-black">{productCount}</p>
               </div>
             </div>
           )}
           {ordersToday > 0 ? (
-            <Link to="/reports/daily" className="card-hover card block p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-slate-100 p-2">
-                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+            <Link to="/reports/daily" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Orders today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Orders today</p>
-                  <p className="text-title3 font-bold text-smoky-black truncate">{ordersToday}</p>
-                  {ordersTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
-                      {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
-                      {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
-                      <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                    </p>
-                  )}
-                </div>
+                <p className="text-title3 font-bold text-smoky-black">{ordersToday}</p>
+                {ordersTodayPct !== 0 && (
+                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
+                    {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
+                    {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
+                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
+                  </p>
+                )}
               </div>
             </Link>
           ) : (
-            <div className="card p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-slate-100 p-2">
-                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+            <div className="card stat-card p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Orders today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Orders today</p>
-                  <p className="text-title3 font-bold text-smoky-black truncate">{ordersToday}</p>
-                  {ordersTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
-                      {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
-                      {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
-                      <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                    </p>
-                  )}
-                </div>
+                <p className="text-title3 font-bold text-smoky-black">{ordersToday}</p>
+                {ordersTodayPct !== 0 && (
+                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
+                    {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
+                    {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
+                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
+                  </p>
+                )}
               </div>
             </div>
           )}
           {revenueToday > 0 ? (
-            <Link to="/reports/daily" className="card-hover card block p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-emerald-100 p-2">
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
+            <Link to="/reports/daily" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-emerald-100 p-2 shrink-0">
+                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
+                  </div>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Revenue today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Revenue today</p>
-                  <p className="truncate"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
-                  {revenueTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
-                      {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
-                      {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
-                      <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                    </p>
-                  )}
-                </div>
+                <p className="break-all"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
+                {revenueTodayPct !== 0 && (
+                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
+                    {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
+                    {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
+                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
+                  </p>
+                )}
               </div>
             </Link>
           ) : (
-            <div className="card p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-emerald-100 p-2">
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
+            <div className="card stat-card p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-emerald-100 p-2 shrink-0">
+                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
+                  </div>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Revenue today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Revenue today</p>
-                  <p className="truncate"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
-                  {revenueTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
-                      {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
-                      {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
-                      <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                    </p>
-                  )}
-                </div>
+                <p className="break-all"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
+                {revenueTodayPct !== 0 && (
+                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
+                    {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
+                    {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
+                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
+                  </p>
+                )}
               </div>
             </div>
           )}
           {profitToday !== 0 ? (
-            <Link to="/reports/daily" className="card-hover card block p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-teal-100 p-2">
-                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
+            <Link to="/reports/daily" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-teal-100 p-2 shrink-0">
+                    <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
+                  </div>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Gross profit today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Gross profit today</p>
-                  <p className="truncate"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
-                  {profitTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {profitTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
-                      {profitTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
-                      {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
-                      <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                    </p>
-                  )}
-                </div>
+                <p className="break-all"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
+                {profitTodayPct !== 0 && (
+                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {profitTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
+                    {profitTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
+                    {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
+                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
+                  </p>
+                )}
               </div>
             </Link>
           ) : (
-            <div className="card p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-teal-100 p-2">
-                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
+            <div className="card stat-card p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-teal-100 p-2 shrink-0">
+                    <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
+                  </div>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Gross profit today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Gross profit today</p>
-                  <p className="truncate"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
-                  {profitTodayPct !== 0 && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-caption2 ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {profitTodayPct > 0 && <TrendingUp className="h-3 w-3" />}
-                      {profitTodayPct < 0 && <TrendingDown className="h-3 w-3" />}
-                      {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
-                      <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                    </p>
-                  )}
-                </div>
+                <p className="break-all"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
+                {profitTodayPct !== 0 && (
+                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {profitTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
+                    {profitTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
+                    {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
+                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
+                  </p>
+                )}
               </div>
             </div>
           )}
           {expensesToday > 0 ? (
-            <Link to="/expenses" className="card-hover card block p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-red-50 p-2">
-                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+            <Link to="/expenses" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-red-50 p-2 shrink-0">
+                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                  </div>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Expenses today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Expenses today</p>
-                  <p className="truncate"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
-                </div>
+                <p className="break-all"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
               </div>
             </Link>
           ) : (
-            <div className="card p-4 sm:p-5">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="rounded-lg bg-red-50 p-2">
-                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+            <div className="card stat-card p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-red-50 p-2 shrink-0">
+                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                  </div>
+                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Expenses today</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Expenses today</p>
-                  <p className="truncate"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
-                </div>
+                <p className="break-all"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
               </div>
             </div>
           )}

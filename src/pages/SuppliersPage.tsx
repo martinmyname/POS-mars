@@ -62,8 +62,8 @@ function Sparkline({ points, owing }: { points: number[]; owing: boolean }) {
 
 export default function SuppliersPage() {
   useTheme();
-  const { data: suppliersList, loading } = useSuppliers({ realtime: true });
-  const { data: ledgerList } = useSupplierLedger({ realtime: true });
+  const { data: suppliersList, loading, refetch: refetchSuppliers } = useSuppliers({ realtime: true });
+  const { data: ledgerList, refetch: refetchLedger } = useSupplierLedger({ realtime: true });
 
   type SupplierRow = {
     id: string;
@@ -250,6 +250,7 @@ export default function SuppliersPage() {
         address: address.trim() || undefined,
         notes: notes.trim() || undefined,
       });
+      await refetchSuppliers();
       setName('');
       setContact('');
       setPhone('');
@@ -283,6 +284,7 @@ export default function SuppliersPage() {
         dueDate: activeForm.type === 'credit' && ledgerDueDate.trim() ? ledgerDueDate : undefined,
         note: ledgerNote.trim() || undefined,
       });
+      await refetchLedger();
       setActiveForm(null);
       setLedgerAmount('');
       setLedgerDate(todayISO());
@@ -340,12 +342,12 @@ export default function SuppliersPage() {
       </div>
 
       {/* Task 1 — 4 summary cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card flex items-center gap-4 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-          <span className="text-2xl" aria-hidden>⚖️</span>
-          <div>
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Total Owed to Suppliers</p>
-            <p className=""><Money value={totalOwed} size="large" className="font-bold text-amber-800 dark:text-amber-200" /></p>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="card stat-card flex items-center gap-4 border-amber-200 bg-amber-50/50 p-4 min-w-0 dark:border-amber-800 dark:bg-amber-950/30">
+          <span className="text-2xl shrink-0" aria-hidden>⚖️</span>
+          <div className="min-w-0">
+            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400 truncate">Total Owed to Suppliers</p>
+            <p className="break-all"><Money value={totalOwed} size="large" className="font-bold text-amber-800 dark:text-amber-200" /></p>
             <p className="text-footnote text-slate-500">{suppliersWithBalance} suppliers with open balance</p>
           </div>
         </div>
@@ -397,9 +399,9 @@ export default function SuppliersPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5 lg:gap-6">
         {/* Task 10 — Add supplier form */}
-        <section className="card p-4">
+        <section className="card p-4 order-last lg:order-first">
           <h2 className="mb-3 font-sans text-title3 font-semibold">Add supplier</h2>
           {addSuccess && (
             <p className="mb-3 text-sm font-medium text-emerald-600 dark:text-emerald-400">✓ Supplier added</p>

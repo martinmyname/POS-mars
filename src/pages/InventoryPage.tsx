@@ -25,7 +25,7 @@ interface ProductDoc {
 }
 
 export default function InventoryPage() {
-  const { data: productsList, loading: productsLoading } = useProducts({ realtime: true });
+  const { data: productsList, loading: productsLoading, refetch: refetchProducts } = useProducts({ realtime: true });
   const { data: suppliersList } = useSuppliers({ realtime: true });
   const products = useMemo(
     () =>
@@ -251,6 +251,7 @@ export default function InventoryPage() {
         minStockLevel: Number.isNaN(minSt) ? 0 : Math.max(0, minSt),
         barcode: editBarcode.trim() || undefined,
       });
+      await refetchProducts();
       setMessage('Product updated.');
       setTimeout(() => setMessage(null), 3000);
       cancelEdit();
@@ -303,6 +304,7 @@ export default function InventoryPage() {
         minStockLevel: Number.isNaN(minSt) ? 0 : Math.max(0, minSt),
         supplierId: supplierId || undefined,
       });
+      await refetchProducts();
       setSku('');
       setName('');
       setCategory('');
@@ -341,6 +343,7 @@ export default function InventoryPage() {
     }
     const newStock = currentStock + qty;
     await productsApi.update(productId, { stock: Math.max(0, Math.round(newStock)) });
+    await refetchProducts();
 
     const today = getTodayInAppTz();
     if (addStockPayment === 'cash') {
@@ -374,6 +377,7 @@ export default function InventoryPage() {
 
   const setProductSupplier = async (productId: string, newSupplierId: string) => {
     await productsApi.update(productId, { supplierId: newSupplierId || undefined });
+    await refetchProducts();
   };
 
   if (productsLoading) {
@@ -443,7 +447,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[360px_1fr]">
         <section className="card p-4 sm:p-5">
           <h2 className="mb-4 font-sans text-title3 font-semibold text-smoky-black">Add product</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -629,6 +633,7 @@ export default function InventoryPage() {
                       paidByWho: 'Inventory',
                     });
                   }
+                  await refetchProducts();
                   setMessage('✓ Stock updated for ' + selected.length + ' products. Expense recorded.');
                   setTimeout(() => setMessage(null), 4000);
                 }}

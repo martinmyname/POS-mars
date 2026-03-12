@@ -16,7 +16,7 @@ const LIST_PERIODS: ListPeriod[] = ['today', 'week', 'month', 'all'];
 const PAID_BY_WHO_OPTIONS = ['All', 'Staff', 'Owner', 'Manager', 'Accountant'];
 
 export default function ExpensesPage() {
-  const { data: expensesList, loading } = useExpenses({ realtime: true });
+  const { data: expensesList, loading, refetch: refetchExpenses } = useExpenses({ realtime: true });
   const todayStr = getTodayInAppTz();
   const [listPeriod, setListPeriod] = useState<ListPeriod>('month');
   const [listPurpose, setListPurpose] = useState<string>('All');
@@ -155,6 +155,7 @@ export default function ExpensesPage() {
         paidByWho: paidByWho.trim() || 'Staff',
         notes: notes.trim() || undefined,
       });
+      await refetchExpenses();
       setItemBought('');
       setPurpose('');
       setAmount('');
@@ -185,48 +186,48 @@ export default function ExpensesPage() {
       </div>
 
       {/* Task 1 — Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="card stat-card p-4 min-w-0">
           <div className="flex items-center gap-2 text-red-600">
             <span aria-hidden>📅</span>
-            <span className="font-sans text-headline font-semibold">Today&apos;s Expenses</span>
+            <span className="font-sans text-headline font-semibold truncate">Today&apos;s Expenses</span>
           </div>
-          <p className="mt-1"><Money value={metrics.todayTotal} size="large" className="font-bold text-red-600" /></p>
+          <p className="mt-1 break-all"><Money value={metrics.todayTotal} size="large" className="font-bold text-red-600" /></p>
           <p className="text-footnote text-slate-500">
             {metrics.todayCount === 0 ? 'None recorded yet' : `${metrics.todayCount} entries`}
           </p>
         </div>
-        <div className="card p-4">
+        <div className="card stat-card p-4 min-w-0">
           <div className="flex items-center gap-2 text-amber-600">
             <span aria-hidden>📊</span>
-            <span className="font-sans text-headline font-semibold">This Month Total</span>
+            <span className="font-sans text-headline font-semibold truncate">This Month Total</span>
           </div>
-          <p className="mt-1"><Money value={metrics.monthTotal} size="large" className="font-bold text-amber-600" /></p>
+          <p className="mt-1 break-all"><Money value={metrics.monthTotal} size="large" className="font-bold text-amber-600" /></p>
           <p className="text-footnote text-slate-500">
             {metrics.weekOverWeekChange != null
               ? `${metrics.weekOverWeekChange >= 0 ? '+' : ''}${(metrics.weekOverWeekChange * 100).toFixed(1)}% vs last week`
               : `${metrics.monthCount} entries this month`}
           </p>
         </div>
-        <div className="card p-4">
+        <div className="card stat-card p-4 min-w-0">
           <div className="flex items-center gap-2 text-blue-600">
             <span aria-hidden>⚙️</span>
-            <span className="font-sans text-headline font-semibold">Operating (month)</span>
+            <span className="font-sans text-headline font-semibold truncate">Operating (month)</span>
           </div>
-          <p className="mt-1"><Money value={metrics.operatingExpenses} size="large" className="font-bold text-blue-600" /></p>
+          <p className="mt-1 break-all"><Money value={metrics.operatingExpenses} size="large" className="font-bold text-blue-600" /></p>
           <p className="text-footnote text-slate-500">Excl. stock/restock · counts toward net profit</p>
         </div>
-        <div className="card p-4">
+        <div className="card stat-card p-4 min-w-0">
           <div className="flex items-center gap-2 text-green-600">
             <span aria-hidden>📦</span>
-            <span className="font-sans text-headline font-semibold">Restock / Stock (month)</span>
+            <span className="font-sans text-headline font-semibold truncate">Restock / Stock (month)</span>
           </div>
-          <p className="mt-1"><Money value={metrics.restockExpenses} size="large" className="font-bold text-green-600" /></p>
+          <p className="mt-1 break-all"><Money value={metrics.restockExpenses} size="large" className="font-bold text-green-600" /></p>
           <p className="text-footnote text-slate-500">Not deducted from net profit</p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5 lg:gap-6">
         {/* Left column: Form + Spending by Purpose + Quick Stats */}
         <div className="space-y-6">
           <section className="card p-5">

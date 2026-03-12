@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useProducts, usePromotions, useSuppliers, productsApi, ordersApi, expensesApi, supplierLedgerApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
+import { useProducts, usePromotions, useSuppliers, useCashSessions, productsApi, ordersApi, expensesApi, supplierLedgerApi, layawaysApi, deliveriesApi, customersApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { Money } from '@/components/Money';
 import { Receipt, type ReceiptData } from '@/components/Receipt';
 import { getSettings } from '@/lib/settings';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { Bike, Package } from 'lucide-react';
+import { CashOpenPromptModal } from '@/components/CashOpenPromptModal';
 import type { OrderItem, PaymentMethod, PaymentSplit, OrderChannel } from '@/types';
 import { CHANNEL_OPTIONS, DEFAULT_ORDER_CHANNEL } from '@/lib/orderConstants';
 
@@ -27,9 +28,10 @@ const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; image: string; cod
 ];
 
 export default function POSPage() {
-  const { data: productsList, loading: productsLoading } = useProducts({ realtime: true });
+  const { data: productsList, loading: productsLoading, refetch: refetchProducts } = useProducts({ realtime: true });
   const { data: promotionsList } = usePromotions({ realtime: true });
   const { data: suppliersList } = useSuppliers({ realtime: true });
+  const { data: sessionsList, refetch: refetchSessions } = useCashSessions({ realtime: true });
   const products = useMemo(
     () =>
       productsList.map((d) => ({
@@ -47,6 +49,15 @@ export default function POSPage() {
     [productsList]
   );
   const suppliers = useMemo(() => suppliersList.map((s) => ({ id: s.id, name: s.name })), [suppliersList]);
+  const todayStr = getTodayInAppTz();
+  const todaySession = useMemo(
+    () => sessionsList.find((s) => s.date === todayStr && !s.closedAt) ?? null,
+    [sessionsList, todayStr]
+  );
+  const lastClosedSession = useMemo(
+    () => sessionsList.find((s) => s.closedAt && s.closingAmount != null) ?? null,
+    [sessionsList]
+  );
   const promotions = useMemo(() => {
     const now = getTodayInAppTz();
     return promotionsList
@@ -86,6 +97,7 @@ export default function POSPage() {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
+  const [showOpenCashModal, setShowOpenCashModal] = useState(false);
   const [restockProduct, setRestockProduct] = useState<{ id: string; name: string; costPrice: number; retailPrice: number; supplierId?: string } | null>(null);
   const [restockQty, setRestockQty] = useState('');
   const [restockRecordExpense, setRestockRecordExpense] = useState(true);
@@ -206,6 +218,7 @@ export default function POSPage() {
       const currentStock = doc.stock != null ? Number(doc.stock) : 0;
       const newStock = currentStock + qty;
       await productsApi.update(restockProduct.id, { stock: Math.max(0, Math.round(newStock)) });
+      await refetchProducts();
 
       const costTotal = (doc.costPrice ?? restockProduct.costPrice) * qty;
       const today = getTodayInAppTz();
@@ -281,8 +294,13 @@ export default function POSPage() {
     setPaymentSplits((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async (forceProceed?: boolean) => {
     if (cart.length === 0) return;
+    // Require open cash session before first order of the day (unless just opened via modal)
+    if (!todaySession && !forceProceed) {
+      setShowOpenCashModal(true);
+      return;
+    }
     for (const l of cart) {
       const p = products.find((x) => x.id === l.productId);
       if (p && l.qty > p.stock) {
@@ -519,6 +537,8 @@ export default function POSPage() {
         }
       }
 
+      await refetchProducts();
+      await refetchSessions();
       setCart([]);
       setPaymentSplits([]);
       setUseSplitPayment(false);
@@ -555,6 +575,16 @@ export default function POSPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {showOpenCashModal && (
+        <CashOpenPromptModal
+          lastClosedAmount={lastClosedSession?.closingAmount}
+          onOpen={() => {
+            setShowOpenCashModal(false);
+            placeOrder(true);
+          }}
+          onDismiss={() => setShowOpenCashModal(false)}
+        />
+      )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="page-title">POS Checkout</h1>
         <Link to="/" className="btn-secondary inline-flex w-fit shrink-0 text-body">
@@ -562,7 +592,7 @@ export default function POSPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card p-3 sm:p-4">
           <h2 className="mb-2 sm:mb-3 font-sans text-title3 font-semibold text-smoky-black">Products</h2>
           <label htmlFor="pos-quick-search" className="sr-only">Quick search products</label>
@@ -1146,7 +1176,7 @@ export default function POSPage() {
                 {/* Place Order Button - Large & Prominent */}
                 <button
                   type="button"
-                  onClick={placeOrder}
+                  onClick={() => placeOrder()}
                   disabled={placing || cart.length === 0 || !deliveryOk}
                   className="btn-primary mt-3 w-full py-3 text-body font-semibold shadow-lg disabled:opacity-50 sm:mt-4 sm:py-4"
                 >

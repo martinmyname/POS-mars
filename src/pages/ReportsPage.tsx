@@ -28,7 +28,7 @@ import {
   getWeekRangeInAppTz,
 } from '@/lib/appTimezone';
 import { getChannelLabel } from '@/lib/orderConstants';
-import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, Receipt, Printer, FileText, ChevronRight, ChevronDown, Settings, X, Store, Globe, MessageCircle, Share2, Users, Download } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, Receipt, Printer, FileText, ChevronRight, ChevronDown, Settings, X, Store, Globe, MessageCircle, Share2, Download } from 'lucide-react';
 
 /** Max rows to show before collapsing the rest into a "Show more" section */
 const INITIAL_LIST_SIZE = 8;
@@ -250,7 +250,7 @@ export default function ReportsPage() {
             <div key={i} className="h-10 w-20 report-skeleton rounded-xl" />
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="report-card p-4 sm:p-5 h-28 report-skeleton rounded-xl" />
           ))}
@@ -304,7 +304,7 @@ export default function ReportsPage() {
   return (
     <div className="report-page space-y-4 sm:space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-sans text-large font-bold tracking-tight text-slate-900 dark:text-slate-100">Reports &amp; Analytics</h1>
+        <h1 className="font-sans text-[24px] sm:text-[28px] lg:text-[34px] font-bold tracking-tight leading-tight text-slate-900 dark:text-slate-100">Reports &amp; Analytics</h1>
         <div className="flex flex-wrap items-center gap-2 no-print">
           <button
             type="button"
@@ -374,34 +374,34 @@ export default function ReportsPage() {
           <Download className="h-3.5 w-3.5" /> CSV
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <div className="report-card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm report-muted">Today – Orders</p>
-          <p className="text-title3 font-bold text-slate-900 dark:text-slate-100 truncate">{ordersToday}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
+          <p className="text-xs sm:text-sm report-muted truncate">Today – Orders</p>
+          <p className="text-title3 font-bold text-slate-900 dark:text-slate-100">{ordersToday}</p>
           {ordersTodayPct !== 0 && <ChangeBadge value={ordersTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="orders" data={last7DaysSparkline} />
           </div>
         </div>
-        <div className="report-card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm report-muted">Today – Revenue</p>
-          <p className="truncate"><Money value={revenueToday} size="large" className="font-bold report-accent-teal" /></p>
+        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
+          <p className="text-xs sm:text-sm report-muted truncate">Today – Revenue</p>
+          <p className="break-all"><Money value={revenueToday} size="large" className="font-bold report-accent-teal" /></p>
           {revenueTodayPct !== 0 && <ChangeBadge value={revenueTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="revenue" data={last7DaysSparkline} />
           </div>
         </div>
-        <div className="report-card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm report-muted">Today – Gross Profit</p>
-          <p className="truncate"><Money value={profitToday} size="large" className="font-bold report-accent-teal" /></p>
+        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
+          <p className="text-xs sm:text-sm report-muted truncate">Today – Gross Profit</p>
+          <p className="break-all"><Money value={profitToday} size="large" className="font-bold report-accent-teal" /></p>
           {profitTodayPct !== 0 && <ChangeBadge value={profitTodayPct} />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="profit" data={last7DaysSparkline} />
           </div>
         </div>
-        <div className="report-card p-4 sm:p-5">
-          <p className="text-xs sm:text-sm report-muted">Today – Operating Expenses</p>
-          <p className="truncate"><Money value={expensesToday} size="large" className="font-bold report-accent-red" /></p>
+        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
+          <p className="text-xs sm:text-sm report-muted truncate">Today – Operating Expenses</p>
+          <p className="break-all"><Money value={expensesToday} size="large" className="font-bold report-accent-red" /></p>
           {expensesTodayPct !== 0 && <ChangeBadge value={expensesTodayPct} inverse />}
           <div className="mt-2 h-8">
             <Sparkline dataKey="expenses" data={last7DaysSparkline} />
@@ -509,7 +509,7 @@ export default function ReportsPage() {
           <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
           {periodLabel} Overview
         </h2>
-        <div className="grid gap-4 grid-cols-1 min-w-0 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 min-w-0">
           <div className="min-w-0">
             <p className="text-sm report-muted">Orders</p>
             <div className="flex items-baseline gap-2 flex-wrap">
@@ -520,8 +520,8 @@ export default function ReportsPage() {
           </div>
           <div className="min-w-0">
             <p className="text-sm report-muted">Revenue</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="truncate"><Money value={periodMetrics.grossIncome} size="large" className="font-bold report-accent-teal" /></p>
+            <div className="flex items-baseline gap-2 flex-wrap min-w-0">
+              <p className="break-all"><Money value={periodMetrics.grossIncome} size="large" className="font-bold report-accent-teal" /></p>
               {periodMetrics.revenueGrowth !== 0 && <ChangeBadge value={periodMetrics.revenueGrowth} />}
             </div>
             <p className="text-xs report-muted truncate">vs {prevPeriodLabel}: <Money value={previousPeriodRevenue} className="report-muted" /></p>
@@ -656,38 +656,6 @@ export default function ReportsPage() {
               <Line type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} name="Gross Profit" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
-          <div className="mt-4 report-table-wrap max-h-[320px] overflow-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
-                  <th className="px-3 py-2 text-left report-muted sticky top-0 bg-white dark:bg-[#111827]">Hour</th>
-                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Orders</th>
-                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Revenue</th>
-                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Gross Profit</th>
-                  <th className="px-3 py-2 text-right report-muted sticky top-0 bg-white dark:bg-[#111827]">Avg Order Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periodMetrics.hourlyBreakdown.map((h) => (
-                  <tr
-                    key={h.hour}
-                    className={`border-b border-slate-200/80 dark:border-[#1f2937]/50 ${periodMetrics.peakRevenueHour === h.hour && h.revenue > 0 ? 'bg-[#f59e0b]/15' : ''}`}
-                  >
-                    <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
-                      {h.hourLabel}
-                      {periodMetrics.peakRevenueHour === h.hour && h.revenue > 0 && (
-                        <span className="ml-2 text-xs text-[#f59e0b]">Peak</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right text-slate-700 dark:text-[#e5e7eb]">{h.orders}</td>
-                    <td className="px-3 py-2 text-right report-accent-teal"><Money value={h.revenue} className="report-accent-teal" /></td>
-                    <td className="px-3 py-2 text-right text-[#f59e0b]"><Money value={h.profit} className="text-[#f59e0b]" /></td>
-                    <td className="px-3 py-2 text-right report-muted"><Money value={h.avgOrderValue} className="report-muted" /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
           {periodMetrics.hourlyBreakdown.every((h) => h.orders === 0) && (
             <p className="mt-3 text-sm report-muted">No sales yet today.</p>
           )}
@@ -802,105 +770,13 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Customer Analytics — New / Returning / At-risk + Top Customers */}
-      <div className="report-card p-4 sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
-            <Users className="h-5 w-5 report-accent-blue shrink-0" />
-            Customer Analytics ({periodLabel})
-          </h3>
-          {periodMetrics.topCustomersBySpend.length > 0 && (
-            <button
-              type="button"
-              onClick={() => exportToCSV('top_customers', ['Name', 'Phone', 'Visits', 'Total Spent (UGX)', 'Avg per Visit (UGX)', 'Last Visit'], periodMetrics.topCustomersBySpend.map((c) => [
-                c.name, c.phone, c.visits, c.totalSpent, c.avgPerVisit, new Date(c.lastVisit).toISOString().slice(0, 10),
-              ]))}
-              className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-[#1f2937] px-2.5 py-2 min-h-[2.25rem] sm:min-h-0 text-xs text-slate-500 dark:text-[#9ca3af] hover:text-slate-900 dark:hover:text-slate-100 no-print touch-manipulation"
-            >
-              <Download className="h-3.5 w-3.5 shrink-0" /> CSV
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-          <div className="rounded-lg bg-slate-100 dark:bg-[#1f2937] p-3">
-            <p className="text-xs report-muted">New customers</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{periodMetrics.newCustomersCount}</p>
-          </div>
-          <div className="rounded-lg bg-slate-100 dark:bg-[#1f2937] p-3">
-            <p className="text-xs report-muted">Returning</p>
-            <p className="text-xl font-bold report-accent-teal">{periodMetrics.returningCustomersCount}</p>
-          </div>
-          <div className="rounded-lg bg-slate-100 dark:bg-[#1f2937] p-3">
-            <p className="text-xs report-muted">At-risk</p>
-            <p className="text-xl font-bold report-accent-red">{periodMetrics.atRiskCount}</p>
-            <p className="text-xs report-muted">no order in 30 days</p>
-          </div>
-        </div>
-        {periodMetrics.topCustomersBySpend.length > 0 ? (
-          <div className="report-table-wrap">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
-                  <th className="px-2 py-1.5 text-left report-muted">Name</th>
-                  <th className="px-2 py-1.5 text-left report-muted">Phone</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Visits</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Total spent</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Avg/visit</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Last visit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periodMetrics.topCustomersBySpend.slice(0, INITIAL_LIST_SIZE).map((c) => (
-                  <tr key={c.customerId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
-                    <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100">{c.name}</td>
-                    <td className="px-2 py-1.5 report-muted">{c.phone}</td>
-                    <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{c.visits}</td>
-                    <td className="px-2 py-1.5 text-right report-accent-teal"><Money value={c.totalSpent} className="report-accent-teal" /></td>
-                    <td className="px-2 py-1.5 text-right report-muted"><Money value={c.avgPerVisit} className="report-muted" /></td>
-                    <td className="px-2 py-1.5 text-right report-muted">
-                      {new Date(c.lastVisit).toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: '2-digit', month: 'short' })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {periodMetrics.topCustomersBySpend.length > INITIAL_LIST_SIZE && (
-              <details className="no-print group mt-1">
-                <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
-                  Show {periodMetrics.topCustomersBySpend.length - INITIAL_LIST_SIZE} more customers
-                </summary>
-                <table className="w-full text-sm mt-1">
-                  <tbody>
-                    {periodMetrics.topCustomersBySpend.slice(INITIAL_LIST_SIZE).map((c) => (
-                      <tr key={c.customerId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
-                        <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100">{c.name}</td>
-                        <td className="px-2 py-1.5 report-muted">{c.phone}</td>
-                        <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{c.visits}</td>
-                        <td className="px-2 py-1.5 text-right report-accent-teal"><Money value={c.totalSpent} className="report-accent-teal" /></td>
-                        <td className="px-2 py-1.5 text-right report-muted"><Money value={c.avgPerVisit} className="report-muted" /></td>
-                        <td className="px-2 py-1.5 text-right report-muted">
-                          {new Date(c.lastVisit).toLocaleDateString('en-GB', { timeZone: 'Africa/Kampala', day: '2-digit', month: 'short' })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </details>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm report-muted">No customer orders in this period.</p>
-        )}
-      </div>
-
-      {/* Inventory Health — Health score, Low Stock table, Dead stock, Restock cost */}
+      {/* Inventory Health — summary figures only */}
       <div className="report-card p-4 sm:p-5">
         <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
           <Package className="h-5 w-5 report-accent-amber" />
           Inventory Health
         </h3>
-        <div className="flex flex-wrap items-baseline gap-4 mb-4">
+        <div className="flex flex-wrap items-baseline gap-4">
           <div>
             <p className="text-xs report-muted">Health score</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{periodMetrics.inventoryHealthScore}<span className="text-lg report-muted">/100</span></p>
@@ -918,55 +794,6 @@ export default function ReportsPage() {
             <p className="text-title3 font-semibold report-accent-teal"><Money value={periodMetrics.lowStockTable.reduce((s, r) => s + r.restockCost, 0)} className="text-title3 font-semibold report-accent-teal" /></p>
           </div>
         </div>
-        {periodMetrics.lowStockTable.length > 0 ? (
-          <div className="report-table-wrap">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-[#1f2937]">
-                  <th className="px-2 py-1.5 text-left report-muted">Product</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Stock</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Min</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Units needed</th>
-                  <th className="px-2 py-1.5 text-right report-muted">Restock cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periodMetrics.lowStockTable.slice(0, INITIAL_LIST_SIZE).map((row) => (
-                  <tr key={row.id} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
-                    <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={row.name}>{row.name}</td>
-                    <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{row.stock}</td>
-                    <td className="px-2 py-1.5 text-right report-muted">{row.minStockLevel}</td>
-                    <td className="px-2 py-1.5 text-right text-[#f59e0b]">{row.unitsNeeded}</td>
-                    <td className="px-2 py-1.5 text-right report-accent-red"><Money value={row.restockCost} className="report-accent-red" /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {periodMetrics.lowStockTable.length > INITIAL_LIST_SIZE && (
-              <details className="no-print group mt-1">
-                <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm report-muted hover:text-slate-900 dark:hover:text-slate-100">
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
-                  Show {periodMetrics.lowStockTable.length - INITIAL_LIST_SIZE} more low-stock items
-                </summary>
-                <table className="w-full text-sm mt-1">
-                  <tbody>
-                    {periodMetrics.lowStockTable.slice(INITIAL_LIST_SIZE).map((row) => (
-                      <tr key={row.id} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
-                        <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={row.name}>{row.name}</td>
-                        <td className="px-2 py-1.5 text-right text-slate-900 dark:text-slate-100">{row.stock}</td>
-                        <td className="px-2 py-1.5 text-right report-muted">{row.minStockLevel}</td>
-                        <td className="px-2 py-1.5 text-right text-[#f59e0b]">{row.unitsNeeded}</td>
-                        <td className="px-2 py-1.5 text-right report-accent-red"><Money value={row.restockCost} className="report-accent-red" /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </details>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm report-muted">All products above minimum stock level.</p>
-        )}
       </div>
 
       {/* Refund & Return Analytics */}
@@ -1035,7 +862,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Key Metrics — 10 KPIs */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         <div className="report-card p-4 sm:p-5">
           <h3 className="mb-3 text-subhead font-semibold text-slate-900 dark:text-slate-100">Key Metrics</h3>
           <div className="space-y-3">

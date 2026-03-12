@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useLayaways, layawaysApi, productsApi } from '@/hooks/useData';
+import { useLayaways, useProducts, layawaysApi, productsApi } from '@/hooks/useData';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { Money } from '@/components/Money';
@@ -17,7 +17,8 @@ interface LayawayItem {
 
 export default function LayawaysPage() {
   useAuth();
-  const { data: layawaysList, loading } = useLayaways({ realtime: true });
+  const { data: layawaysList, loading, refetch: refetchLayaways } = useLayaways({ realtime: true });
+  const { refetch: refetchProducts } = useProducts({ realtime: true });
   type LayawayRow = {
     id: string;
     orderId?: string;
@@ -105,6 +106,8 @@ export default function LayawaysPage() {
     }
 
     await layawaysApi.update(id, updates);
+    await refetchLayaways();
+    if (newRemaining <= 0) await refetchProducts();
     setPaymentAmount('');
     setSelectedLayaway(null);
     setMessage(newRemaining <= 0 ? 'Layaway completed! Items released.' : 'Payment recorded');
@@ -114,6 +117,7 @@ export default function LayawaysPage() {
   const cancelLayaway = async (id: string) => {
     if (!confirm('Cancel this layaway? Items will be released.')) return;
     await layawaysApi.update(id, { status: 'cancelled' });
+    await refetchLayaways();
     setMessage('Layaway cancelled');
     setTimeout(() => setMessage(null), 3000);
   };

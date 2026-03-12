@@ -7,10 +7,14 @@ interface MoneyProps {
 }
 
 const sizeClasses = {
-  large: 'font-mono text-title1 font-semibold tabular-nums tracking-tight',
-  medium: 'font-mono text-title3 font-medium tabular-nums',
-  body: 'font-mono text-body tabular-nums',
-  small: 'font-mono text-footnote tabular-nums',
+  // Hero/dashboard stat cards — scale from 20px on mobile to 28px on desktop
+  large: 'font-mono font-semibold tabular-nums text-[20px] sm:text-[24px] lg:text-[28px] leading-tight tracking-tight',
+  // Section totals, card amounts — scale from 17px to 22px
+  medium: 'font-mono font-medium tabular-nums text-[17px] sm:text-[20px] leading-snug',
+  // Table rows, list items — always body size, never clip
+  body: 'font-mono tabular-nums text-[15px] sm:text-[17px] leading-normal',
+  // Sub-labels, badges — fixed small
+  small: 'font-mono tabular-nums text-[13px] leading-normal',
 };
 
 /**

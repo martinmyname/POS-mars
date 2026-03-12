@@ -4,7 +4,7 @@ import { useCustomers, useOrders, customersApi, generateId } from '@/hooks/useDa
 import { useCustomerSummary } from '@/hooks/useCustomerSummary';
 
 export default function CustomersPage() {
-  const { data: customers, loading } = useCustomers({ realtime: true });
+  const { data: customers, loading, refetch: refetchCustomers } = useCustomers({ realtime: true });
   const { data: ordersList } = useOrders({ realtime: true });
   const orders = useMemo(
     () =>
@@ -34,6 +34,7 @@ export default function CustomersPage() {
         address: address.trim() || undefined,
         createdAt: new Date().toISOString(),
       });
+      await refetchCustomers();
       setName('');
       setPhone('');
       setAddress('');
@@ -59,7 +60,7 @@ export default function CustomersPage() {
           See full customer analytics → Reports
         </Link>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5 lg:gap-6">
         <section className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="mb-3 font-sans text-title3 font-semibold">Add customer</h2>
           <form onSubmit={handleSubmit} className="space-y-3">

@@ -1,31 +1,26 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { useAutoOpenCashSession } from '@/hooks/useAutoOpenCashSession';
 import { LayoutDashboard, ShoppingCart, BarChart3, Bike, Sun, Moon } from 'lucide-react';
 import '@/index.css';
 
-function AutoOpenCashSession() {
-  useAutoOpenCashSession();
-  return null;
-}
-
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
-const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
-const POSPage = lazy(() => import('@/pages/POSPage'));
-const ExpensesPage = lazy(() => import('@/pages/ExpensesPage'));
-const InventoryPage = lazy(() => import('@/pages/InventoryPage'));
-const ReportsPage = lazy(() => import('@/pages/ReportsPage'));
-const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
-const PromotionsPage = lazy(() => import('@/pages/PromotionsPage'));
-const CustomersPage = lazy(() => import('@/pages/CustomersPage'));
-const ReturnsPage = lazy(() => import('@/pages/ReturnsPage'));
-const DeliveriesPage = lazy(() => import('@/pages/DeliveriesPage'));
-const SuppliersPage = lazy(() => import('@/pages/SuppliersPage'));
-const LayawaysPage = lazy(() => import('@/pages/LayawaysPage'));
-const CashManagementPage = lazy(() => import('@/pages/CashManagementPage'));
+const LoginPage = lazyWithRetry(() => import('@/pages/LoginPage'));
+const DashboardPage = lazyWithRetry(() => import('@/pages/DashboardPage'));
+const POSPage = lazyWithRetry(() => import('@/pages/POSPage'));
+const ExpensesPage = lazyWithRetry(() => import('@/pages/ExpensesPage'));
+const InventoryPage = lazyWithRetry(() => import('@/pages/InventoryPage'));
+const ReportsPage = lazyWithRetry(() => import('@/pages/ReportsPage'));
+const SettingsPage = lazyWithRetry(() => import('@/pages/SettingsPage'));
+const PromotionsPage = lazyWithRetry(() => import('@/pages/PromotionsPage'));
+const CustomersPage = lazyWithRetry(() => import('@/pages/CustomersPage'));
+const ReturnsPage = lazyWithRetry(() => import('@/pages/ReturnsPage'));
+const DeliveriesPage = lazyWithRetry(() => import('@/pages/DeliveriesPage'));
+const SuppliersPage = lazyWithRetry(() => import('@/pages/SuppliersPage'));
+const LayawaysPage = lazyWithRetry(() => import('@/pages/LayawaysPage'));
+const CashManagementPage = lazyWithRetry(() => import('@/pages/CashManagementPage'));
 
 const BOTTOM_NAV_ITEMS = [
   { to: '/', label: 'Home', icon: LayoutDashboard },
@@ -119,14 +114,9 @@ function AppLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background-grey text-smoky-black">
-      {!isLogin && (
-        <>
-          <Header />
-          <AutoOpenCashSession />
-        </>
-      )}
+      {!isLogin && <Header />}
       <main
-        className={`flex-1 px-3 py-4 sm:px-6 sm:py-6 ${!isLogin ? 'pb-24 md:pb-6' : ''}`}
+        className={`flex-1 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 ${!isLogin ? 'pb-24 md:pb-6' : ''}`}
       >
         <div className="mx-auto max-w-app">
           <Suspense

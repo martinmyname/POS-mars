@@ -31,8 +31,8 @@ interface ProductForExchange {
 type ReturnOutcome = 'exchange' | 'repair';
 
 export default function ReturnsPage() {
-  const { data: ordersList, loading } = useOrders({ realtime: true });
-  const { data: productsList } = useProducts({ realtime: true });
+  const { data: ordersList, loading, refetch: refetchOrders } = useOrders({ realtime: true });
+  const { data: productsList, refetch: refetchProducts } = useProducts({ realtime: true });
   const [orderSearch, setOrderSearch] = useState('');
 
   const returnWindowStart = useMemo(
@@ -296,6 +296,8 @@ export default function ReturnsPage() {
         });
       }
 
+      await refetchOrders();
+      await refetchProducts();
       setSelectedOrderId(null);
       setReturnQtys({});
       setExchangeCart([]);
@@ -333,7 +335,7 @@ export default function ReturnsPage() {
       <p className="text-footnote text-slate-500">
         Showing orders from the last {RETURN_WINDOW_DAYS} days (return policy). Use search to find by order #, customer name/phone, or product name.
       </p>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <section>
           <h2 className="mb-3 font-sans text-title3 font-semibold">Select order to return</h2>
           <div className="relative mb-3">

@@ -91,6 +91,19 @@
   letter-spacing: -0.01em;
 }
 
+/* Prevent stat card values from overflowing */
+[data-money] {
+  word-break: break-all;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+/* All cards: prevent overflow */
+.stat-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
 @layer components {
   .card {
     @apply rounded-xl border border-slate-200/80 bg-surface shadow-card;
@@ -111,7 +124,7 @@
     @apply min-h-[2.75rem] min-w-[2.75rem];
   }
   .page-title {
-    @apply font-sans text-large font-bold text-smoky-black;
+    @apply font-sans font-bold text-smoky-black text-[24px] sm:text-[28px] lg:text-[34px] tracking-tight leading-tight;
   }
   .page-subtitle {
     @apply mt-1 text-subhead text-slate-500;
@@ -119,6 +132,10 @@
   /* Scrollable table wrapper for mobile */
   .table-wrap {
     @apply -mx-4 overflow-x-auto sm:mx-0;
+  }
+  /* Page wrapper padding */
+  .page-wrapper {
+    @apply max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 lg:py-8;
   }
   /* Hide scrollbar on period nav (still scrollable) */
   .scrollbar-none {

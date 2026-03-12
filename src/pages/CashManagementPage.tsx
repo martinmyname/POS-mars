@@ -39,11 +39,11 @@ interface CashSession {
 }
 
 export default function CashManagementPage() {
-  const { data: sessionsList, loading } = useCashSessions({ realtime: true });
+  const { data: sessionsList, loading, refetch: refetchSessions } = useCashSessions({ realtime: true });
   const { data: ordersList } = useOrders({ realtime: true });
   const { data: expensesList } = useExpenses({ realtime: true });
   const { data: ledgerList } = useSupplierLedger({ realtime: true });
-  const { data: pettyCashList } = usePettyCashTransactions({ realtime: true });
+  const { data: pettyCashList, refetch: refetchPettyCash } = usePettyCashTransactions({ realtime: true });
   useDayBoundaryTick();
   const { user } = useAuth();
   const sessions = useMemo(
@@ -260,6 +260,7 @@ export default function CashManagementPage() {
         openedAt,
         openedBy: user.email || 'Staff',
       });
+      await refetchSessions();
       setOpeningAmount('');
       setOpeningAmountError(null);
       setOpenForPastDate(false);
@@ -294,6 +295,7 @@ export default function CashManagementPage() {
         closedBy,
         notes: closeNotesForPast.trim() || undefined,
       }, closedBy, 'Session closed');
+      await refetchSessions();
       setSessionToClose(null);
       setCloseAmountForPast('');
       setCloseNotesForPast('');
@@ -357,6 +359,8 @@ export default function CashManagementPage() {
         recordedAt: new Date().toISOString(),
         recordedBy: (user?.user_metadata as { full_name?: string })?.full_name || user?.email || 'Staff',
       });
+      await refetchPettyCash();
+      await refetchSessions();
       setPettyModalOpen(false);
       setPettyAmount('');
       setPettyReason('');
@@ -392,7 +396,8 @@ export default function CashManagementPage() {
         closedBy,
         notes: notes.trim() || undefined,
       }, closedBy, 'Cash drawer closed');
-      
+      await refetchSessions();
+
       setClosingAmount('');
       setNotes('');
       setMessage(`Cash drawer closed. ${difference >= 0 ? 'Over' : 'Short'} by ${formatUGX(Math.abs(difference))}`);

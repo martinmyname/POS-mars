@@ -144,7 +144,7 @@ export function RestockPlannerSection({
           'border-red-300 bg-red-50/50 dark:border-red-700 dark:bg-red-950/30'
         }`}>
           <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Inventory Health</p>
-          <p className={`text-title1 font-bold ${
+          <p className={`text-[24px] sm:text-[28px] font-bold ${
             healthScore.color === 'emerald' ? 'text-emerald-700 dark:text-emerald-300' :
             healthScore.color === 'amber' ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'
           }`}>{healthScore.score}</p>
@@ -167,9 +167,9 @@ export function RestockPlannerSection({
           <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Selected to Order</p>
           <p className="text-title3 font-bold text-teal-800 dark:text-teal-200">{selectedIds.size}</p>
         </div>
-        <div className="card border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
-          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Order Total Cost</p>
-          <p><Money value={Number.isFinite(orderTotalCost) ? orderTotalCost : 0} size="large" className="font-bold text-amber-800 dark:text-amber-200" /></p>
+        <div className="card stat-card border-amber-200 bg-amber-50/50 p-3 min-w-0 dark:border-amber-800 dark:bg-amber-950/30">
+          <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400 truncate">Order Total Cost</p>
+          <p className="break-all"><Money value={Number.isFinite(orderTotalCost) ? orderTotalCost : 0} size="large" className="font-bold text-amber-800 dark:text-amber-200" /></p>
         </div>
         </div>
       </div>
