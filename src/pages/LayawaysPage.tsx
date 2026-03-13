@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useLayaways, useProducts, layawaysApi, productsApi } from '@/hooks/useData';
+import { useLayaways, useProducts, layawaysApi, productsApi, ordersApi } from '@/hooks/useData';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
 import { Money } from '@/components/Money';
@@ -18,7 +18,7 @@ interface LayawayItem {
 export default function LayawaysPage() {
   useAuth();
   const { data: layawaysList, loading, refetch: refetchLayaways } = useLayaways({ realtime: true });
-  const { refetch: refetchProducts } = useProducts({ realtime: true });
+  const { data: productsList, refetch: refetchProducts } = useProducts({ realtime: true });
   type LayawayRow = {
     id: string;
     orderId?: string;
@@ -93,6 +93,25 @@ export default function LayawaysPage() {
     if (newRemaining <= 0) {
       updates.status = 'completed';
       updates.completedAt = new Date().toISOString();
+
+      // When layaway is fully paid, recognise the profit on the original order.
+      if (doc.orderId) {
+        try {
+          const items = (doc.items as LayawayItem[]) || [];
+          const allProducts = productsList || [];
+          let grossProfit = 0;
+          for (const item of items) {
+            const product = allProducts.find((p) => p.id === item.productId) ?? (await productsApi.getById(item.productId));
+            const costPrice = product?.costPrice != null ? Number(product.costPrice) : 0;
+            grossProfit += (item.unitPrice - costPrice) * item.qty;
+          }
+          await ordersApi.update(doc.orderId, { grossProfit });
+        } catch (err) {
+          // Swallow errors here so that stock updates and layaway completion still succeed.
+          console.error(err);
+        }
+      }
+
       for (const item of doc.items as LayawayItem[]) {
         const productDoc = await productsApi.getById(item.productId);
         if (productDoc) {

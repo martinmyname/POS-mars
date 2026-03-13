@@ -19,7 +19,7 @@ import {
   useInventoryHealth,
   usePeriodMetricsCore,
 } from '@/hooks/reports';
-import { formatUGX } from '@/lib/formatUGX';
+import { formatUGX, formatUGXShort, formatAmountShort } from '@/utils/formatUtils';
 import { Money } from '@/components/Money';
 import { getDailyGoals, setDailyGoals, getEffectiveDailyGoals, type DailyGoals } from '@/lib/dailyGoalsStorage';
 import {
@@ -28,12 +28,15 @@ import {
   getWeekRangeInAppTz,
 } from '@/lib/appTimezone';
 import { getChannelLabel } from '@/lib/orderConstants';
-import { TrendingUp, TrendingDown, Package, CreditCard, ShoppingCart, BarChart3, Receipt, Printer, FileText, ChevronRight, ChevronDown, Settings, X, Store, Globe, MessageCircle, Share2, Download } from 'lucide-react';
+import { TrendingUp, Package, CreditCard, ShoppingCart, BarChart3, Receipt, Printer, FileText, ChevronRight, ChevronDown, Settings, X, Store, Globe, MessageCircle, Share2, Download } from 'lucide-react';
 
 /** Max rows to show before collapsing the rest into a "Show more" section */
 const INITIAL_LIST_SIZE = 8;
 import { exportToCSV } from '@/utils/exportUtils';
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, Bar, LineChart, Line, ComposedChart, PieChart, Pie, Cell } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, Bar, Line, ComposedChart, PieChart, Pie, Cell } from 'recharts';
+import { StatCardXL } from '@/components/cards/StatCardXL';
+import { StatCardMD } from '@/components/cards/StatCardMD';
+import { StatCardSM } from '@/components/cards/StatCardSM';
 
 export default function ReportsPage() {
   const { theme } = useTheme();
@@ -88,7 +91,6 @@ export default function ReportsPage() {
     revenueTodayPct,
     profitTodayPct,
     expensesTodayPct,
-    last7DaysSparkline,
     ordersPeriod,
     revenuePeriod,
     profitPeriod,
@@ -124,7 +126,7 @@ export default function ReportsPage() {
     periodExpList,
     period,
     currentDateStr,
-    currentDateStr.to,
+    current.to,
     revenuePeriod,
     profitPeriod
   );
@@ -241,6 +243,31 @@ export default function ReportsPage() {
     ]
   );
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    // #region agent log
+    fetch('http://127.0.0.1:7631/ingest/8b5419ae-98f6-4740-95d1-ee95744ee6a4', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': 'ec5fc7',
+      },
+      body: JSON.stringify({
+        sessionId: 'ec5fc7',
+        runId: 'pre-fix',
+        hypothesisId: 'H_reports_overflow',
+        location: 'ReportsPage.tsx:viewport',
+        message: 'Viewport vs document scroll width on reports',
+        data: {
+          innerWidth: window.innerWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
+  }, []);
+
   if (loading) {
     return (
       <div className="report-page p-4 sm:p-6 space-y-6">
@@ -281,28 +308,8 @@ export default function ReportsPage() {
   }
   const generatedAt = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' });
 
-  const ChangeBadge = ({ value, inverse }: { value: number; inverse?: boolean }) => {
-    if (value === 0) return null;
-    const improved = inverse ? value < 0 : value > 0;
-    const color = improved ? 'report-accent-teal' : 'report-accent-red';
-    return (
-      <span className={`flex items-center gap-1 text-xs ${color}`}>
-        {value > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-        {value > 0 ? '+' : ''}{value.toFixed(1)}%
-      </span>
-    );
-  };
-
-  const Sparkline = ({ dataKey, data }: { dataKey: 'orders' | 'revenue' | 'profit' | 'expenses'; data: typeof last7DaysSparkline }) => (
-    <ResponsiveContainer width="100%" height={32}>
-      <LineChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-        <Line type="monotone" dataKey={dataKey} stroke="#f59e0b" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-
   return (
-    <div className="report-page space-y-4 sm:space-y-6 p-4 sm:p-6">
+    <div className="report-page space-y-4 sm:space-y-6 p-4 sm:p-6 overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-sans text-[24px] sm:text-[28px] lg:text-[34px] font-bold tracking-tight leading-tight text-slate-900 dark:text-slate-100">Reports &amp; Analytics</h1>
         <div className="flex flex-wrap items-center gap-2 no-print">
@@ -374,38 +381,65 @@ export default function ReportsPage() {
           <Download className="h-3.5 w-3.5" /> CSV
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
-          <p className="text-xs sm:text-sm report-muted truncate">Today – Orders</p>
-          <p className="text-title3 font-bold text-slate-900 dark:text-slate-100">{ordersToday}</p>
-          {ordersTodayPct !== 0 && <ChangeBadge value={ordersTodayPct} />}
-          <div className="mt-2 h-8">
-            <Sparkline dataKey="orders" data={last7DaysSparkline} />
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4">
+        <div className="min-w-0">
+          <StatCardXL
+            label="Orders today"
+            value={ordersToday.toString()}
+            role="orders"
+            delta={
+              ordersTodayPct !== 0
+                ? `${ordersTodayPct > 0 ? '+' : ''}${ordersTodayPct.toFixed(1)}%`
+                : undefined
+            }
+            deltaUp={ordersTodayPct >= 0}
+            sub={ordersTodayPct !== 0 ? 'vs same day last week' : undefined}
+          />
         </div>
-        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
-          <p className="text-xs sm:text-sm report-muted truncate">Today – Revenue</p>
-          <p className="break-all"><Money value={revenueToday} size="large" className="font-bold report-accent-teal" /></p>
-          {revenueTodayPct !== 0 && <ChangeBadge value={revenueTodayPct} />}
-          <div className="mt-2 h-8">
-            <Sparkline dataKey="revenue" data={last7DaysSparkline} />
-          </div>
+        <div className="min-w-0">
+          <StatCardXL
+            label="Revenue today"
+            value={formatUGXShort(revenueToday)}
+            fullValue={formatUGX(revenueToday)}
+            role="revenue"
+            delta={
+              revenueTodayPct !== 0
+                ? `${revenueTodayPct > 0 ? '+' : ''}${revenueTodayPct.toFixed(1)}%`
+                : undefined
+            }
+            deltaUp={revenueTodayPct >= 0}
+            sub={revenueTodayPct !== 0 ? 'vs same day last week' : undefined}
+          />
         </div>
-        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
-          <p className="text-xs sm:text-sm report-muted truncate">Today – Gross Profit</p>
-          <p className="break-all"><Money value={profitToday} size="large" className="font-bold report-accent-teal" /></p>
-          {profitTodayPct !== 0 && <ChangeBadge value={profitTodayPct} />}
-          <div className="mt-2 h-8">
-            <Sparkline dataKey="profit" data={last7DaysSparkline} />
-          </div>
+        <div className="min-w-0">
+          <StatCardXL
+            label="Gross profit today"
+            value={formatUGXShort(profitToday)}
+            fullValue={formatUGX(profitToday)}
+            role="profit"
+            delta={
+              profitTodayPct !== 0
+                ? `${profitTodayPct > 0 ? '+' : ''}${profitTodayPct.toFixed(1)}%`
+                : undefined
+            }
+            deltaUp={profitTodayPct >= 0}
+            sub={profitTodayPct !== 0 ? 'vs same day last week' : undefined}
+          />
         </div>
-        <div className="report-card stat-card p-4 sm:p-5 min-w-0">
-          <p className="text-xs sm:text-sm report-muted truncate">Today – Operating Expenses</p>
-          <p className="break-all"><Money value={expensesToday} size="large" className="font-bold report-accent-red" /></p>
-          {expensesTodayPct !== 0 && <ChangeBadge value={expensesTodayPct} inverse />}
-          <div className="mt-2 h-8">
-            <Sparkline dataKey="expenses" data={last7DaysSparkline} />
-          </div>
+        <div className="min-w-0">
+          <StatCardXL
+            label="Operating expenses today"
+            value={formatUGXShort(expensesToday)}
+            fullValue={formatUGX(expensesToday)}
+            role="expenses"
+            delta={
+              expensesTodayPct !== 0
+                ? `${expensesTodayPct > 0 ? '+' : ''}${expensesTodayPct.toFixed(1)}%`
+                : undefined
+            }
+            deltaUp={expensesTodayPct <= 0}
+            sub={expensesTodayPct !== 0 ? 'vs same day last week' : undefined}
+          />
         </div>
       </div>
 
@@ -433,7 +467,7 @@ export default function ReportsPage() {
                 style={{ width: `${effectiveGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-footnote report-muted mt-1"><Money value={revenueToday} size="small" className="report-muted" /> / <Money value={effectiveGoals.revenueTarget} size="small" className="report-muted" /></p>
+            <p className="text-footnote report-muted mt-1"><Money value={revenueToday} abbreviated size="small" className="report-muted" /> / <Money value={effectiveGoals.revenueTarget} abbreviated size="small" className="report-muted" /></p>
           </div>
           <div>
             <p className="text-sm report-muted mb-1">Orders</p>
@@ -453,7 +487,7 @@ export default function ReportsPage() {
                 style={{ width: `${effectiveGoals.profitTarget > 0 ? Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100) : 0}%` }}
               />
             </div>
-            <p className="text-footnote report-muted mt-1"><Money value={profitToday} size="small" className="report-muted" /> / <Money value={effectiveGoals.profitTarget} size="small" className="report-muted" /></p>
+            <p className="text-footnote report-muted mt-1"><Money value={profitToday} abbreviated size="small" className="report-muted" /> / <Money value={effectiveGoals.profitTarget} abbreviated size="small" className="report-muted" /></p>
           </div>
         </div>
       </div>
@@ -505,76 +539,97 @@ export default function ReportsPage() {
 
       {/* Period Overview — all metrics with % change vs previous period */}
       <div className="report-card p-4 sm:p-5">
-        <h2 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
-          <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
-          {periodLabel} Overview
-        </h2>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 min-w-0">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-sans text-[15px] font-semibold text-primary">
+            <BarChart3 className="h-5 w-5 report-accent-blue shrink-0" />
+            {periodLabel} Overview
+          </h2>
+        </div>
+        <div className="grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 min-w-0">
           <div className="min-w-0">
-            <p className="text-sm report-muted">Orders</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-title3 font-bold text-slate-900 dark:text-slate-100">{ordersPeriod}</p>
-              {periodMetrics.ordersGrowth !== 0 && <ChangeBadge value={periodMetrics.ordersGrowth} />}
-            </div>
-            <p className="text-xs report-muted">vs {prevPeriodLabel}: {previousPeriodOrders}</p>
+            <StatCardMD
+              label="Orders"
+              value={ordersPeriod.toString()}
+              delta={
+                periodMetrics.ordersGrowth !== 0
+                  ? `${periodMetrics.ordersGrowth > 0 ? '+' : ''}${periodMetrics.ordersGrowth.toFixed(
+                      1,
+                    )}%`
+                  : undefined
+              }
+              deltaUp={periodMetrics.ordersGrowth >= 0}
+              sub={`vs ${prevPeriodLabel}: ${previousPeriodOrders}`}
+            />
           </div>
           <div className="min-w-0">
-            <p className="text-sm report-muted">Revenue</p>
-            <div className="flex items-baseline gap-2 flex-wrap min-w-0">
-              <p className="break-all"><Money value={periodMetrics.grossIncome} size="large" className="font-bold report-accent-teal" /></p>
-              {periodMetrics.revenueGrowth !== 0 && <ChangeBadge value={periodMetrics.revenueGrowth} />}
-            </div>
-            <p className="text-xs report-muted truncate">vs {prevPeriodLabel}: <Money value={previousPeriodRevenue} className="report-muted" /></p>
+            <StatCardMD
+              label="Revenue"
+              value={formatUGXShort(periodMetrics.grossIncome)}
+              fullValue={formatUGX(periodMetrics.grossIncome)}
+              delta={
+                periodMetrics.revenueGrowth !== 0
+                  ? `${periodMetrics.revenueGrowth > 0 ? '+' : ''}${periodMetrics.revenueGrowth.toFixed(
+                      1,
+                    )}%`
+                  : undefined
+              }
+              deltaUp={periodMetrics.revenueGrowth >= 0}
+              sub={periodMetrics.revenueGrowth !== 0 ? `vs ${prevPeriodLabel.toLowerCase()}` : undefined}
+            />
           </div>
           <div className="min-w-0">
-            <p className="text-sm report-muted">Gross Profit</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p><Money value={periodMetrics.grossProfit} size="large" className="font-bold report-accent-teal" /></p>
-              {periodMetrics.profitGrowth !== 0 && <ChangeBadge value={periodMetrics.profitGrowth} />}
-            </div>
-            <p className="text-xs report-muted">vs {prevPeriodLabel}: <Money value={periodMetrics.previousPeriodGrossProfit} className="report-muted" /></p>
+            <StatCardMD
+              label="Gross profit"
+              value={formatUGXShort(periodMetrics.grossProfit)}
+              fullValue={formatUGX(periodMetrics.grossProfit)}
+              delta={
+                periodMetrics.profitGrowth !== 0
+                  ? `${periodMetrics.profitGrowth > 0 ? '+' : ''}${periodMetrics.profitGrowth.toFixed(
+                      1,
+                    )}%`
+                  : undefined
+              }
+              deltaUp={periodMetrics.profitGrowth >= 0}
+              sub={periodMetrics.profitGrowth !== 0 ? `vs ${prevPeriodLabel.toLowerCase()}` : undefined}
+            />
           </div>
           <div className="min-w-0">
-            <p className="text-sm report-muted">Gross Margin %</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-title3 font-bold report-accent-teal">{periodMetrics.profitMargin.toFixed(1)}%</p>
-            </div>
-            <p className="text-xs report-muted">Gross profit / Revenue × 100</p>
+            <StatCardMD
+              label="Gross margin %"
+              value={`${periodMetrics.profitMargin.toFixed(1)}%`}
+              sub="Gross profit / Revenue"
+            />
           </div>
           <div className="min-w-0">
-            <p className="text-sm report-muted">Operating Expenses</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p><Money value={periodMetrics.operatingExpenses} size="large" className="font-bold report-accent-red" /></p>
-              {periodMetrics.operatingExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.operatingExpensesGrowth} inverse />}
-            </div>
-            <p className="text-xs report-muted">excl. Stock</p>
+            <StatCardMD
+              label="Operating expenses"
+              value={formatUGXShort(periodMetrics.operatingExpenses)}
+              fullValue={formatUGX(periodMetrics.operatingExpenses)}
+              sub="Excl. stock"
+            />
           </div>
           <div className="min-w-0">
-            <p className="text-sm report-muted">Restock Expenses</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p><Money value={periodMetrics.restockExpenses} size="large" className="font-bold text-[#f59e0b]" /></p>
-              {periodMetrics.restockExpensesGrowth !== 0 && <ChangeBadge value={periodMetrics.restockExpensesGrowth} inverse />}
-            </div>
-            <p className="text-xs report-muted">Stock purchases (not deducted from profit)</p>
+            <StatCardMD
+              label="Restock expenses"
+              value={formatUGXShort(periodMetrics.restockExpenses)}
+              fullValue={formatUGX(periodMetrics.restockExpenses)}
+              sub="Stock purchases"
+            />
           </div>
           <div className="min-w-0">
-            <p className="text-sm report-muted">Net Profit</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p className={`text-title3 font-bold ${periodMetrics.netProfit >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
-                <Money value={periodMetrics.netProfit} size="large" className="font-semibold" />
-              </p>
-              {periodMetrics.netProfitGrowth !== 0 && <ChangeBadge value={periodMetrics.netProfitGrowth} />}
-            </div>
-            <p className="text-xs report-muted">Gross profit − Operating expenses</p>
+            <StatCardMD
+              label="Net profit"
+              value={formatUGXShort(periodMetrics.netProfit)}
+              fullValue={formatUGX(periodMetrics.netProfit)}
+              sub="Gross profit − Operating expenses"
+            />
           </div>
           <div className="min-w-0">
-            <p className="text-sm report-muted">Net Margin %</p>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p className={`text-title3 font-bold ${periodMetrics.netProfitMargin >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
-                {periodMetrics.netProfitMargin.toFixed(1)}%
-              </p>
-            </div>
-            <p className="text-xs report-muted">Net profit / Revenue × 100</p>
+            <StatCardMD
+              label="Net margin %"
+              value={`${periodMetrics.netProfitMargin.toFixed(1)}%`}
+              sub="Net profit / Revenue"
+            />
           </div>
         </div>
       </div>
@@ -646,7 +701,7 @@ export default function ReportsPage() {
             <ComposedChart data={periodMetrics.hourlyBreakdown} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
               <XAxis dataKey="hourLabel" stroke={chartAxisStroke} fontSize={11} />
-              <YAxis stroke={chartAxisStroke} fontSize={11} tickFormatter={(v) => formatUGX(v)} />
+              <YAxis stroke={chartAxisStroke} fontSize={11} tickFormatter={(v) => formatAmountShort(v)} />
               <Tooltip
                 formatter={(value: number) => formatUGX(value)}
                 contentStyle={chartTooltipStyle}
@@ -707,8 +762,8 @@ export default function ReportsPage() {
                         {isWorst && <span className="ml-2 text-xs report-accent-red">Worst</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{row.orders}</td>
-                      <td className="px-3 py-2 text-right report-muted"><Money value={row.revenue} className="report-muted" /></td>
-                      <td className="px-3 py-2 text-right font-semibold report-accent-teal"><Money value={row.grossProfit} className="font-semibold report-accent-teal" /></td>
+                      <td className="px-3 py-2 text-right report-muted"><Money value={row.revenue} abbreviated className="report-muted" /></td>
+                      <td className="px-3 py-2 text-right font-semibold report-accent-teal"><Money value={row.grossProfit} abbreviated className="font-semibold report-accent-teal" /></td>
                       <td className="px-3 py-2 text-right report-muted">{row.marginPct.toFixed(1)}%</td>
                       <td className="px-3 py-2 text-right">
                         {row.vsPreviousPct != null ? (
@@ -747,8 +802,8 @@ export default function ReportsPage() {
                             {isWorst && <span className="ml-2 text-xs report-accent-red">Worst</span>}
                           </td>
                           <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{row.orders}</td>
-                          <td className="px-3 py-2 text-right report-muted"><Money value={row.revenue} className="report-muted" /></td>
-                          <td className="px-3 py-2 text-right font-semibold report-accent-teal"><Money value={row.grossProfit} className="font-semibold report-accent-teal" /></td>
+                          <td className="px-3 py-2 text-right report-muted"><Money value={row.revenue} abbreviated className="report-muted" /></td>
+                          <td className="px-3 py-2 text-right font-semibold report-accent-teal"><Money value={row.grossProfit} abbreviated className="font-semibold report-accent-teal" /></td>
                           <td className="px-3 py-2 text-right report-muted">{row.marginPct.toFixed(1)}%</td>
                           <td className="px-3 py-2 text-right">
                             {row.vsPreviousPct != null ? (
@@ -772,27 +827,42 @@ export default function ReportsPage() {
 
       {/* Inventory Health — summary figures only */}
       <div className="report-card p-4 sm:p-5">
-        <h3 className="mb-4 flex items-center gap-2 report-heading text-title3 font-semibold text-slate-900 dark:text-slate-100">
-          <Package className="h-5 w-5 report-accent-amber" />
-          Inventory Health
-        </h3>
-        <div className="flex flex-wrap items-baseline gap-4">
-          <div>
-            <p className="text-xs report-muted">Health score</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{periodMetrics.inventoryHealthScore}<span className="text-lg report-muted">/100</span></p>
-          </div>
-          <div>
-            <p className="text-xs report-muted">Low stock items</p>
-            <p className="text-xl font-bold text-[#f59e0b]">{periodMetrics.lowStockCount}</p>
-          </div>
-          <div>
-            <p className="text-xs report-muted">Dead stock (no sales 60+ days)</p>
-            <p className="text-xl font-bold report-accent-red">{periodMetrics.deadStockCount}</p>
-          </div>
-          <div>
-            <p className="text-xs report-muted">Restock cost (to min level)</p>
-            <p className="text-title3 font-semibold report-accent-teal"><Money value={periodMetrics.lowStockTable.reduce((s, r) => s + r.restockCost, 0)} className="text-title3 font-semibold report-accent-teal" /></p>
-          </div>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 report-heading font-sans text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+            <Package className="h-5 w-5 report-accent-amber" />
+            Inventory Health
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          <StatCardSM
+            label="Health score"
+            value={`${periodMetrics.inventoryHealthScore}/100`}
+            metric="grossMargin"
+            numericValue={periodMetrics.inventoryHealthScore}
+          />
+          <StatCardSM
+            label="Low stock items"
+            value={periodMetrics.lowStockCount.toString()}
+          />
+          <StatCardSM
+            label="Dead stock"
+            value={periodMetrics.deadStockCount.toString()}
+          />
+          <StatCardSM
+            label="Restock cost"
+            value={formatUGXShort(
+              periodMetrics.lowStockTable.reduce(
+                (s, r) => s + r.restockCost,
+                0,
+              ),
+            )}
+            fullValue={formatUGX(
+              periodMetrics.lowStockTable.reduce(
+                (s, r) => s + r.restockCost,
+                0,
+              ),
+            )}
+          />
         </div>
       </div>
 
@@ -809,7 +879,7 @@ export default function ReportsPage() {
           </div>
           <div>
             <p className="text-xs report-muted">Total refunded</p>
-            <p className="text-xl font-bold report-accent-red"><Money value={periodMetrics.totalRefunded} className="text-xl font-bold report-accent-red" /></p>
+            <p className="text-xl font-bold report-accent-red"><Money value={periodMetrics.totalRefunded} abbreviated className="text-xl font-bold report-accent-red" /></p>
           </div>
           <div>
             <p className="text-xs report-muted">Return rate</p>
@@ -861,53 +931,63 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {/* Key Metrics — 10 KPIs */}
+      {/* Key Metrics — 8+ KPIs in compact grid */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         <div className="report-card p-4 sm:p-5">
-          <h3 className="mb-3 text-subhead font-semibold text-slate-900 dark:text-slate-100">Key Metrics</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Avg Order Value</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100"><Money value={periodMetrics.avgOrderValue} className="font-semibold text-slate-900 dark:text-slate-100" /></span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Gross Margin %</span>
-              <span className="font-semibold report-accent-teal">{periodMetrics.profitMargin.toFixed(1)}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Net Margin %</span>
-              <span className={`font-semibold ${periodMetrics.netProfitMargin >= 0 ? 'report-accent-teal' : 'report-accent-red'}`}>
-                {periodMetrics.netProfitMargin.toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Unique Customers</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.uniqueCustomers}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Returning Customer Rate</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.returningCustomerRate.toFixed(1)}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Return Rate</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.returnRate.toFixed(1)}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Revenue per Customer</span>
-              <span className="font-semibold report-accent-teal"><Money value={periodMetrics.revenuePerCustomer} className="font-semibold report-accent-teal" /></span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Avg Visits per Customer</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.avgVisitsPerCustomer.toFixed(1)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Cost-to-Revenue Ratio</span>
-              <span className="font-semibold report-accent-red">{periodMetrics.costToRevenueRatio.toFixed(1)}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm report-muted">Break-even Day</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{periodMetrics.breakEvenDay ?? '—'}</span>
-            </div>
+          <h3 className="mb-3 font-sans text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+            Key Metrics
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <StatCardSM
+              label="Avg order value"
+              value={formatUGXShort(periodMetrics.avgOrderValue)}
+              fullValue={formatUGX(periodMetrics.avgOrderValue)}
+            />
+            <StatCardSM
+              label="Gross margin %"
+              value={`${periodMetrics.profitMargin.toFixed(1)}%`}
+            metric="grossMargin"
+            numericValue={periodMetrics.profitMargin}
+            />
+            <StatCardSM
+              label="Net margin %"
+              value={`${periodMetrics.netProfitMargin.toFixed(1)}%`}
+            metric="netMargin"
+            numericValue={periodMetrics.netProfitMargin}
+            />
+            <StatCardSM
+              label="Unique customers"
+              value={periodMetrics.uniqueCustomers.toString()}
+            />
+            <StatCardSM
+              label="Returning rate"
+              value={`${periodMetrics.returningCustomerRate.toFixed(1)}%`}
+            metric="repeatRate"
+            numericValue={periodMetrics.returningCustomerRate}
+            />
+            <StatCardSM
+              label="Return rate"
+              value={`${periodMetrics.returnRate.toFixed(1)}%`}
+            metric="returnRate"
+            numericValue={periodMetrics.returnRate}
+            />
+            <StatCardSM
+              label="Revenue / customer"
+              value={formatUGXShort(periodMetrics.revenuePerCustomer)}
+              fullValue={formatUGX(periodMetrics.revenuePerCustomer)}
+            />
+            <StatCardSM
+              label="Avg visits / customer"
+              value={periodMetrics.avgVisitsPerCustomer.toFixed(1)}
+            />
+            <StatCardSM
+              label="Cost / revenue"
+              value={`${periodMetrics.costToRevenueRatio.toFixed(1)}%`}
+            />
+            <StatCardSM
+              label="Break-even day"
+              value={periodMetrics.breakEvenDay ?? '—'}
+            />
           </div>
         </div>
 
@@ -982,7 +1062,7 @@ export default function ReportsPage() {
                           <div key={pm.method} className="flex items-center justify-between gap-2 text-sm">
                             <span className="report-muted truncate">{label}</span>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="w-16 text-right font-medium text-slate-900 dark:text-slate-100 tabular-nums"><Money value={pm.amount} className="font-medium text-slate-900 dark:text-slate-100" /></span>
+                              <span className="w-16 text-right font-medium text-slate-900 dark:text-slate-100 tabular-nums"><Money value={pm.amount} abbreviated className="font-medium text-slate-900 dark:text-slate-100" /></span>
                               <span className="text-xs report-muted w-10 text-right">({share.toFixed(1)}%)</span>
                               <span className="text-xs report-muted">({pm.count})</span>
                             </div>
@@ -1046,7 +1126,7 @@ export default function ReportsPage() {
                           {label}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-medium report-accent-teal tabular-nums"><Money value={ch.revenue} className="font-medium report-accent-teal" /></span>
+                          <span className="font-medium report-accent-teal tabular-nums"><Money value={ch.revenue} abbreviated className="font-medium report-accent-teal" /></span>
                           <span className="text-xs report-muted">({ch.count} {ch.count === 1 ? 'order' : 'orders'})</span>
                           <span className="text-xs text-[#f59e0b] w-10 text-right">{share.toFixed(1)}%</span>
                         </div>
@@ -1102,7 +1182,7 @@ export default function ReportsPage() {
                     <tr key={ep.purpose} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                       <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[140px]" title={ep.purpose}>{ep.purpose}</td>
                       <td className="px-2 py-1.5 text-right">
-                        <span className="report-accent-red font-medium"><Money value={ep.amount} className="report-accent-red font-medium" /></span>
+                        <span className="report-accent-red font-medium"><Money value={ep.amount} abbreviated className="report-accent-red font-medium" /></span>
                         <span className="ml-1 text-xs report-muted">({ep.count})</span>
                       </td>
                       <td className="px-2 py-1.5 text-right">
@@ -1113,7 +1193,7 @@ export default function ReportsPage() {
                         ) : (
                           <span className="report-muted">—</span>
                         )}
-                        <span className="ml-1 text-xs report-muted">(<Money value={ep.prevAmount ?? 0} className="report-muted" />)</span>
+                        <span className="ml-1 text-xs report-muted">(<Money value={ep.prevAmount ?? 0} abbreviated className="report-muted" />)</span>
                       </td>
                     </tr>
                   ))}
@@ -1131,7 +1211,7 @@ export default function ReportsPage() {
                         <tr key={ep.purpose} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                           <td className="px-2 py-1.5 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[140px]" title={ep.purpose}>{ep.purpose}</td>
                           <td className="px-2 py-1.5 text-right">
-                            <span className="report-accent-red font-medium"><Money value={ep.amount} className="report-accent-red font-medium" /></span>
+                            <span className="report-accent-red font-medium"><Money value={ep.amount} abbreviated className="report-accent-red font-medium" /></span>
                             <span className="ml-1 text-xs report-muted">({ep.count})</span>
                           </td>
                           <td className="px-2 py-1.5 text-right">
@@ -1142,7 +1222,7 @@ export default function ReportsPage() {
                             ) : (
                               <span className="report-muted">—</span>
                             )}
-                            <span className="ml-1 text-xs report-muted">(<Money value={ep.prevAmount ?? 0} className="report-muted" />)</span>
+                            <span className="ml-1 text-xs report-muted">(<Money value={ep.prevAmount ?? 0} abbreviated className="report-muted" />)</span>
                           </td>
                         </tr>
                       ))}
@@ -1189,8 +1269,8 @@ export default function ReportsPage() {
                     <tr key={product.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                       <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={product.name}>{product.name}</td>
                       <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{product.qty}</td>
-                      <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.revenue} className="report-accent-teal" /></td>
-                      <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.profit} className="report-accent-teal" /></td>
+                      <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.revenue} abbreviated className="report-accent-teal" /></td>
+                      <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.profit} abbreviated className="report-accent-teal" /></td>
                       <td className="px-3 py-2 text-right">
                         <span className={`font-medium ${marginColor}`}>{product.marginPct.toFixed(1)}%</span>
                       </td>
@@ -1214,8 +1294,8 @@ export default function ReportsPage() {
                         <tr key={product.productId} className="border-b border-slate-200/80 dark:border-[#1f2937]/50">
                           <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100 truncate max-w-[160px]" title={product.name}>{product.name}</td>
                           <td className="px-3 py-2 text-right text-slate-900 dark:text-slate-100">{product.qty}</td>
-                          <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.revenue} className="report-accent-teal" /></td>
-                          <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.profit} className="report-accent-teal" /></td>
+                          <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.revenue} abbreviated className="report-accent-teal" /></td>
+                          <td className="px-3 py-2 text-right report-accent-teal"><Money value={product.profit} abbreviated className="report-accent-teal" /></td>
                           <td className="px-3 py-2 text-right">
                             <span className={`font-medium ${marginColor}`}>{product.marginPct.toFixed(1)}%</span>
                           </td>
@@ -1258,7 +1338,7 @@ export default function ReportsPage() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
               <XAxis dataKey="date" stroke={chartAxisStroke} fontSize={12} />
-              <YAxis stroke={chartAxisStroke} fontSize={12} tickFormatter={(value) => formatUGX(value)} />
+              <YAxis stroke={chartAxisStroke} fontSize={12} tickFormatter={(value) => formatAmountShort(value)} />
               <Tooltip
                 contentStyle={chartTooltipStyle}
                 content={({ active, payload, label }) => {
@@ -1298,12 +1378,12 @@ export default function ReportsPage() {
           Break-even Tracker
         </h3>
         <p className="text-sm report-muted mb-3">
-          Fixed costs (Rent, Labour, Utility, Maintenance) this period: <Money value={periodMetrics.fixedCosts} className="font-medium" />
+          Fixed costs (Rent, Labour, Utility, Maintenance) this period: <Money value={periodMetrics.fixedCosts} abbreviated className="font-medium" />
         </p>
         <div className="space-y-3">
           <div>
             <p className="text-sm report-muted mb-1">Break-even revenue threshold</p>
-            <p className="text-xl font-bold text-[#f59e0b]"><Money value={periodMetrics.breakEvenRevenue} className="text-xl font-bold text-[#f59e0b]" /></p>
+            <p className="text-xl font-bold text-[#f59e0b]"><Money value={periodMetrics.breakEvenRevenue} abbreviated className="text-xl font-bold text-[#f59e0b]" /></p>
           </div>
           <div>
             <p className="text-sm report-muted mb-1">Progress (current revenue vs break-even)</p>
@@ -1317,7 +1397,7 @@ export default function ReportsPage() {
               />
             </div>
             <p className="text-xs report-muted mt-1">
-              <Money value={periodMetrics.grossIncome} className="font-medium" /> / <Money value={periodMetrics.breakEvenRevenue} className="font-medium" /> ({periodMetrics.breakEvenProgress.toFixed(0)}%)
+              <Money value={periodMetrics.grossIncome} abbreviated className="font-medium" /> / <Money value={periodMetrics.breakEvenRevenue} abbreviated className="font-medium" /> ({periodMetrics.breakEvenProgress.toFixed(0)}%)
             </p>
           </div>
           <p className="text-sm font-medium text-slate-900 dark:text-slate-100">

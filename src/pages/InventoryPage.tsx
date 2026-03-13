@@ -7,8 +7,12 @@ import { useRestockData, type RestockItem } from '@/hooks/inventory/useRestockDa
 import { RestockPlannerSection } from '@/components/inventory/RestockPlannerSection';
 import { formatUGX } from '@/lib/formatUGX';
 import { Money } from '@/components/Money';
+import { formatUGXShort } from '@/utils/formatUtils';
+import { StatCardXL } from '@/components/cards/StatCardXL';
+import { StatCardMD } from '@/components/cards/StatCardMD';
+import { StatCardSM } from '@/components/cards/StatCardSM';
 import { getTodayInAppTz } from '@/lib/appTimezone';
-import { AlertTriangle, Package, Pencil, Search, X, Star } from 'lucide-react';
+import { AlertTriangle, Pencil, Search, X, Star } from 'lucide-react';
 
 interface ProductDoc {
   id: string;
@@ -389,7 +393,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="page-title">Inventory</h1>
         <Link to="/" className="btn-secondary inline-flex w-fit text-body">
@@ -398,24 +402,39 @@ export default function InventoryPage() {
       </div>
 
       {products.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="card flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-slate-100 p-2">
-              <Package className="h-5 w-5 text-slate-600" />
-            </div>
-            <div>
-              <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Inventory value (cost)</p>
-              <p><Money value={valuationCost} size="large" className="font-bold text-smoky-black" /></p>
-            </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <StatCardXL
+              label="Inventory value (cost)"
+              value={formatUGXShort(valuationCost)}
+              fullValue={formatUGX(valuationCost)}
+            />
           </div>
-          <div className="card flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-emerald-100 p-2">
-              <Package className="h-5 w-5 text-emerald-700" />
-            </div>
-            <div>
-              <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Inventory value (retail)</p>
-              <p><Money value={valuationRetail} size="large" className="font-bold text-emerald-700" /></p>
-            </div>
+          <div className="min-w-0">
+            <StatCardXL
+              label="Inventory value (retail)"
+              value={formatUGXShort(valuationRetail)}
+              fullValue={formatUGX(valuationRetail)}
+            />
+          </div>
+          <div className="min-w-0">
+            <StatCardMD
+              label="Out of stock"
+              value={lowStockTable.filter((r) => r.stock === 0).length.toString()}
+            />
+          </div>
+          <div className="min-w-0">
+            <StatCardMD
+              label="Critical"
+              value={lowStockTable.filter((r) => r.stock > 0 && r.stock <= r.minStockLevel / 2).length.toString()}
+            />
+          </div>
+          <div className="min-w-0">
+            <StatCardSM
+              label="Low stock items"
+              value={lowStockCount.toString()}
+              fullValue={formatUGXShort(totalRestockCost)}
+            />
           </div>
         </div>
       )}
@@ -663,7 +682,7 @@ export default function InventoryPage() {
             )}
             {lowStockCount > 0 && (
               <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-900">
-                <span className="font-semibold">Total restock needed: <Money value={totalRestockCost} className="font-semibold" /></span>
+                <span className="font-semibold">Total restock needed: <Money value={totalRestockCost} abbreviated className="font-semibold" /></span>
                 <span className="text-amber-800"> ({lowStockCount} {lowStockCount === 1 ? 'item' : 'items'})</span>
               </p>
             )}
@@ -819,7 +838,7 @@ export default function InventoryPage() {
                           const row = lowStockTable.find((r) => r.id === p.id);
                           return row ? (
                             <span className="text-xs font-medium text-amber-700" title={`${row.unitsNeeded} units × ${formatUGX(p.costPrice)}`}>
-                              Restock cost: <Money value={row.restockCost} className="text-amber-700 font-medium" />
+                              Restock cost: <Money value={row.restockCost} abbreviated={row.restockCost >= 100_000} className="text-amber-700 font-medium" />
                             </span>
                           ) : null;
                         })()}

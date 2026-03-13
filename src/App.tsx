@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LayoutDashboard, ShoppingCart, BarChart3, Bike, Sun, Moon } from 'lucide-react';
+import { Toaster } from 'sonner';
 import '@/index.css';
 
 const LoginPage = lazyWithRetry(() => import('@/pages/LoginPage'));
@@ -239,6 +240,7 @@ function AppLayout() {
         </div>
       </main>
       {!isLogin && <BottomNav />}
+      <Toaster position="bottom-right" richColors />
     </div>
   );
 }

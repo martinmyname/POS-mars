@@ -5,6 +5,7 @@ import type { CashSessionAuditLogEntry } from '@/lib/data';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useAuth } from '@/context/AuthContext';
 import { formatUGX } from '@/lib/formatUGX';
+import { formatAmountShort } from '@/utils/formatUtils';
 import { Money } from '@/components/Money';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC, getCurrentTimeAppTz } from '@/lib/appTimezone';
 import { getSettings } from '@/lib/settings';
@@ -914,7 +915,7 @@ export default function CashManagementPage() {
                 <BarChart data={trendsData} margin={{ top: 8, right: 8, left: 8, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="dateLabel" stroke="#64748b" fontSize={11} />
-                  <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => formatUGX(v)} />
+                  <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => formatAmountShort(v)} />
                   <Tooltip
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;

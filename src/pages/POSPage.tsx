@@ -10,6 +10,7 @@ import { Bike, Package } from 'lucide-react';
 import { CashOpenPromptModal } from '@/components/CashOpenPromptModal';
 import type { OrderItem, PaymentMethod, PaymentSplit, OrderChannel } from '@/types';
 import { CHANNEL_OPTIONS, DEFAULT_ORDER_CHANNEL } from '@/lib/orderConstants';
+import { toast } from 'sonner';
 
 interface CartLine {
   productId: string;
@@ -121,7 +122,9 @@ export default function POSPage() {
     const available = product ? Math.max(0, product.stock - (cart.find((l) => l.productId === id)?.qty ?? 0)) : 0;
     const toAdd = Math.min(qty, available);
     if (toAdd <= 0) {
-      setMessage(product ? 'Not enough stock.' : 'Product not found.');
+      const text = product ? 'Not enough stock.' : 'Product not found.';
+      setMessage(text);
+      toast.error(text);
       setTimeout(() => setMessage(null), 2000);
       return;
     }
@@ -304,38 +307,54 @@ export default function POSPage() {
     for (const l of cart) {
       const p = products.find((x) => x.id === l.productId);
       if (p && l.qty > p.stock) {
-        setMessage(`Not enough stock for "${l.name}". Available: ${p.stock}.`);
+        const text = `Not enough stock for "${l.name}". Available: ${p.stock}.`;
+        setMessage(text);
+        toast.error(text);
         return;
       }
     }
     if (isDeposit && useSplitPayment) {
-      setMessage('Deposit orders cannot use split payments.');
+      const text = 'Deposit orders cannot use split payments.';
+      setMessage(text);
+      toast.error(text);
       return;
     }
     if (useSplitPayment && !splitOk) {
-      setMessage('Split total must equal order total.');
+      const text = 'Split total must equal order total.';
+      setMessage(text);
+      toast.error(text);
       return;
     }
     if (sendForDelivery && (!deliveryCustomerName.trim() || !deliveryPhone.trim() || !deliveryAddress.trim())) {
-      setMessage('Fill customer name, phone and address for delivery.');
+      const text = 'Fill customer name, phone and address for delivery.';
+      setMessage(text);
+      toast.error(text);
       return;
     }
     if (isDeposit && (!depositCustomerName.trim() || !depositCustomerPhone.trim())) {
-      setMessage('Fill customer name and phone for deposit.');
+      const text = 'Fill customer name and phone for deposit.';
+      setMessage(text);
+      toast.error(text);
       return;
     }
     if (scheduleForLater && !scheduledForDate) {
-      setMessage('Select a date for scheduled order.');
+      const text = 'Select a date for scheduled order.';
+      setMessage(text);
+      toast.error(text);
       return;
     }
     if (isDeposit) {
       if (depositAmountError) {
-        setMessage('Please fix deposit amount error before placing order.');
+        const text = 'Please fix deposit amount error before placing order.';
+        setMessage(text);
+        toast.error(text);
         return;
       }
       const depositAmt = parseFloat(depositAmount.replace(/,/g, ''));
       if (Number.isNaN(depositAmt) || depositAmt <= 0 || depositAmt >= subtotal) {
-        setMessage('Enter a valid deposit amount (must be less than total).');
+        const text = 'Enter a valid deposit amount (must be less than total).';
+        setMessage(text);
+        toast.error(text);
         return;
       }
     }
@@ -379,7 +398,7 @@ export default function POSPage() {
           unitPrice: l.sellingPrice,
           totalPrice: l.sellingPrice * l.qty,
         }));
-        
+
         await layawaysApi.insert({
           id: layawayId,
           orderId,
@@ -393,7 +412,10 @@ export default function POSPage() {
           createdAt: now,
         });
 
-        // Create order with deposit status
+        // Create order for the layaway deposit.
+        // Note: we intentionally set grossProfit to 0 here so that
+        // layaway profits are only recognised once the balance is
+        // fully paid and items have been taken.
         const orderPayload = {
           id: orderId,
           orderNumber,
@@ -404,7 +426,7 @@ export default function POSPage() {
           ...(scheduledFor && { scheduledFor }),
           items,
           total: subtotal,
-          grossProfit,
+          grossProfit: 0,
           paymentMethod: paymentMethod, // Use selected payment method for deposit
           depositAmount: depositAmt,
           numberOfDeposits: 1,
@@ -413,7 +435,9 @@ export default function POSPage() {
         await ordersApi.insert(orderPayload);
 
         // Don't reduce stock for layaways - items are held, not sold yet
-        setMessage(`Deposit of ${formatUGX(depositAmt)} recorded. Remaining: ${formatUGX(subtotal - depositAmt)}. Items held.`);
+        const text = `Deposit of ${formatUGX(depositAmt)} recorded. Remaining: ${formatUGX(subtotal - depositAmt)}. Items held.`;
+        setMessage(text);
+        toast.success(text);
       } else {
         // Regular order
         const orderPayload = {
@@ -437,13 +461,13 @@ export default function POSPage() {
         // Reduce stock for regular orders
         for (const line of cart) {
           const doc = await productsApi.getById(line.productId);
-          if (doc) {
-            const currentStock = doc.stock != null ? Number(doc.stock) : 0;
-            if (!Number.isNaN(currentStock)) {
-              const newStock = currentStock - line.qty;
-              await productsApi.update(line.productId, { stock: Math.max(0, Math.round(newStock)) });
-            }
+        if (doc) {
+          const currentStock = doc.stock != null ? Number(doc.stock) : 0;
+          if (!Number.isNaN(currentStock)) {
+            const newStock = currentStock - line.qty;
+            await productsApi.update(line.productId, { stock: Math.max(0, Math.round(newStock)) });
           }
+        }
         }
 
         const selectedPaymentOption = PAYMENT_OPTIONS.find((o) => o.value === paymentMethod);
@@ -556,10 +580,17 @@ export default function POSPage() {
       setScheduleForLater(false);
       setScheduledForDate('');
       if (!isDeposit) {
-        setMessage('Order placed successfully.' + (sendForDelivery ? ' Delivery created.' : '') + ' Print receipt below.');
+        const text =
+          'Order placed successfully.' +
+          (sendForDelivery ? ' Delivery created.' : '') +
+          ' Print receipt below.';
+        setMessage(text);
+        toast.success(text);
       }
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Failed to place order');
+      const text = e instanceof Error ? e.message : 'Failed to place order';
+      setMessage(text);
+      toast.error(text);
     } finally {
       setPlacing(false);
     }
@@ -674,23 +705,35 @@ export default function POSPage() {
                     const productStock = products.find((p) => p.id === l.productId)?.stock ?? 0;
                     const atMaxStock = l.qty >= productStock;
                     return (
-                    <li key={l.productId} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                    <li
+                      key={l.productId}
+                      className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
                       <div className="flex-1 min-w-0">
                         <span className="block font-medium text-smoky-black">{l.name}</span>
-                        <span className="text-xs text-slate-500">
+                        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-slate-600">
                           {l.originalPrice > l.sellingPrice ? (
                             <>
-                              <span className="line-through"><Money value={l.originalPrice} className="line-through" /></span>
-                              <span className="ml-1 text-emerald-600 font-medium"><Money value={l.sellingPrice} className="text-emerald-600 font-medium" /></span>
+                              <Money
+                                value={l.originalPrice}
+                                size="small"
+                                className="line-through text-slate-400 whitespace-nowrap"
+                              />
+                              <Money
+                                value={l.sellingPrice}
+                                size="small"
+                                className="text-emerald-700 font-semibold whitespace-nowrap"
+                              />
                             </>
                           ) : (
-                            <Money value={l.sellingPrice} className="text-slate-500" />
+                            <Money value={l.sellingPrice} size="small" className="text-slate-700 whitespace-nowrap" />
                           )}
-                          {' × '}
-                          {l.qty}
-                        </span>
+                          <span className="text-xs text-slate-500 whitespace-nowrap">
+                            × {l.qty}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-3">
                         <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white">
                           <button
                             type="button"
@@ -800,9 +843,12 @@ export default function POSPage() {
                               : 'border-slate-300 bg-white text-slate-700 hover:border-tufts-blue hover:bg-tufts-blue/5'
                           }`}
                         >
-                          <img 
-                            src={option.image} 
+                          <img
+                            src={option.image}
                             alt={option.label}
+                            loading="lazy"
+                            width={40}
+                            height={40}
                             className={`h-10 w-auto object-contain ${isSelected && option.value === 'cash' ? 'brightness-0 invert' : ''}`}
                             style={isSelected && option.value !== 'cash' ? { filter: 'brightness(0) invert(1)' } : {}}
                           />

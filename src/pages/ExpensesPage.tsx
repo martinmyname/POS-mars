@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { useExpenses, expensesApi, generateId } from '@/hooks/useData';
 import { useExpenseMetrics } from '@/hooks/expenses/useExpenseMetrics';
 import { Money } from '@/components/Money';
+import { formatUGX, formatUGXShort } from '@/utils/formatUtils';
+import { StatCardXL } from '@/components/cards/StatCardXL';
+import { StatCardMD } from '@/components/cards/StatCardMD';
+import { StatCardSM } from '@/components/cards/StatCardSM';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { format } from 'date-fns';
 import { EXPENSE_PURPOSE_OPTIONS, PURPOSE_COLORS, UNCATEGORIZED_LABEL } from '@/lib/expenseConstants';
@@ -179,59 +183,69 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="page-title">Expenses</h1>
-        <Link to="/" className="btn-secondary inline-flex w-fit text-sm">← Dashboard</Link>
+        <Link to="/" className="btn-secondary inline-flex w-fit text-sm">
+          ← Dashboard
+        </Link>
       </div>
 
-      {/* Task 1 — Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="card stat-card p-4 min-w-0">
-          <div className="flex items-center gap-2 text-red-600">
-            <span aria-hidden>📅</span>
-            <span className="font-sans text-headline font-semibold truncate">Today&apos;s Expenses</span>
-          </div>
-          <p className="mt-1 break-all"><Money value={metrics.todayTotal} size="large" className="font-bold text-red-600" /></p>
-          <p className="text-footnote text-slate-500">
-            {metrics.todayCount === 0 ? 'None recorded yet' : `${metrics.todayCount} entries`}
-          </p>
+      {/* Summary cards — Today, Month, Operating, Restock */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <StatCardXL
+            label="Today’s expenses"
+            value={formatUGXShort(metrics.todayTotal)}
+            fullValue={formatUGX(metrics.todayTotal)}
+            sub={
+              metrics.todayCount === 0
+                ? 'None recorded yet'
+                : `${metrics.todayCount} entries`
+            }
+          />
         </div>
-        <div className="card stat-card p-4 min-w-0">
-          <div className="flex items-center gap-2 text-amber-600">
-            <span aria-hidden>📊</span>
-            <span className="font-sans text-headline font-semibold truncate">This Month Total</span>
-          </div>
-          <p className="mt-1 break-all"><Money value={metrics.monthTotal} size="large" className="font-bold text-amber-600" /></p>
-          <p className="text-footnote text-slate-500">
-            {metrics.weekOverWeekChange != null
-              ? `${metrics.weekOverWeekChange >= 0 ? '+' : ''}${(metrics.weekOverWeekChange * 100).toFixed(1)}% vs last week`
-              : `${metrics.monthCount} entries this month`}
-          </p>
+        <div className="min-w-0">
+          <StatCardXL
+            label="This month total"
+            value={formatUGXShort(metrics.monthTotal)}
+            fullValue={formatUGX(metrics.monthTotal)}
+            sub={
+              metrics.weekOverWeekChange != null
+                ? `${metrics.weekOverWeekChange >= 0 ? '+' : ''}${(
+                    metrics.weekOverWeekChange * 100
+                  ).toFixed(1)}% vs last week`
+                : `${metrics.monthCount} entries this month`
+            }
+          />
         </div>
-        <div className="card stat-card p-4 min-w-0">
-          <div className="flex items-center gap-2 text-blue-600">
-            <span aria-hidden>⚙️</span>
-            <span className="font-sans text-headline font-semibold truncate">Operating (month)</span>
-          </div>
-          <p className="mt-1 break-all"><Money value={metrics.operatingExpenses} size="large" className="font-bold text-blue-600" /></p>
-          <p className="text-footnote text-slate-500">Excl. stock/restock · counts toward net profit</p>
+        <div className="min-w-0">
+          <StatCardMD
+            label="Operating (month)"
+            value={formatUGXShort(metrics.operatingExpenses)}
+            fullValue={formatUGX(metrics.operatingExpenses)}
+            sub="Excl. stock · counts toward net profit"
+          />
         </div>
-        <div className="card stat-card p-4 min-w-0">
-          <div className="flex items-center gap-2 text-green-600">
-            <span aria-hidden>📦</span>
-            <span className="font-sans text-headline font-semibold truncate">Restock / Stock (month)</span>
-          </div>
-          <p className="mt-1 break-all"><Money value={metrics.restockExpenses} size="large" className="font-bold text-green-600" /></p>
-          <p className="text-footnote text-slate-500">Not deducted from net profit</p>
+        <div className="min-w-0">
+          <StatCardMD
+            label="Restock / Stock (month)"
+            value={formatUGXShort(metrics.restockExpenses)}
+            fullValue={formatUGX(metrics.restockExpenses)}
+            sub="Not deducted from net profit"
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5 lg:gap-6">
         {/* Left column: Form + Spending by Purpose + Quick Stats */}
-        <div className="space-y-6">
-          <section className="card p-5">
-            <h2 className="mb-4 font-sans text-title3 font-semibold text-smoky-black">Add expense</h2>
+        <div className="space-y-5 sm:space-y-6">
+          <section className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-sans text-[15px] font-semibold text-primary">
+                Add expense
+              </h2>
+            </div>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div>
                 <label htmlFor="expense-date" className="mb-1 block text-caption2 font-semibold uppercase tracking-apple-wider text-slate-700">Date</label>
@@ -309,8 +323,12 @@ export default function ExpensesPage() {
           </section>
 
           {/* Task 2 — Spending by Purpose */}
-          <section className="card p-5">
-            <h2 className="mb-3 font-sans text-title3 font-semibold text-smoky-black">Spending by Purpose</h2>
+          <section className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-sans text-[15px] font-semibold text-primary">
+                Spending by purpose
+              </h2>
+            </div>
             <div className="mb-3 flex gap-1 rounded-lg bg-slate-100 p-1">
               {LIST_PERIODS.map((p) => (
                 <button
@@ -354,7 +372,7 @@ export default function ExpensesPage() {
                           points={points}
                         />
                       </svg>
-                      <span className="ml-auto"><Money value={row.total} size="body" className="font-medium" /></span>
+                      <span className="ml-auto"><Money value={row.total} abbreviated size="body" className="font-medium" /></span>
                       <span className="text-caption2 text-slate-500">{(pct).toFixed(1)}%</span>
                       <div className="w-full overflow-hidden rounded-full bg-slate-100" style={{ height: 4 }}>
                         <div
@@ -370,35 +388,39 @@ export default function ExpensesPage() {
           </section>
 
           {/* Task 3 — Quick Stats */}
-          <section className="card p-5">
-            <h2 className="mb-3 font-sans text-title3 font-semibold text-smoky-black">This Month — Quick Stats</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Avg per day</p>
-                <p className="mt-1"><Money value={Math.round(metrics.avgPerDay)} size="medium" className="font-bold" /></p>
-                <p className="text-footnote text-slate-500">daily average</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Biggest expense</p>
-                <p className="mt-1">{metrics.biggestExpense ? <Money value={metrics.biggestExpense.amount} size="medium" className="font-bold" /> : '—'}</p>
-                <p className="truncate text-footnote text-slate-500">
-                  {metrics.biggestExpense?.itemBought ?? '—'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Top purpose</p>
-                <p className="text-subhead font-bold">{metrics.topPurpose?.purpose ?? '—'}</p>
-                <p className="text-footnote text-slate-500">
-                  {metrics.topPurpose ? <Money value={metrics.topPurpose.total} size="body" /> : '—'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Top spender</p>
-                <p className="text-subhead font-bold">{metrics.topPayer?.who ?? '—'}</p>
-                <p className="text-footnote text-slate-500">
-                  {metrics.topPayer ? <Money value={metrics.topPayer.total} size="body" /> : '—'}
-                </p>
-              </div>
+          <section className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-sans text-[15px] font-semibold text-primary">
+                This month — quick stats
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <StatCardSM
+                label="Avg per day"
+                value={formatUGXShort(Math.round(metrics.avgPerDay))}
+                fullValue={formatUGX(Math.round(metrics.avgPerDay))}
+              />
+              <StatCardSM
+                label="Biggest expense"
+                value={
+                  metrics.biggestExpense
+                    ? formatUGXShort(metrics.biggestExpense.amount)
+                    : '—'
+                }
+                fullValue={
+                  metrics.biggestExpense
+                    ? formatUGX(metrics.biggestExpense.amount)
+                    : undefined
+                }
+              />
+              <StatCardSM
+                label="Top purpose"
+                value={metrics.topPurpose?.purpose ?? '—'}
+              />
+              <StatCardSM
+                label="Top spender"
+                value={metrics.topPayer?.who ?? '—'}
+              />
             </div>
           </section>
         </div>
@@ -458,7 +480,7 @@ export default function ExpensesPage() {
 
           {/* Task 5e — List header */}
           <div className="flex justify-end px-5 py-2 text-right text-footnote text-slate-500">
-            {filteredList.length} entries · <Money value={visibleTotal} size="body" />
+            {filteredList.length} entries · <Money value={visibleTotal} abbreviated size="body" />
           </div>
 
           <div className="max-h-[560px] overflow-y-auto">

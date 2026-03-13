@@ -4,7 +4,7 @@ import { useProducts, useOrders, useExpenses } from '@/hooks/useData';
 import { useDayBoundaryTick } from '@/hooks/useDayBoundaryTick';
 import { useLowStockMetrics } from '@/hooks/useLowStockMetrics';
 import { useCustomerSummary } from '@/hooks/useCustomerSummary';
-import { formatUGX } from '@/lib/formatUGX';
+import { formatUGX, formatUGXShort } from '@/utils/formatUtils';
 import { Money } from '@/components/Money';
 import { FIXED_COST_PURPOSES } from '@/lib/expenseConstants';
 import { getTodayInAppTz, getStartOfDayAppTzAsUTC, getEndOfDayAppTzAsUTC, addDaysToDateStr } from '@/lib/appTimezone';
@@ -12,10 +12,6 @@ import { getDailyGoals, getEffectiveDailyGoals } from '@/lib/dailyGoalsStorage';
 import { format, parseISO } from 'date-fns';
 import {
   ShoppingCart,
-  Package,
-  TrendingUp,
-  TrendingDown,
-  Receipt,
   RotateCcw,
   Wallet,
   Archive,
@@ -30,6 +26,8 @@ import {
   Lock,
   CalendarClock,
 } from 'lucide-react';
+import { StatCardXL } from '@/components/cards/StatCardXL';
+import { GoalCard } from '@/components/cards/GoalCard';
 
 export default function DashboardPage() {
   const { data: productsList, loading: productsLoading } = useProducts({ realtime: true });
@@ -43,7 +41,7 @@ export default function DashboardPage() {
   const tomorrow = getEndOfDayAppTzAsUTC(todayStr).toISOString();
 
   const CANCELLED = 'cancelled';
-  const { productCount, lowStockCount, ordersToday, revenueToday, profitToday, expensesToday, scheduledDueToday, scheduledUpcoming, ordersTodayPct, revenueTodayPct, profitTodayPct, sameDayLastWeekLabel, effectiveGoals } = useMemo(() => {
+  const { productCount, lowStockCount, ordersToday, revenueToday, profitToday, scheduledDueToday, scheduledUpcoming, ordersTodayPct, revenueTodayPct, profitTodayPct, sameDayLastWeekLabel, effectiveGoals, todayOrdersDetailed } = useMemo(() => {
     const productCount = productsList.length;
     const lowStockCount = productsList.filter((p) => p.stock <= p.minStockLevel).length;
     const todayOrders = ordersList.filter((o) => (o.status ?? '') !== CANCELLED && o.createdAt >= today && o.createdAt < tomorrow);
@@ -78,8 +76,6 @@ export default function DashboardPage() {
       }, 0);
       return sum + lineProfit;
     }, 0);
-    const todayExp = expensesList.filter((e) => e.date.slice(0, 10) === todayStr);
-    const expensesToday = todayExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const scheduled = ordersList.filter((o) => o.scheduledFor);
     const dueToday = scheduled.filter((o) => o.scheduledFor === todayStr);
     const upcoming = scheduled
@@ -122,6 +118,17 @@ export default function DashboardPage() {
     const revenueTodayPct = pctChange(revenueToday, revenueSameDayLastWeek);
     const profitTodayPct = pctChange(profitToday, profitSameDayLastWeek);
     const sameDayLastWeekLabel = format(parseISO(sameDayLastWeekStr), 'EEE');
+    const todayOrdersDetailed = todayOrders
+      .slice()
+      .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1))
+      .map((o) => ({
+        id: o.id,
+        createdAt: o.createdAt,
+        orderNumber: o.orderNumber,
+        total: o.total,
+        channel: o.channel,
+        status: o.status,
+      }));
     const effectiveGoals = getEffectiveDailyGoals(getDailyGoals(), { revenue: revenueYesterday, orders: ordersYesterday, profit: profitYesterday });
     return {
       productCount,
@@ -129,7 +136,6 @@ export default function DashboardPage() {
       ordersToday,
       revenueToday,
       profitToday,
-      expensesToday,
       scheduledDueToday,
       scheduledUpcoming,
       ordersTodayPct,
@@ -137,6 +143,7 @@ export default function DashboardPage() {
       profitTodayPct,
       sameDayLastWeekLabel,
       effectiveGoals,
+      todayOrdersDetailed,
     };
   }, [productsList, ordersList, expensesList, today, tomorrow, todayStr]);
 
@@ -170,19 +177,44 @@ export default function DashboardPage() {
     const list: { severity: number; key: string; message: string; link: string; linkLabel: string }[] = [];
     if (breakEvenRevenueToday > 0 && revenueToday < breakEvenRevenueToday) {
       const need = Math.round(breakEvenRevenueToday - revenueToday);
-      list.push({ severity: 4, key: 'break-even', message: `Revenue today is ${formatUGX(revenueToday)} — need ${formatUGX(need)} more to break even.`, link: '/reports/daily', linkLabel: 'View cash flow → Reports' });
+      list.push({ severity: 4, key: 'break-even', message: `Revenue today is ${formatUGXShort(revenueToday)} — need ${formatUGXShort(need)} more to break even.`, link: '/reports/daily', linkLabel: 'View cash flow → Reports' });
     }
     if (atRiskCount > 0) {
       list.push({ severity: 3, key: 'at-risk', message: `${atRiskCount} customer${atRiskCount === 1 ? '' : 's'} haven't ordered in 30+ days.`, link: '/reports/daily', linkLabel: 'View customer analytics → Reports' });
     }
     if (lowStockMetricCount > 0) {
-      list.push({ severity: 2, key: 'low-stock', message: `${lowStockMetricCount} item${lowStockMetricCount === 1 ? '' : 's'} low on stock. Restock cost: ${formatUGX(totalRestockCost)}`, link: '/inventory', linkLabel: 'View inventory' });
+      list.push({ severity: 2, key: 'low-stock', message: `${lowStockMetricCount} item${lowStockMetricCount === 1 ? '' : 's'} low on stock. Restock cost: ${formatUGXShort(totalRestockCost)}`, link: '/inventory', linkLabel: 'View inventory' });
     }
     if (deadStockCount > 0) {
       list.push({ severity: 1, key: 'dead-stock', message: `${deadStockCount} product${deadStockCount === 1 ? '' : 's'} with no sales in 60+ days.`, link: '/reports/daily', linkLabel: 'View inventory health → Reports' });
     }
     return list.sort((a, b) => b.severity - a.severity).slice(0, 4);
   }, [breakEvenRevenueToday, revenueToday, atRiskCount, lowStockMetricCount, totalRestockCost, deadStockCount]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    // #region agent log
+    fetch('http://127.0.0.1:7631/ingest/8b5419ae-98f6-4740-95d1-ee95744ee6a4', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': 'ec5fc7',
+      },
+      body: JSON.stringify({
+        sessionId: 'ec5fc7',
+        runId: 'pre-fix',
+        hypothesisId: 'H1',
+        location: 'DashboardPage.tsx:viewport',
+        message: 'Viewport vs document scroll width on dashboard',
+        data: {
+          innerWidth: window.innerWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
+  }, []);
 
   // One-time browser notification when there are orders due today
   useEffect(() => {
@@ -236,240 +268,95 @@ export default function DashboardPage() {
         <p className="page-subtitle">Overview of your store today</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-          {productCount > 0 ? (
-            <Link to="/inventory" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Products</p>
-                </div>
-                <p className="text-title3 font-bold text-smoky-black">{productCount}</p>
-              </div>
-            </Link>
-          ) : (
-            <div className="card stat-card p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Products</p>
-                </div>
-                <p className="text-title3 font-bold text-smoky-black">{productCount}</p>
-              </div>
-            </div>
-          )}
-          {ordersToday > 0 ? (
-            <Link to="/reports/daily" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Orders today</p>
-                </div>
-                <p className="text-title3 font-bold text-smoky-black">{ordersToday}</p>
-                {ordersTodayPct !== 0 && (
-                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
-                    {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
-                    {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
-                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                  </p>
-                )}
-              </div>
-            </Link>
-          ) : (
-            <div className="card stat-card p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 shrink-0" />
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Orders today</p>
-                </div>
-                <p className="text-title3 font-bold text-smoky-black">{ordersToday}</p>
-                {ordersTodayPct !== 0 && (
-                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${ordersTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {ordersTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
-                    {ordersTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
-                    {ordersTodayPct > 0 ? '+' : ''}{ordersTodayPct.toFixed(1)}%
-                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          {revenueToday > 0 ? (
-            <Link to="/reports/daily" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-emerald-100 p-2 shrink-0">
-                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
-                  </div>
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Revenue today</p>
-                </div>
-                <p className="break-all"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
-                {revenueTodayPct !== 0 && (
-                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
-                    {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
-                    {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
-                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                  </p>
-                )}
-              </div>
-            </Link>
-          ) : (
-            <div className="card stat-card p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-emerald-100 p-2 shrink-0">
-                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
-                  </div>
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Revenue today</p>
-                </div>
-                <p className="break-all"><Money value={revenueToday} size="large" className="font-bold text-emerald-700" /></p>
-                {revenueTodayPct !== 0 && (
-                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${revenueTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {revenueTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
-                    {revenueTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
-                    {revenueTodayPct > 0 ? '+' : ''}{revenueTodayPct.toFixed(1)}%
-                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          {profitToday !== 0 ? (
-            <Link to="/reports/daily" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-teal-100 p-2 shrink-0">
-                    <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
-                  </div>
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Gross profit today</p>
-                </div>
-                <p className="break-all"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
-                {profitTodayPct !== 0 && (
-                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {profitTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
-                    {profitTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
-                    {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
-                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                  </p>
-                )}
-              </div>
-            </Link>
-          ) : (
-            <div className="card stat-card p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-teal-100 p-2 shrink-0">
-                    <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-teal-700" />
-                  </div>
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Gross profit today</p>
-                </div>
-                <p className="break-all"><Money value={profitToday} size="large" className="font-bold text-teal-700" /></p>
-                {profitTodayPct !== 0 && (
-                  <p className={`flex items-center gap-0.5 text-caption2 truncate ${profitTodayPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {profitTodayPct > 0 && <TrendingUp className="h-3 w-3 shrink-0" />}
-                    {profitTodayPct < 0 && <TrendingDown className="h-3 w-3 shrink-0" />}
-                    {profitTodayPct > 0 ? '+' : ''}{profitTodayPct.toFixed(1)}%
-                    <span className="text-slate-500"> vs last {sameDayLastWeekLabel}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          {expensesToday > 0 ? (
-            <Link to="/expenses" className="card-hover card stat-card block p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-red-50 p-2 shrink-0">
-                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
-                  </div>
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Expenses today</p>
-                </div>
-                <p className="break-all"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
-              </div>
-            </Link>
-          ) : (
-            <div className="card stat-card p-4 sm:p-5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-lg bg-red-50 p-2 shrink-0">
-                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
-                  </div>
-                  <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500 truncate">Expenses today</p>
-                </div>
-                <p className="break-all"><Money value={expensesToday} size="large" className="font-bold text-red-600" /></p>
-              </div>
-            </div>
-          )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <StatCardXL
+            label="Products"
+            value={productCount.toString()}
+            role="neutral"
+          />
         </div>
+        <Link to="/reports/daily" className="min-w-0">
+          <StatCardXL
+            label="Orders today"
+            value={ordersToday.toString()}
+            role="orders"
+            delta={
+              ordersTodayPct !== 0
+                ? `${ordersTodayPct > 0 ? '+' : ''}${ordersTodayPct.toFixed(1)}%`
+                : undefined
+            }
+            deltaUp={ordersTodayPct >= 0}
+            sub={ordersTodayPct !== 0 ? `vs last ${sameDayLastWeekLabel}` : undefined}
+          />
+        </Link>
+        <Link to="/reports/daily" className="min-w-0">
+          <StatCardXL
+            label="Revenue today"
+            value={formatUGXShort(revenueToday)}
+            fullValue={formatUGX(revenueToday)}
+            role="revenue"
+            delta={
+              revenueTodayPct !== 0
+                ? `${revenueTodayPct > 0 ? '+' : ''}${revenueTodayPct.toFixed(1)}%`
+                : undefined
+            }
+            deltaUp={revenueTodayPct >= 0}
+            sub={revenueTodayPct !== 0 ? `vs last ${sameDayLastWeekLabel}` : undefined}
+          />
+        </Link>
+        <Link to="/reports/daily" className="min-w-0">
+          <StatCardXL
+            label="Gross profit today"
+            value={formatUGXShort(profitToday)}
+            fullValue={formatUGX(profitToday)}
+            role="profit"
+            delta={
+              profitTodayPct !== 0
+                ? `${profitTodayPct > 0 ? '+' : ''}${profitTodayPct.toFixed(1)}%`
+                : undefined
+            }
+            deltaUp={profitTodayPct >= 0}
+            sub={profitTodayPct !== 0 ? `vs last ${sameDayLastWeekLabel}` : undefined}
+          />
+        </Link>
+      </div>
 
-      {/* Today's Goals — general goal, or yesterday's actual if higher (see Reports to edit base goals) */}
-      <div className="card p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-sans text-title3 font-semibold text-smoky-black">Today&apos;s Goals</h2>
+      {/* Today's Goals — stacked GoalCards */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-sans text-[15px] font-semibold text-primary">
+            Today&apos;s Goals
+          </h2>
           <Link to="/reports/daily" className="text-footnote font-medium text-tufts-blue hover:underline">
             Edit goals → Reports
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Revenue</p>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${effectiveGoals.revenueTarget > 0 ? Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100) : 0}%` }}
-              />
-            </div>
-            <p className="mt-0.5 text-footnote text-slate-500">
-              <Money value={revenueToday} size="small" className="text-slate-500" /> / <Money value={effectiveGoals.revenueTarget} size="small" className="text-slate-700" />
-              {effectiveGoals.revenueTarget > 0 && (
-                <span className="ml-1 font-medium text-slate-700">
-                  ({Math.min(100, (revenueToday / effectiveGoals.revenueTarget) * 100).toFixed(0)}%)
-                </span>
-              )}
-            </p>
-          </div>
-          <div>
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Orders</p>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${effectiveGoals.ordersTarget > 0 ? Math.min(100, (ordersToday / effectiveGoals.ordersTarget) * 100) : 0}%` }}
-              />
-            </div>
-            <p className="mt-0.5 text-footnote text-slate-500">
-              {ordersToday} / {effectiveGoals.ordersTarget} orders
-              {effectiveGoals.ordersTarget > 0 && (
-                <span className="ml-1 font-medium text-slate-700">
-                  ({Math.min(100, (ordersToday / effectiveGoals.ordersTarget) * 100).toFixed(0)}%)
-                </span>
-              )}
-            </p>
-          </div>
-          <div>
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-500">Gross Profit</p>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${effectiveGoals.profitTarget > 0 ? Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100) : 0}%` }}
-              />
-            </div>
-            <p className="mt-0.5 text-footnote text-slate-500">
-              <Money value={profitToday} size="small" className="text-slate-500" /> / <Money value={effectiveGoals.profitTarget} size="small" className="text-slate-700" />
-              {effectiveGoals.profitTarget > 0 && (
-                <span className="ml-1 font-medium text-slate-700">
-                  ({Math.min(100, (profitToday / effectiveGoals.profitTarget) * 100).toFixed(0)}%)
-                </span>
-              )}
-            </p>
-          </div>
+        <div className="flex flex-col gap-2">
+          <GoalCard
+            label="Revenue"
+            current={revenueToday}
+            target={effectiveGoals.revenueTarget}
+          />
+          <GoalCard
+            label="Orders"
+            current={ordersToday}
+            target={effectiveGoals.ordersTarget}
+            formatValue={(n) => n.toString()}
+          />
+          <GoalCard
+            label="Gross profit"
+            current={profitToday}
+            target={effectiveGoals.profitTarget}
+          />
         </div>
       </div>
 
       {alerts.length > 0 && (
-        <div className="card col-span-full space-y-2 p-4 sm:p-5">
-          <h2 className="font-sans text-title3 font-semibold text-smoky-black">Alerts</h2>
+        <div className="card col-span-full space-y-2 p-4">
+          <h2 className="font-sans text-[15px] font-semibold text-primary">
+            Alerts
+          </h2>
           <ul className="space-y-2">
             {alerts.map((a) => (
               <li key={a.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body">
@@ -504,11 +391,13 @@ export default function DashboardPage() {
             </Link>
           )}
           {(scheduledDueToday.length > 0 || scheduledUpcoming.length > 0) && (
-            <Link to="/deliveries" className="col-span-full card-hover card block p-4 sm:p-5">
-              <h2 className="mb-3 flex items-center gap-2 font-sans text-title3 font-semibold text-smoky-black">
-                <CalendarClock className="h-5 w-5 text-tufts-blue" />
-                Scheduled orders
-              </h2>
+            <Link to="/deliveries" className="col-span-full card-hover card block p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="flex items-center gap-2 font-sans text-[15px] font-semibold text-primary">
+                  <CalendarClock className="h-5 w-5 text-tufts-blue" />
+                  Scheduled orders
+                </h2>
+              </div>
               {scheduledDueToday.length > 0 && (
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
                   <p className="mb-2 text-subhead font-semibold text-amber-900">Due today – reminder</p>
@@ -532,7 +421,7 @@ export default function DashboardPage() {
                         <span>
                           Order #{o.orderNumber ?? o.id.slice(-8)} · {format(parseISO(o.scheduledFor), 'EEE, d MMM')}
                         </span>
-                        <span className="font-medium text-slate-800"><Money value={o.total} className="font-medium text-slate-800" /></span>
+                        <span className="font-medium text-slate-800"><Money value={o.total} abbreviated={Number(o.total) >= 100_000} className="font-medium text-slate-800" /></span>
                       </li>
                     ))}
                   </ul>
@@ -566,6 +455,61 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* Today's orders list */}
+      {todayOrdersDetailed.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-sans text-[15px] font-semibold text-primary">
+              Today&apos;s orders
+            </h2>
+          </div>
+          <div className="report-table-wrap">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground py-2 px-3 text-left">
+                    Time
+                  </th>
+                  <th className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground py-2 px-3 text-left">
+                    Order #
+                  </th>
+                  <th className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground py-2 px-3 text-left">
+                    Channel
+                  </th>
+                  <th className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground py-2 px-3 text-right">
+                    Total
+                  </th>
+                  <th className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground py-2 px-3 text-right">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayOrdersDetailed.slice(0, 15).map((o) => (
+                  <tr key={o.id} className="border-b border-border/50 last:border-0">
+                    <td className="text-[13px] py-2.5 px-3 text-slate-700">
+                      {format(parseISO(o.createdAt), 'HH:mm')}
+                    </td>
+                    <td className="text-[13px] py-2.5 px-3 text-slate-700">
+                      #{o.orderNumber ?? o.id.slice(-6)}
+                    </td>
+                    <td className="text-[13px] py-2.5 px-3 text-slate-700 capitalize">
+                      {o.channel}
+                    </td>
+                    <td className="font-mono text-[13px] tabular-nums py-2.5 px-3 text-right border-b border-border/0">
+                      <Money value={o.total} className="font-medium text-slate-900" />
+                    </td>
+                    <td className="text-[13px] py-2.5 px-3 text-right text-slate-600 capitalize">
+                      {o.status ?? 'paid'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

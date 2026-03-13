@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { formatUGX } from '@/lib/formatUGX';
 import { Money } from '@/components/Money';
 import { format } from 'date-fns';
@@ -62,11 +63,23 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
   ].filter(Boolean);
 
   const receiptText = lines.join('\n');
-  
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
   const copyReceipt = () => {
-    navigator.clipboard.writeText(receiptText).then(() => {
-      alert('Receipt copied to clipboard!');
-    });
+    if (!navigator.clipboard) {
+      setCopyStatus('error');
+      return;
+    }
+    navigator.clipboard
+      .writeText(receiptText)
+      .then(() => {
+        setCopyStatus('success');
+        setTimeout(() => setCopyStatus('idle'), 2500);
+      })
+      .catch(() => {
+        setCopyStatus('error');
+        setTimeout(() => setCopyStatus('idle'), 2500);
+      });
   };
   
   const shareToWhatsApp = () => {
@@ -117,9 +130,9 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
         >
           💬 WhatsApp
         </button>
-        <button 
-          type="button" 
-          onClick={copyReceipt} 
+        <button
+          type="button"
+          onClick={copyReceipt}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-body font-medium text-slate-700 hover:bg-slate-50 touch-target sm:px-4 transition"
         >
           📋 Copy
@@ -131,6 +144,19 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
         >
           💾 Save
         </button>
+        {copyStatus !== 'idle' && (
+          <p
+            className={`mt-2 text-sm ${
+              copyStatus === 'success' ? 'text-emerald-600' : 'text-red-600'
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            {copyStatus === 'success'
+              ? 'Receipt copied to clipboard.'
+              : 'Could not copy receipt. Please try again.'}
+          </p>
+        )}
       </div>
 
       {/* Receipt Paper */}
@@ -138,7 +164,7 @@ export function Receipt({ data, onClose }: { data: ReceiptData; onClose?: () => 
         {/* Header */}
         <header className="receipt-header">
           <div className="receipt-logo-wrapper">
-            <img src="/logo.png" alt="Logo" className="receipt-logo" />
+            <img src="/logo.png" alt="Mars Kitchen Essentials logo" className="receipt-logo" width="64" height="64" />
           </div>
           <h1 className="receipt-business">{businessName}</h1>
           {data.address && (

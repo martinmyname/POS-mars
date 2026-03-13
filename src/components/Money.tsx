@@ -1,7 +1,8 @@
-import { formatUGX } from '@/lib/formatUGX';
+import { formatUGX, formatUGXShort } from '@/utils/formatUtils';
 
 interface MoneyProps {
   value: number;
+  abbreviated?: boolean;
   size?: 'large' | 'medium' | 'body' | 'small';
   className?: string;
 }
@@ -21,10 +22,17 @@ const sizeClasses = {
  * Renders a UGX amount with Apple typography: SF Mono + tabular-nums for aligned columns.
  * Use for all currency display (stat cards, tables, cart totals, etc.).
  */
-export function Money({ value, size = 'body', className = '' }: MoneyProps) {
+export function Money({ value, abbreviated = false, size = 'body', className = '' }: MoneyProps) {
+  const full = formatUGX(value);
+  const display = abbreviated ? formatUGXShort(value) : full;
+
   return (
-    <span data-money className={`${sizeClasses[size]} ${className}`.trim()}>
-      {formatUGX(value)}
+    <span
+      data-money
+      className={`${sizeClasses[size]} ${className}`.trim()}
+      title={abbreviated ? full : undefined}
+    >
+      {display}
     </span>
   );
 }

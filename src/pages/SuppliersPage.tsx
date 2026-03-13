@@ -4,6 +4,10 @@ import { useTheme } from '@/context/ThemeContext';
 import { useSuppliers, useSupplierLedger, suppliersApi, supplierLedgerApi, generateId } from '@/hooks/useData';
 import { formatUGX } from '@/lib/formatUGX';
 import { Money } from '@/components/Money';
+import { formatUGXShort } from '@/utils/formatUtils';
+import { StatCardXL } from '@/components/cards/StatCardXL';
+import { StatCardMD } from '@/components/cards/StatCardMD';
+import { StatCardSM } from '@/components/cards/StatCardSM';
 import { getTodayInAppTz } from '@/lib/appTimezone';
 import { exportToCSV } from '@/utils/exportUtils';
 import {
@@ -335,67 +339,50 @@ export default function SuppliersPage() {
     );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="page-title">Suppliers</h1>
         <Link to="/" className="text-tufts-blue underline">← Dashboard</Link>
       </div>
 
-      {/* Task 1 — 4 summary cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="card stat-card flex items-center gap-4 border-amber-200 bg-amber-50/50 p-4 min-w-0 dark:border-amber-800 dark:bg-amber-950/30">
-          <span className="text-2xl shrink-0" aria-hidden>⚖️</span>
-          <div className="min-w-0">
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400 truncate">Total Owed to Suppliers</p>
-            <p className="break-all"><Money value={totalOwed} size="large" className="font-bold text-amber-800 dark:text-amber-200" /></p>
-            <p className="text-footnote text-slate-500">{suppliersWithBalance} suppliers with open balance</p>
-          </div>
+      {/* Summary cards — Total owed, Overdue, Due soon, Total suppliers */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <StatCardXL
+            label="Total owed to suppliers"
+            value={formatUGXShort(totalOwed)}
+            fullValue={formatUGX(totalOwed)}
+            sub={`${suppliersWithBalance} suppliers with open balance`}
+          />
         </div>
-        <div
-          className={`card flex items-center gap-4 p-4 ${
-            overdueCount > 0
-              ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/30'
-              : 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30'
-          }`}
-        >
-          <span className="text-2xl" aria-hidden>🔴</span>
-          <div>
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Overdue Payments</p>
-            <p className={`text-title3 font-bold ${overdueCount > 0 ? 'text-red-800 dark:text-red-200' : 'text-emerald-800 dark:text-emerald-200'}`}>
-              {overdueCount}
-            </p>
-            <p className="text-footnote text-slate-500">
-              {overdueCount > 0 ? `${overdueCount} past pay-by date` : 'All payments on time'}
-            </p>
-          </div>
+        <div className="min-w-0">
+          <StatCardMD
+            label="Overdue payments"
+            value={overdueCount.toString()}
+            sub={
+              overdueCount > 0
+                ? `${overdueCount} past pay-by date`
+                : 'All payments on time'
+            }
+          />
         </div>
-        <div
-          className={`card flex items-center gap-4 p-4 ${
-            dueWithin7Count > 0
-              ? 'border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30'
-              : 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30'
-          }`}
-        >
-          <span className="text-2xl" aria-hidden>⏰</span>
-          <div>
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Due Within 7 Days</p>
-            <p className={`text-title3 font-bold ${dueWithin7Count > 0 ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}`}>
-              {dueWithin7Count}
-            </p>
-            <p className="text-footnote text-slate-500">
-              {dueWithin7Count > 0 ? 'Act soon to avoid overdue' : 'Nothing due soon'}
-            </p>
-          </div>
+        <div className="min-w-0">
+          <StatCardMD
+            label="Due within 7 days"
+            value={dueWithin7Count.toString()}
+            sub={
+              dueWithin7Count > 0
+                ? 'Act soon to avoid overdue'
+                : 'Nothing due soon'
+            }
+          />
         </div>
-        <div className="card flex items-center gap-4 border-slate-200 bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-          <span className="text-2xl" aria-hidden>🏭</span>
-          <div>
-            <p className="text-caption2 font-semibold uppercase tracking-apple-wider text-slate-600 dark:text-slate-400">Total Suppliers</p>
-            <p className="text-title3 font-bold text-slate-800 dark:text-slate-100">{suppliers.length}</p>
-            <p className="text-footnote text-slate-500">
-              {suppliersWithBalance} active (balance &gt; 0), {settledCount} settled
-            </p>
-          </div>
+        <div className="min-w-0">
+          <StatCardSM
+            label="Total suppliers"
+            value={suppliers.length.toString()}
+            fullValue={`${suppliersWithBalance} active, ${settledCount} settled`}
+          />
         </div>
       </section>
 
@@ -618,7 +605,11 @@ export default function SuppliersPage() {
                     <Sparkline points={lastPoints} owing={owing} />
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${owing ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
-                        <Money value={displayBalance} className={owing ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'} />
+                        <Money
+                          value={displayBalance}
+                          abbreviated={displayBalance >= 100_000}
+                          className={owing ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}
+                        />
                       </p>
                       <span
                         className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
@@ -647,11 +638,11 @@ export default function SuppliersPage() {
                             <>
                               <div className="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Total Credited</p>
-                                <p className="font-semibold text-red-700 dark:text-red-300"><Money value={totalCredited} className="font-semibold text-red-700 dark:text-red-300" /></p>
+                                <p className="font-semibold text-red-700 dark:text-red-300"><Money value={totalCredited} abbreviated className="font-semibold text-red-700 dark:text-red-300" /></p>
                               </div>
                               <div className="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Total Paid</p>
-                                <p className="font-semibold text-emerald-700 dark:text-emerald-300"><Money value={totalPaid} className="font-semibold text-emerald-700 dark:text-emerald-300" /></p>
+                                <p className="font-semibold text-emerald-700 dark:text-emerald-300"><Money value={totalPaid} abbreviated className="font-semibold text-emerald-700 dark:text-emerald-300" /></p>
                               </div>
                               <div className="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Payment Rate</p>
@@ -710,9 +701,9 @@ export default function SuppliersPage() {
                               ))}
                             </div>
                             <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
-                              {bucket30 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> 0–30d: <Money value={bucket30} className="text-slate-600 dark:text-slate-400" /></span>}
-                              {bucket60 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> 31–60d: <Money value={bucket60} className="text-slate-600 dark:text-slate-400" /></span>}
-                              {bucket61 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-red-500" /> 61d+: <Money value={bucket61} className="text-slate-600 dark:text-slate-400" /></span>}
+                              {bucket30 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> 0–30d: <Money value={bucket30} abbreviated className="text-slate-600 dark:text-slate-400" /></span>}
+                              {bucket60 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> 31–60d: <Money value={bucket60} abbreviated className="text-slate-600 dark:text-slate-400" /></span>}
+                              {bucket61 > 0 && <span><span className="inline-block h-2 w-2 rounded-full bg-red-500" /> 61d+: <Money value={bucket61} abbreviated className="text-slate-600 dark:text-slate-400" /></span>}
                             </p>
                           </div>
                         );
